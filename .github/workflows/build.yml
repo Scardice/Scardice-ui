@@ -4,7 +4,7 @@ on:
   push:
 
 env:
-  PROJECT_NAME: "sealdice-ui"
+  PROJECT_NAME: "Scardice-ui"
 
 jobs:
   build:
