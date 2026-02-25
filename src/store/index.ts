@@ -169,13 +169,13 @@ export const useStore = defineStore('main', {
       talkLogs: [
         {
           content:
-            '海豹已就绪。此界面可视为私聊窗口。\n设置中添加 Master 名为 UI:1001\n即可在此界面使用 master 命令！',
+            '余烬已就绪。此界面可视为私聊窗口。\n设置中添加 Master 名为 UI:1001\n即可在此界面使用 master 命令！',
           isSeal: true,
           mode: 'private',
         },
         {
           content:
-            '海豹已就绪。此界面可视为群聊窗口。\n设置中添加 Master 名为 UI:1002\n即可在此界面使用 master 命令！',
+            '余烬已就绪。此界面可视为群聊窗口。\n设置中添加 Master 名为 UI:1002\n即可在此界面使用 master 命令！',
           isSeal: true,
           mode: 'group',
         },

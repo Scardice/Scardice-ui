@@ -103,7 +103,7 @@
             type="error"
             :closable="false"
             style="margin-bottom: 1rem">
-            新版 Chronocat（0.2.x 以上）不再提供 red 协议，故海豹将在未来移除该支持，请尽快迁移。
+            新版 Chronocat（0.2.x 以上）不再提供 red 协议，故余烬将在未来移除该支持，请尽快迁移。
           </el-alert>
           <!-- <el-form-item label="帐号">
             <el-input v-model="i.account"></el-input>
@@ -348,7 +348,7 @@
 
       <el-form-item label="忽略好友请求" :label-width="formLabelWidth">
         <el-checkbox v-model="form.ignoreFriendRequest">{{
-          form.ignoreFriendRequest ? '我会登录官方客户端处理好友请求' : '让海豹帮我按照预设答案处理'
+          form.ignoreFriendRequest ? '我会登录官方客户端处理好友请求' : '让余烬帮我按照预设答案处理'
         }}</el-checkbox>
       </el-form-item>
 
@@ -702,7 +702,7 @@
         :closable="false"
         style="margin-bottom: 1.5rem"
         >该支持功能不完善，所适配的目标 Chronocat 版本为 0.0.54，低于该版本不建议使用。<br />同时，新版
-        Chronocat（0.2.x 以上）不再提供 red 协议，海豹也将在未来移除该支持。</el-alert
+        Chronocat（0.2.x 以上）不再提供 red 协议，余烬也将在未来移除该支持。</el-alert
       >
       <el-alert
         v-if="form.accountType === 10"
@@ -1705,7 +1705,7 @@
           :hollow="activity.hollow">
           <div>{{ activity.content }}</div>
           <div v-if="index === 2 && isTestMode">
-            <div>欢迎体验海豹骰点核心，展示模式下不提供登录功能，请谅解。</div>
+            <div>欢迎体验余烬骰点核心，展示模式下不提供登录功能，请谅解。</div>
             <div>如需测试指令，请移步“指令测试”界面。</div>
             <div>此外，数据会定期自动重置。</div>
             <div>展示版本未必是最新版，建议您下载体验。</div>
@@ -1809,7 +1809,7 @@
                 <li>密码错误 (注意检查大小写)</li>
                 <li>二维码获取失败 (日志中会有“二维码错误”)</li>
                 <li>扫二维码超时过期 (约 2 分钟)</li>
-                <li>海豹发生了故障</li>
+                <li>余烬发生了故障</li>
               </ul>
               <div>具体请参见日志。如果不出现“确定”按钮，请直接刷新。</div>
               <div>若删除账号重复尝试无果，请回报 bug 给开发者。</div>

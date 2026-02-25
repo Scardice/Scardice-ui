@@ -24,7 +24,7 @@
             :src="i.isSeal ? imgSeal : imgMe" />
         </div>
         <div class="right">
-          <div class="name">{{ i.isSeal ? '海豹核心' : i.name }}</div>
+          <div class="name">{{ i.isSeal ? '余烬核心' : i.name }}</div>
           <div class="content">{{ i.content }}</div>
         </div>
       </div>

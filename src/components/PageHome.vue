@@ -256,11 +256,11 @@
       >查看更新日志</el-link
     >
 
-    <div>请及时更新海豹到最新版本，这意味着功能增加和 BUG 修复。</div>
-    <div>当然，在更新前最好看看右上角的海豹新闻，通常会很有帮助。</div>
+    <div>请及时更新余烬到最新版本，这意味着功能增加和 BUG 修复。</div>
+    <div>当然，在更新前最好看看右上角的余烬新闻，通常会很有帮助。</div>
     <div>在操作之前，最好能确保你目前可以接触到服务器，以防万一需要人工干预。</div>
     <div>
-      <b>如果升级后无法启动，请删除海豹目录中的"update"、"auto_update.exe"并手动进行升级</b>
+      <b>如果升级后无法启动，请删除余烬目录中的"update"、"auto_update.exe"并手动进行升级</b>
     </div>
     <div><b>进一步的内容请查阅届时自动生成的“升级失败指引”或加群询问。</b></div>
 
@@ -317,12 +317,12 @@ let checkTimerId: number;
 
 const doUpgrade = async () => {
   upgradeDialogVisible.value = false;
-  ElMessageBox.alert('开始下载更新，请等待……<br>完成后将自动重启海豹，并进入更新流程', '升级', {
+  ElMessageBox.alert('开始下载更新，请等待……<br>完成后将自动重启余烬，并进入更新流程', '升级', {
     dangerouslyUseHTMLString: true,
   });
   try {
     const ret = await postUpgrade();
-    ElMessageBox.alert(ret.text + '<br>如果几分钟后服务没有恢复，检查一下海豹目录', '升级', {
+    ElMessageBox.alert(ret.text + '<br>如果几分钟后服务没有恢复，检查一下余烬目录', '升级', {
       dangerouslyUseHTMLString: true,
     });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

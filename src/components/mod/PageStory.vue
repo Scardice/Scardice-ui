@@ -85,7 +85,7 @@ async function delLog(v: Log) {
 }
 
 async function uploadLog(v: Log) {
-  await ElMessageBox.confirm('将此跑团日志上传至海豹服务器？', '警告', {
+  await ElMessageBox.confirm('将此跑团日志上传至余烬服务器？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',

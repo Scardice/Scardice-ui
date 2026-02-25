@@ -36,7 +36,7 @@
               在牌堆文件中使用./images/xxx.png 的相对路径引用图片。并连同图片目录一起打包成
               zip，修改扩展名为 deck 即可制作<br />
               <br />
-              toml 牌堆：海豹支持的新牌堆格式。格式更加友好，还提供了包括云牌组在内的更多功能支持。
+              toml 牌堆：余烬支持的新牌堆格式。格式更加友好，还提供了包括云牌组在内的更多功能支持。
             </template>
             <el-icon size="small"><question-filled /></el-icon>
           </el-tooltip>

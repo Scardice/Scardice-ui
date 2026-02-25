@@ -64,14 +64,14 @@
             </div>
             <div>默认会被解析为：</div>
             <div>
-              <b>这里是海豹 bot，我是一个示例</b>
+              <b>这里是余烬 bot，我是一个示例</b>
             </div>
             <div>注意！千万不要递归嵌套，会发生很糟糕的事情。</div>
           </div>
 
           <div style="margin-top: 1rem">
             <div>此外，支持插入图片，将图片放在骰子的适当目录，再写这样一句话即可：</div>
-            <div><b>[图:data/images/sealdice.png]</b></div>
+            <div><b>[图:data/images/Scardice.png]</b></div>
             <div>可以参考 核心：骰子进群 词条</div>
             <div>同样的，可以使用 CQ 码插入图片和其他内容，关于 CQ 码，请参阅 onebot 项目文档</div>
           </div>
@@ -196,7 +196,7 @@
                     <el-tooltip
                       :content="
                         index === 0
-                          ? '点击添加一个回复语，SealDice将会随机抽取一个回复'
+                          ? '点击添加一个回复语，Scardice将会随机抽取一个回复'
                           : '点击删除你不想要的回复语'
                       "
                       placement="bottom-start">

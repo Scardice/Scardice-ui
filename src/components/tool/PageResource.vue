@@ -84,7 +84,7 @@ const beforeUpload = async (file: any) => {
 };
 
 const copySealCode = async () => {
-  ElMessage.success('复制海豹码成功！');
+  ElMessage.success('复制余烬码成功！');
 };
 
 onBeforeMount(async () => {
@@ -148,7 +148,7 @@ onBeforeMount(async () => {
               class="resource-seal-code-copy-btn"
               :data-clipboard-text="`[图:${scope.row.path}]`"
               @click="copySealCode()">
-              复制海豹码
+              复制余烬码
             </el-button>
             <el-button
               type="primary"

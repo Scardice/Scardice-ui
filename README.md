@@ -1,12 +1,12 @@
-# sealdice-ui
+# Scardice-ui
 
-> 海豹核心的前端实现
+> 余烬核心的前端实现
 
 ## 说明
 
-本仓库为海豹核心的前端实现，使用 Vue3 + ElementPlus + tailwindcss 开发。
+本仓库为余烬核心的前端实现，使用 Vue3 + ElementPlus + tailwindcss 开发。
 
-后端仓库：[sealdice-core](https://github.com/sealdice/sealdice-core)
+后端仓库：[Scardice-core](https://github.com/Scardice/Scardice-core)
 
 此仓库的 Issue 已关闭，请在后端仓库中提交 Issue。包括与前端相关的 Issue。
 

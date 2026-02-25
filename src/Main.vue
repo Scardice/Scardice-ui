@@ -19,7 +19,7 @@
           style="">
           <el-space size="small" alignment="center">
             <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
-              >SealDice</span
+              >Scardice</span
             >
             <el-tooltip
               v-if="store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode"
@@ -95,7 +95,7 @@
       <div class="text-white flex items-center justify-between">
         <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
           <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
-            >SealDice</span
+            >Scardice</span
           >
           <span v-if="store.diceServers.length > 0" style="font-size: 0.7rem">
             {{ store.diceServers[0].baseInfo.OS }} -
@@ -148,7 +148,7 @@
     :show-close="false">
     <template #header="{ close, titleId, titleClass }">
       <div class="my-header">
-        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">海豹新闻</h4>
+        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">余烬新闻</h4>
         <el-button type="success" :icon="Check" @click="checkNews(close)">确认已读</el-button>
       </div>
     </template>
@@ -188,9 +188,9 @@ const checkNews = async (close: any) => {
   console.log('newsMark', newsMark.value);
   const ret = await postUtilsCheckNews(newsMark.value);
   if (ret?.result) {
-    ElMessage.success('已阅读最新的海豹新闻');
+    ElMessage.success('已阅读最新的余烬新闻');
   } else {
-    ElMessage.error('阅读海豹新闻失败');
+    ElMessage.error('阅读余烬新闻失败');
   }
   await updateNews();
   close();
@@ -202,7 +202,7 @@ const updateNews = async () => {
     newsChecked.value = newsInfo.checked;
     newsMark.value = newsInfo.newsMark;
   } else {
-    ElMessage.error(newsInfo?.err ?? '获取海豹新闻失败');
+    ElMessage.error(newsInfo?.err ?? '获取余烬新闻失败');
   }
 };
 
@@ -229,7 +229,7 @@ const doUnlock = async () => {
 const checkPassword = async () => {
   if (!(await checkSecurity()).isOk) {
     ElMessageBox.alert(
-      '欢迎使用海豹核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI 界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>',
+      '欢迎使用余烬核心。<br/>如果您的服务开启在公网，为了保证您的安全性，请前往<b>“综合设置->基本设置”</b>界面，设置<b>UI 界面密码</b>。<br/>或切换为只有本机可访问。<br><b>如果您不了解上面在说什么，请务必设置一个密码</b>',
       '提示',
       { dangerouslyUseHTMLString: true },
     );

@@ -23,15 +23,15 @@
         >
       </div>
       <div class="top-item" style="font-family: sans-serif">
-        投喂海豹:
+        投喂余烬:
         <el-link type="primary" target="_blank" href="https://dice.weizaima.com/feed/"
           >https://dice.weizaima.com/feed/</el-link
         >
       </div>
       <div class="top-item" style="font-family: sans-serif">
         源码:
-        <el-link type="primary" target="_blank" href="https://github.com/sealdice/sealdice-core/"
-          >https://github.com/sealdice/sealdice-core</el-link
+        <el-link type="primary" target="_blank" href="https://github.com/Scardice/Scardice-core/"
+          >https://github.com/Scardice/Scardice-core</el-link
         >
       </div>
       <div class="top-item">
@@ -44,7 +44,7 @@
     感谢 ♪(･ω･)ﾉ
   </div>
   <div style="text-align: center; font-size: small; margin-bottom: 2rem; font-family: sans-serif">
-    特别鸣谢参与测试、反馈问题，帮助完善海豹指令的各位！以下列出感谢名单（排名不分先后）
+    特别鸣谢参与测试、反馈问题，帮助完善余烬指令的各位！以下列出感谢名单（排名不分先后）
   </div>
   <div class="about">
     <div></div>
@@ -493,31 +493,31 @@
     </div>
 
     <div style="margin-top: 2rem" class="subtitle">V1.1 版本</div>
-    <div>Szzrain - 实现了Discord和Kook(开黑啦)两个平台的海豹接入</div>
+    <div>Szzrain - 实现了Discord和Kook(开黑啦)两个平台的余烬接入</div>
     <div>
       于言诺 -
-      制作了很多海豹扩展和牌堆，如养猫、踢海豹、赛博功德、风味月饼、万圣节糖果等等……协助撰写了一些海豹的文档和教程，并找出了众多海豹的bug
+      制作了很多余烬扩展和牌堆，如养猫、踢余烬、赛博功德、风味月饼、万圣节糖果等等……协助撰写了一些余烬的文档和教程，并找出了众多余烬的bug
     </div>
-    <div>云陌 - 海豹文档教程协力，同时也找了很多海豹的bug</div>
+    <div>云陌 - 余烬文档教程协力，同时也找了很多余烬的bug</div>
     <div>
       <el-link href="https://github.com/kagangtuya-star" target="_blank">星尘</el-link>
-      - 编写了海豹同网络登录的教程，友情提供了用于指令参考的fvtt。以及一些建议和bug反馈
+      - 编写了余烬同网络登录的教程，友情提供了用于指令参考的fvtt。以及一些建议和bug反馈
     </div>
 
     <div style="margin-top: 2rem" class="subtitle">V1.0版本</div>
     <div>Ariel船长 - 早期测试参与者，协助解决登录流程问题</div>
     <div>Raycel - 早期测试参与者，协助解决登录流程问题</div>
-    <div>kuma - 早期测试参与者，海豹的第一次全指令全流程测试</div>
+    <div>kuma - 早期测试参与者，余烬的第一次全指令全流程测试</div>
     <div>卟啵 - 早期测试参与者，回报了中文路径和空格路径问题，协助解决了登录流程问题</div>
     <div>蜜瓜包 - 早期测试参与者，默认文档中“怪物之锤查询”的编纂者之一</div>
     <div>
       月森优姬 -
       早期测试参与者，提出了大量各种各样建议和BUG反馈，纠正了一些与规则书不统一的问题，COC同义词和默认技能点数的编纂者
     </div>
-    <div>清茶 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>
-    <div>脑 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>
-    <div>Greed锦鲤 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>
-    <div>格莱德 - 在4月7日的可靠性测试中，参与构造了让旧版海豹进程崩溃的指令</div>
+    <div>清茶 - 在4月7日的可靠性测试中，参与构造了让旧版余烬进程崩溃的指令</div>
+    <div>脑 - 在4月7日的可靠性测试中，参与构造了让旧版余烬进程崩溃的指令</div>
+    <div>Greed锦鲤 - 在4月7日的可靠性测试中，参与构造了让旧版余烬进程崩溃的指令</div>
+    <div>格莱德 - 在4月7日的可靠性测试中，参与构造了让旧版余烬进程崩溃的指令</div>
     <div>我来逛街 - 提出很多建议；帮助改进了DND5E同义词列表，增加许多常用说法</div>
 
     <div style="margin-top: 2rem" class="subtitle">手册编写</div>

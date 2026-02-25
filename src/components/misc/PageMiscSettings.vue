@@ -391,7 +391,7 @@
           <span>UI 界面地址</span>
           <el-tooltip
             raw-content
-            content="0.0.0.0:3211 主要用于服务器，代表可以在公网中用你的手机和电脑访问 <br>127.0.0.1:3211 主要用于自己的电脑/手机，只能在当前设备上管理海豹<br>注意：重启骰子后生效！<br>另，想开多个海豹必须修改端口号！">
+            content="0.0.0.0:3211 主要用于服务器，代表可以在公网中用你的手机和电脑访问 <br>127.0.0.1:3211 主要用于自己的电脑/手机，只能在当前设备上管理余烬<br>注意：重启骰子后生效！<br>另，想开多个余烬必须修改端口号！">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
@@ -508,7 +508,7 @@
       <el-input v-model="config.maxExecuteTime" clearable style="width: 14rem" />
     </el-form-item>
 
-    <h2>海豹</h2>
+    <h2>余烬</h2>
     <el-form-item>
       <template #label>
         <span>保护开关</span>
@@ -521,7 +521,7 @@
       <template #label>
         <div>
           <span>固件升级</span>
-          <el-tooltip raw-content content="使用海豹安装包进行覆盖升级">
+          <el-tooltip raw-content content="使用余烬安装包进行覆盖升级">
             <el-icon><question-filled /></el-icon>
           </el-tooltip>
         </div>
@@ -545,7 +545,7 @@
     </el-form-item>
 
     <el-form-item>
-      <div>使用指定的压缩包对当前海豹进行覆盖，上传完成后会自动重启海豹。</div>
+      <div>使用指定的压缩包对当前余烬进行覆盖，上传完成后会自动重启余烬。</div>
       <div>请注意尽量不要从高版本降低到低版本，数据库有可能不兼容。</div>
       <div>选择文件确定后请耐心等待反馈。</div>
     </el-form-item>
