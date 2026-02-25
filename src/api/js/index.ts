@@ -15,6 +15,16 @@ export function getJsStatus() {
   >('get', 'status');
 }
 
+export type JsEngine = 'goja' | 'quickjs';
+
+export function getJsEngine() {
+  return request<{ engine: JsEngine }>('get', 'engine');
+}
+
+export function setJsEngine(engine: JsEngine) {
+  return request('post', 'engine', { engine });
+}
+
 export function getJsList() {
   return request<JsScriptInfo[]>('get', 'list');
 }

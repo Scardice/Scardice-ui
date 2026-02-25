@@ -311,6 +311,18 @@
       </div>
     </el-form-item>
 
+    <el-form-item>
+      <template #label>
+        <div>
+          <span>使用quickjs作为插件引擎</span>
+          <el-tooltip raw-content content="开启后使用 quickjs，关闭后使用 goja。">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <el-checkbox v-model="useQuickjsEngine" label="开启" />
+    </el-form-item>
+
     <!--    <el-form-item>-->
     <!--      <template #label>-->
     <!--        <div>-->
@@ -702,6 +714,7 @@
 <script lang="ts" setup>
 import { CirclePlusFilled, CircleClose, QuestionFilled, Upload } from '@element-plus/icons-vue';
 import { cloneDeep, toNumber } from 'lodash-es';
+import { getJsEngine, setJsEngine, type JsEngine } from '~/api/js';
 import { postMailTest, postUploadToUpgrade } from '~/api/dice';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
@@ -714,6 +727,8 @@ const fileList = ref<any[]>([]);
 const isShowUnlockCode = ref(false);
 const modified = ref(false);
 const isUploadEnable = ref(false);
+const useQuickjsEngine = ref(false);
+const initialJsEngine = ref<JsEngine>('goja');
 
 const beforeUpload = async (file: any) => {
   // UploadRawFile
@@ -741,6 +756,10 @@ watch(
   },
 );
 
+watch(useQuickjsEngine, () => {
+  modified.value = true;
+});
+
 const addItem = (k: any[]) => {
   if (!k) {
     k = [];
@@ -755,6 +774,9 @@ const removeItem = (v: any[], index: number) => {
 
 onBeforeMount(async () => {
   await store.diceConfigGet();
+  const engineInfo = await getJsEngine();
+  initialJsEngine.value = engineInfo.engine;
+  useQuickjsEngine.value = engineInfo.engine === 'quickjs';
   const val = cloneDeep(store.curDice.config);
   if (!val.diceMasters || val.diceMasters.length === 0) {
     val.diceMasters = [''];
@@ -770,6 +792,7 @@ onBeforeMount(async () => {
 
 const submitGiveup = async () => {
   config.value = cloneDeep(store.curDice.config);
+  useQuickjsEngine.value = initialJsEngine.value === 'quickjs';
   modified.value = false;
   nextTick(() => {
     modified.value = false;
@@ -811,6 +834,11 @@ const submit = async () => {
   }
 
   await store.diceConfigSet(mod);
+  const currentEngine: JsEngine = useQuickjsEngine.value ? 'quickjs' : 'goja';
+  if (currentEngine !== initialJsEngine.value) {
+    await setJsEngine(currentEngine);
+    initialJsEngine.value = currentEngine;
+  }
   submitGiveup();
 };
 
