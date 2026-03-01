@@ -21,6 +21,7 @@
       </div>
     </el-form-item> -->
 
+    <!--
     <el-form-item label="">
       <template #label>
         <div>
@@ -36,6 +37,7 @@
         <div v-else style="font-weight: bold">.master unlock {{ config.masterUnlockCode }}</div>
       </div>
     </el-form-item>
+    -->
 
     <el-form-item label="Master列表">
       <template #label>
@@ -711,7 +713,7 @@ const store = useStore();
 const config = ref<any>({});
 const fileList = ref<any[]>([]);
 
-const isShowUnlockCode = ref(false);
+// const isShowUnlockCode = ref(false);
 const modified = ref(false);
 const isUploadEnable = ref(false);
 

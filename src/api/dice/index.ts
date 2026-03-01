@@ -57,9 +57,9 @@ export type DiceConfig = {
   messageDelayRangeEnd: number; // 消息延迟的最大范围
   uiPassword: string; // UI密码
   helpDocEngineType: number; // 帮助文档引擎类型
-  masterUnlockCode: string; // 主解锁码
+  // masterUnlockCode: string; // 主解锁码
   serveAddress: string; // 服务器地址
-  masterUnlockCodeTime: number; // 解锁码的时间戳
+  // masterUnlockCodeTime: number; // 解锁码的时间戳
   logPageItemLimit: number; // 日志页面的条目限制
   friendAddComment: string; // 添加好友时的备注
   QQChannelAutoOn: boolean; // QQ频道是否自动开启
