@@ -193,11 +193,11 @@ let selected: any[] = [];
 const enableChange = async (value: string | number | boolean) => {
   config.value.publicDiceEnable = value;
   await setDicePublicInfo(config.value, selected);
-  refreshInfo();
+  await refreshInfo();
 };
 const doSave = async () => {
   await setDicePublicInfo(config.value, selected);
-  refreshInfo();
+  await refreshInfo();
   ElMessage.success('已保存');
 };
 
