@@ -370,6 +370,32 @@
     </el-form-item>
 
     <el-form-item>
+      连续相同指令判定窗口(秒)
+      <el-tooltip raw-content content="在这个时间窗口内，连续使用同一条指令会被视作刷屏加重。">
+        <el-icon><question-filled /></el-icon>
+      </el-tooltip>
+      <el-input-number
+        v-model="config.spamSameCommandWindowSec"
+        :min="1"
+        :step="1"
+        clearable />
+    </el-form-item>
+
+    <el-form-item>
+      恢复倍率上限
+      <el-tooltip
+        raw-content
+        content="连续同指令越多，令牌恢复越慢；该值用于限制最大减速倍率，例如 5 表示最多变慢 5 倍。">
+        <el-icon><question-filled /></el-icon>
+      </el-tooltip>
+      <el-input-number
+        v-model="config.spamRecoveryMultiplierMax"
+        :min="1"
+        :step="1"
+        clearable />
+    </el-form-item>
+
+    <el-form-item>
       <el-text>
         <div>
           刷屏警告工作原理如下：
@@ -378,6 +404,7 @@
             <li>每次指令视作拿走一枚令牌</li>
             <li>当桶里没有令牌时，试图拿走令牌将被阻止（触发警告）</li>
             <li>桶以「速率」自动补充令牌</li>
+            <li>若在窗口期内连续发送相同指令，会临时降低恢复速度（最多到上限倍率）</li>
           </ul>
           处置时，优先惩罚个人刷屏，其次是群组内许多人一起刷屏。
         </div>

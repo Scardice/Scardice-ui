@@ -95,6 +95,8 @@ export type DiceConfig = {
   personalBurst: number; // 个人速率突发上限
   groupReplenishRate: string; // 群组速率补充频率
   groupBurst: number; // 群组速率突发上限
+  spamSameCommandWindowSec: number; // 连续相同指令判定窗口（秒）
+  spamRecoveryMultiplierMax: number; // 连续相同指令恢复倍率上限
 };
 
 type ExtensionSettings = {
