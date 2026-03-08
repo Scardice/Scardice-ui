@@ -1,5 +1,5 @@
 <template>
-  <Teleport v-if="store.curDice.logs.length" to="#root">
+  <Teleport v-if="filteredLogs.length" to="#root">
     <el-button
       type="default"
       class="btn-scrolldown"
@@ -97,9 +97,22 @@
     </div>
   </div>
 
-  <div class="flex justify-between items-center">
+  <div class="flex justify-between items-center gap-3 flex-wrap">
     <h4>日志</h4>
-    <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
+    <div class="log-controls">
+      <div class="log-level-filter">
+        <span class="log-level-filter__label">日志等级：</span>
+        <el-checkbox-group v-model="selectedLogLevels" :min="1" size="small">
+          <el-checkbox v-for="level in logLevelOptions" :key="level" :value="level">
+            {{ getLogLevelLabel(level) }}
+          </el-checkbox>
+        </el-checkbox-group>
+      </div>
+
+      <div class="log-refresh-toggle">
+        <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
+      </div>
+    </div>
   </div>
 
   <el-divider class="latest-log-warn">
@@ -110,7 +123,7 @@
 
   <div class="hidden md:block p-0 logs">
     <el-table
-      :data="store.curDice.logs"
+      :data="filteredLogs"
       :row-class-name="getLogRowClassName"
       :header-cell-style="{ backgroundColor: '#f3f5f7' }">
       <el-table-column label="时间" width="90">
@@ -192,7 +205,7 @@
     </el-table>
   </div>
   <el-table
-    :data="store.curDice.logs"
+    :data="filteredLogs"
     class="md:hidden w-full logs"
     :row-class-name="getLogRowClassName"
     :header-cell-style="{ backgroundColor: '#f3f5f7' }">
@@ -301,6 +314,15 @@ const store = useStore();
 
 const upgradeDialogVisible = ref(false);
 const autoRefresh = ref(true);
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+const logLevelOptions: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+const selectedLogLevels = ref<LogLevel[]>(['info', 'warn', 'error']);
+const logLevelLabelMap: Record<LogLevel, string> = {
+  debug: 'DEBUG',
+  info: 'INFO',
+  warn: 'WARN',
+  error: 'ERROR',
+};
 const now = ref<dayjs.Dayjs>(dayjs());
 const networkHealth = ref({
   total: 0,
@@ -314,6 +336,20 @@ const networkHealth = ref({
 
 let timerId: number;
 let checkTimerId: number;
+
+const normalizeLogLevel = (level: unknown): LogLevel => {
+  if (level === 'debug' || level === 'info' || level === 'warn' || level === 'error') {
+    return level;
+  }
+  return 'info';
+};
+
+const getLogLevelLabel = (level: LogLevel) => logLevelLabelMap[level];
+
+const filteredLogs = computed(() => {
+  const selected = new Set(selectedLogLevels.value);
+  return store.curDice.logs.filter(log => selected.has(normalizeLogLevel(log.level)));
+});
 
 const doUpgrade = async () => {
   upgradeDialogVisible.value = false;
@@ -350,7 +386,7 @@ const scrollDown = () => {
 // };
 
 const getLogRowClassName = ({ row }: { row: any }) => {
-  switch (row.level) {
+  switch (normalizeLogLevel(row.level)) {
     case 'warn':
       return 'no-hover warning-row';
     case 'error':
@@ -437,6 +473,38 @@ onBeforeUnmount(() => {
   :deep(.el-divider__text) {
     background: #f3f4f6;
   }
+}
+
+.log-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.log-level-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-right: 0.2rem;
+}
+
+.log-level-filter__label {
+  color: #6b7280;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.log-controls :deep(.el-checkbox-group) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.log-refresh-toggle {
+  padding-left: 0.9rem;
+  border-left: 1px solid #d1d5db;
 }
 </style>
 
