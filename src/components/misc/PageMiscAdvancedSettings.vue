@@ -46,6 +46,31 @@
       <el-switch v-model="config.enable" />
     </el-form-item>
 
+    <h3>凭据查看</h3>
+    <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
+      <template #title>
+        凭据默认掩码显示。点击右侧小眼睛后，才会切换为明文显示。请勿在录屏或共享屏幕时展开。
+      </template>
+    </el-alert>
+    <el-form-item v-for="item in credentialItems" :key="item.key" :label="item.label">
+      <el-input
+        :model-value="item.value || item.emptyText"
+        :type="visibleCredentialKeys[item.key] ? 'text' : 'password'"
+        :placeholder="item.emptyText"
+        readonly
+        style="width: 36rem"
+        autocomplete="off">
+        <template #suffix>
+          <el-icon
+            class="toggle-credential-visibility"
+            @click="toggleCredentialVisibility(item.key)">
+            <View v-if="!visibleCredentialKeys[item.key]" />
+            <Hide v-else />
+          </el-icon>
+        </template>
+      </el-input>
+    </el-form-item>
+
     <h3>自定义回复</h3>
     <el-form-item label="开启回复调试日志">
       <template #label>
@@ -102,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { QuestionFilled } from '@element-plus/icons-vue';
+import { Hide, QuestionFilled, View } from '@element-plus/icons-vue';
 import { useStore } from '~/store';
 import type { AdvancedConfig } from '~/type.d.ts';
 import { getCustomReplyDebug, postCustomReplyDebug } from '~/api/configs';
@@ -119,10 +144,48 @@ const config = ref<AdvancedConfig>({
   storyLogBackendToken: '',
 });
 const replyDebugMode = ref(false);
+const visibleCredentialKeys = ref<Record<string, boolean>>({});
+
+const credentialItems = computed(() => {
+  let localToken = '';
+  try {
+    localToken = localStorage.getItem('t') ?? '';
+  } catch {
+    localToken = '';
+  }
+
+  return [
+    {
+      key: 'current-token',
+      label: '当前会话 Token',
+      value: store.token ?? '',
+      emptyText: '当前会话 Token 不存在',
+    },
+    {
+      key: 'local-token',
+      label: '本地缓存 Token',
+      value: localToken,
+      emptyText: '本地缓存 Token 不存在',
+    },
+  ];
+});
+
+const resetCredentialVisibility = () => {
+  const newState: Record<string, boolean> = {};
+  for (const item of credentialItems.value) {
+    newState[item.key] = false;
+  }
+  visibleCredentialKeys.value = newState;
+};
+
+const toggleCredentialVisibility = (key: string) => {
+  visibleCredentialKeys.value[key] = !visibleCredentialKeys.value[key];
+};
 
 onBeforeMount(async () => {
   config.value = await store.diceAdvancedConfigGet();
   replyDebugMode.value = (await getCustomReplyDebug()).value;
+  resetCredentialVisibility();
   nextTick(() => {
     modified.value = false;
   });
@@ -153,6 +216,7 @@ const submit = async () => {
   await store.diceAdvancedConfigSet(config.value);
   await postCustomReplyDebug(replyDebugMode.value);
   config.value = await store.diceAdvancedConfigGet();
+  resetCredentialVisibility();
   modified.value = false;
   emit('update:advanced-settings-show', config.value.show);
   nextTick(async () => {
@@ -163,6 +227,7 @@ const submit = async () => {
 const submitGiveup = async () => {
   config.value = await store.diceAdvancedConfigGet();
   replyDebugMode.value = (await getCustomReplyDebug()).value;
+  resetCredentialVisibility();
   modified.value = false;
   nextTick(() => {
     modified.value = false;
@@ -170,4 +235,8 @@ const submitGiveup = async () => {
 };
 </script>
 
-<style scoped lang="css"></style>
+<style scoped lang="css">
+.toggle-credential-visibility {
+  cursor: pointer;
+}
+</style>
