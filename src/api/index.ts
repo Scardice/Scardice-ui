@@ -1,115 +1,125 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios';
 import qs from 'qs';
+
+type HttpMethod = 'post' | 'get' | 'put' | 'delete';
+type RequestContentType = 'form' | 'json' | 'formdata';
+
 const http = axios.create({
   baseURL: '/sd-api',
   timeout: 10000,
 });
 
-http.interceptors.request.use(config => {
-  // console.log(config.data)
-  try {
-    if ('ContentType' in config && config.ContentType === 'application/x-www-form-urlencoded') {
-      config.data = config.data && qs.stringify(config.data, { indices: false });
+function setHeader(config: AxiosRequestConfig, key: string, value: string) {
+  if (!config.headers) {
+    config.headers = { [key]: value };
+    return;
+  }
+  if (config.headers instanceof AxiosHeaders) {
+    config.headers.set(key, value);
+    return;
+  }
+  (config.headers as Record<string, string>)[key] = value;
+}
+
+function joinPath(baseUrl: string, url: string) {
+  if (!baseUrl) {
+    return url;
+  }
+  if (!url) {
+    return baseUrl;
+  }
+  if (baseUrl.endsWith('/') && url.startsWith('/')) {
+    return `${baseUrl}${url.slice(1)}`;
+  }
+  if (!baseUrl.endsWith('/') && !url.startsWith('/')) {
+    return `${baseUrl}/${url}`;
+  }
+  return `${baseUrl}${url}`;
+}
+
+function toFormData(payload: Record<string, unknown>) {
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(payload)) {
+    if (Array.isArray(value)) {
+      value.forEach(item => {
+        formData.append(key, item as any);
+      });
+      continue;
     }
+    formData.append(key, value as any);
+  }
+  return formData;
+}
+
+http.interceptors.request.use(config => {
+  try {
     const token = localStorage.getItem('t');
     if (token) {
-      config.headers.Authorization = token;
-      config.headers['token'] = token;
+      setHeader(config, 'Authorization', token);
+      setHeader(config, 'token', token);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
-    // console.log(e);
+    // ignore storage errors
   }
-  // console.log(config);
+
   return config;
 });
 
 http.interceptors.response.use(
-  async response => {
-    // HTTP 响应状态码正常
+  response => {
     if (response.status === 200) {
-      return Promise.resolve(response);
-      // return Promise.reject(response.data)
-    } else {
-      console.error('服务器出错或者连接不到服务器');
-      return Promise.reject(response);
+      return response.data;
     }
+    console.error('服务器出错或者连接不到服务器');
+    return Promise.reject(response);
   },
   error => {
-    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK')
-      // KMessage("连接不到服务器",'danger')
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
       console.error('连接不到服务器');
-
+    }
     return Promise.reject(error);
   },
 );
 
 export default function request<T = any>(
-  method: 'post' | 'get' | 'put' | 'delete',
+  method: HttpMethod,
   url: string,
-
   submitData?: any,
-  ContentType?: 'form' | 'json' | 'formdata',
+  ContentType: RequestContentType = 'json',
   config?: AxiosRequestConfig,
 ) {
-  let file: FormData, contentType: string;
-  switch (ContentType) {
-    case 'form':
-      contentType = 'application/x-www-form-urlencoded';
-      break;
-    case 'formdata':
-      contentType = 'multipart/form-data';
-      file = new FormData();
-      for (const key in submitData) {
-        if (!(submitData[key] instanceof Array)) {
-          // console.log(submitData[key]);
-          file.append(key, submitData[key]);
-        } else {
-          submitData[key].forEach((item: any) => {
-            file.append(key, item);
-          });
-        }
-      }
-      // for(let i:number = 0;i<submitData.length;i++) {
-      //   file.append('file',submitData[i]);
-      // }
-      submitData = file;
-      break;
-    default:
-      contentType = 'application/json';
+  const reqParams: AxiosRequestConfig = {
+    ...config,
+    method,
+    url,
+  };
+
+  if (method === 'get' || method === 'delete') {
+    reqParams.params = submitData;
+  } else {
+    if (ContentType === 'formdata' && submitData && !(submitData instanceof FormData)) {
+      reqParams.data = toFormData(submitData as Record<string, unknown>);
+    } else if (ContentType === 'form') {
+      reqParams.data = submitData ? qs.stringify(submitData, { indices: false }) : submitData;
+      setHeader(reqParams, 'Content-Type', 'application/x-www-form-urlencoded');
+    } else {
+      reqParams.data = submitData;
+      setHeader(reqParams, 'Content-Type', 'application/json');
+    }
   }
-  return new Promise<T>((resolve, reject) => {
-    const reqParams = Object.assign(
-      {
-        method,
-        url,
-        [method.toLowerCase() === 'get' //|| method.toLowerCase() === "delete"
-          ? 'params'
-          : 'data']: submitData,
-        contentType,
-      },
-      config,
-    );
-    http(reqParams)
-      .then(res => {
-        resolve(res.data);
-      })
-      .catch(err => {
-        console.error(err);
-        reject(err);
-      });
-  });
+
+  return http.request<T, T>(reqParams);
 }
 
 export function createRequest(baseUrl: string) {
   return function <T = any>(
-    method: 'post' | 'get' | 'put' | 'delete',
+    method: HttpMethod,
     url: string,
-
     submitData?: any,
-    ContentType?: 'form' | 'json' | 'formdata',
+    ContentType: RequestContentType = 'json',
     config?: AxiosRequestConfig,
   ) {
-    return request<T>(method, baseUrl + url, submitData, ContentType, config);
+    return request<T>(method, joinPath(baseUrl, url), submitData, ContentType, config);
   };
 }
