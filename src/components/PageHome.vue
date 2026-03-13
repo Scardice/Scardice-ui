@@ -315,6 +315,7 @@ const store = useStore();
 const upgradeDialogVisible = ref(false);
 const autoRefresh = ref(true);
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type SysLog = { level: string; ts: number; caller: string; msg: string };
 const logLevelOptions: LogLevel[] = ['debug', 'info', 'warn', 'error'];
 const selectedLogLevels = ref<LogLevel[]>(['info', 'warn', 'error']);
 const logLevelLabelMap: Record<LogLevel, string> = {
@@ -336,6 +337,7 @@ const networkHealth = ref({
 
 let timerId: number;
 let checkTimerId: number;
+let logSSE: EventSource | null = null;
 
 const normalizeLogLevel = (level: unknown): LogLevel => {
   if (level === 'debug' || level === 'info' || level === 'warn' || level === 'error') {
@@ -350,6 +352,73 @@ const filteredLogs = computed(() => {
   const selected = new Set(selectedLogLevels.value);
   return store.curDice.logs.filter(log => selected.has(normalizeLogLevel(log.level)));
 });
+
+const getUILogLimit = () => {
+  const raw = Number((store.curDice.config as any)?.logPageItemLimit ?? 100);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 100;
+  }
+  return Math.floor(raw);
+};
+
+const trimLogs = (logs: SysLog[]) => {
+  const limit = getUILogLimit();
+  if (logs.length <= limit) {
+    return logs;
+  }
+  return logs.slice(logs.length - limit);
+};
+
+const closeLogStream = () => {
+  if (!logSSE) {
+    return;
+  }
+  logSSE.close();
+  logSSE = null;
+};
+
+const openLogStream = () => {
+  if (logSSE || !store.canAccess || !store.token) {
+    return;
+  }
+
+  const token = encodeURIComponent(store.token);
+  const es = new EventSource(`/sd-api/log/stream?token=${token}`);
+  es.addEventListener('snapshot', event => {
+    if (!autoRefresh.value) {
+      return;
+    }
+    try {
+      const data = JSON.parse((event as MessageEvent).data);
+      if (Array.isArray(data)) {
+        store.curDice.logs = trimLogs(data as SysLog[]);
+      }
+    } catch {
+      // ignore parse failures
+    }
+  });
+
+  es.addEventListener('log', event => {
+    if (!autoRefresh.value) {
+      return;
+    }
+    try {
+      const data = JSON.parse((event as MessageEvent).data) as SysLog;
+      const merged = [...store.curDice.logs, data];
+      store.curDice.logs = trimLogs(merged);
+    } catch {
+      // ignore parse failures
+    }
+  });
+
+  es.onerror = () => {
+    if (!autoRefresh.value) {
+      closeLogStream();
+    }
+  };
+
+  logSSE = es;
+};
 
 const doUpgrade = async () => {
   upgradeDialogVisible.value = false;
@@ -420,14 +489,11 @@ const refreshNetworkHealth = async () => {
 
 onBeforeMount(async () => {
   if (autoRefresh.value) {
-    await store.logFetchAndClear();
+    openLogStream();
     await refreshNetworkHealth();
   }
 
   timerId = setInterval(() => {
-    if (autoRefresh.value) {
-      store.logFetchAndClear();
-    }
     now.value = dayjs();
   }, 5000) as any;
   checkTimerId = setInterval(
@@ -438,7 +504,27 @@ onBeforeMount(async () => {
   ) as any; // 5 min 一次
 });
 
+watch(autoRefresh, enabled => {
+  if (enabled) {
+    openLogStream();
+    return;
+  }
+  closeLogStream();
+});
+
+watch(
+  () => store.token,
+  () => {
+    if (!autoRefresh.value) {
+      return;
+    }
+    closeLogStream();
+    openLogStream();
+  },
+);
+
 onBeforeUnmount(() => {
+  closeLogStream();
   clearInterval(timerId);
   clearInterval(checkTimerId);
 });
