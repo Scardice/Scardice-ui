@@ -1,13 +1,6 @@
 import axios from 'axios';
 import axiosRetry from 'axios-retry';
 
-axiosRetry(axios, {
-  retries: 3,
-  retryDelay: retryCount => {
-    return retryCount * 1000;
-  },
-});
-
 export function newRequestClient(baseURL: string) {
   const client = axios.create({
     baseURL: baseURL,
@@ -16,6 +9,13 @@ export function newRequestClient(baseURL: string) {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+    },
+  });
+
+  axiosRetry(client, {
+    retries: 3,
+    retryDelay: retryCount => {
+      return retryCount * 1000;
     },
   });
 
