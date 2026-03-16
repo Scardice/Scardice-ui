@@ -1,5 +1,23 @@
 import type BanConfig from './components/misc/banList/BanConfig.vue';
 
+export interface JsDangerousAPIUsage {
+  id: string;
+  name: string;
+  description: string;
+  risk: string;
+  occurrences: JsDangerousAPIOccurrence[];
+  referencedMembers: string[];
+}
+
+export interface JsDangerousAPIOccurrence {
+  line: number;
+  column: number;
+  kind: string;
+  member: string;
+  access: string;
+  memberDescription: string;
+}
+
 export interface JsScriptInfo {
   name: string;
   enable: boolean;
@@ -17,6 +35,8 @@ export interface JsScriptInfo {
   official: boolean;
   builtin: boolean;
   builtinUpdated: boolean;
+  hasDangerousApiUsage: boolean;
+  dangerousApiUsages: JsDangerousAPIUsage[];
 }
 
 export interface JsPluginConfigItem {
@@ -82,6 +102,7 @@ export interface AdvancedConfig {
   storyLogBackendUrl: string;
   storyLogApiVersion: string;
   storyLogBackendToken: string;
+  exposeDangerousSealInst: boolean;
 }
 
 export interface BanConfig {

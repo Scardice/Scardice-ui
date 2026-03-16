@@ -71,6 +71,35 @@
       </el-input>
     </el-form-item>
 
+    <h3>JS 环境</h3>
+    <el-alert type="error" :closable="false" style="margin-bottom: 16px">
+      <template #title>
+        开启后会向插件暴露 <code>seal.inst</code>，等同于把核心 <code>*Dice</code> 实例直接交给 JS。
+      </template>
+      <template #default>
+        插件将可能直接修改核心配置、增删骰主、强制重载或关闭 JS 环境、读取和改写部分运行时状态、发送通知或邮件。
+        不当使用或恶意脚本可能导致权限提升、配置损坏、扩展异常重载、服务中断，甚至借由现有配置向外发送敏感内容。
+      </template>
+    </el-alert>
+    <el-form-item label="暴露 seal.inst">
+      <template #label>
+        <span>暴露 seal.inst</span>
+        <el-tooltip
+          raw-content
+          content="危险开关。启用后 JS 插件可以直接访问核心 Dice 实例，仅建议在确保信任加载的所有插件的前提下使用">
+          <el-icon>
+            <question-filled />
+          </el-icon>
+        </el-tooltip>
+      </template>
+      <el-switch
+        v-model="config.exposeDangerousSealInst"
+        inline-prompt
+        active-text="危险"
+        inactive-text="关闭"
+        @change="handleDangerousSealInstToggle" />
+    </el-form-item>
+
     <h3>自定义回复</h3>
     <el-form-item label="开启回复调试日志">
       <template #label>
@@ -124,6 +153,33 @@
       <el-button type="success" @click="submit">保存设置</el-button>
     </el-form-item>
   </el-form>
+
+  <el-dialog
+    v-model="dangerousSealInstDialogVisible"
+    title="确认暴露 seal.inst"
+    width="42rem"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :show-close="false">
+    <div class="dangerous-dialog-content">
+      <p>这是最后一次警告！</p>
+      <p>请只在你完全信任当前所有 JS 插件，且明确知道风险时启用。</p>
+      <p>我们建议骰主在启用此功能前审查相关插件源代码。</p>
+    </div>
+    <template #footer>
+      <el-button @click="cancelDangerousSealInstEnable">取消</el-button>
+      <el-button
+        type="danger"
+        :disabled="dangerousSealInstConfirmCountdown > 0"
+        @click="confirmDangerousSealInstEnable">
+        {{
+          dangerousSealInstConfirmCountdown > 0
+            ? `确认 (${dangerousSealInstConfirmCountdown}s)`
+            : '确认启用'
+        }}
+      </el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -142,9 +198,16 @@ const config = ref<AdvancedConfig>({
   storyLogBackendUrl: '',
   storyLogApiVersion: '',
   storyLogBackendToken: '',
+  exposeDangerousSealInst: false,
 });
 const replyDebugMode = ref(false);
 const visibleCredentialKeys = ref<Record<string, boolean>>({});
+const modified = ref(false);
+const savedConfigSnapshot = ref('');
+const savedReplyDebugMode = ref(false);
+const dangerousSealInstDialogVisible = ref(false);
+const dangerousSealInstConfirmCountdown = ref(0);
+let dangerousSealInstConfirmTimer: number | undefined;
 
 const credentialItems = computed(() => {
   let localToken = '';
@@ -182,22 +245,69 @@ const toggleCredentialVisibility = (key: string) => {
   visibleCredentialKeys.value[key] = !visibleCredentialKeys.value[key];
 };
 
+const syncDirtyState = () => {
+  modified.value =
+    JSON.stringify(config.value) !== savedConfigSnapshot.value || replyDebugMode.value !== savedReplyDebugMode.value;
+};
+
+const clearDangerousSealInstConfirmTimer = () => {
+  if (dangerousSealInstConfirmTimer !== undefined) {
+    window.clearInterval(dangerousSealInstConfirmTimer);
+    dangerousSealInstConfirmTimer = undefined;
+  }
+};
+
+const syncSavedState = () => {
+  savedConfigSnapshot.value = JSON.stringify(config.value);
+  savedReplyDebugMode.value = replyDebugMode.value;
+  syncDirtyState();
+};
+
+const cancelDangerousSealInstEnable = () => {
+  clearDangerousSealInstConfirmTimer();
+  dangerousSealInstDialogVisible.value = false;
+  dangerousSealInstConfirmCountdown.value = 0;
+  config.value.exposeDangerousSealInst = false;
+  syncDirtyState();
+};
+
+const confirmDangerousSealInstEnable = () => {
+  clearDangerousSealInstConfirmTimer();
+  dangerousSealInstDialogVisible.value = false;
+  dangerousSealInstConfirmCountdown.value = 0;
+  syncDirtyState();
+};
+
+const handleDangerousSealInstToggle = (value: string | number | boolean) => {
+  if (value !== true) {
+    syncDirtyState();
+    return;
+  }
+
+  clearDangerousSealInstConfirmTimer();
+  dangerousSealInstConfirmCountdown.value = 5;
+  dangerousSealInstDialogVisible.value = true;
+  dangerousSealInstConfirmTimer = window.setInterval(() => {
+    if (dangerousSealInstConfirmCountdown.value <= 1) {
+      dangerousSealInstConfirmCountdown.value = 0;
+      clearDangerousSealInstConfirmTimer();
+      return;
+    }
+    dangerousSealInstConfirmCountdown.value -= 1;
+  }, 1000);
+};
+
 onBeforeMount(async () => {
   config.value = await store.diceAdvancedConfigGet();
   replyDebugMode.value = (await getCustomReplyDebug()).value;
   resetCredentialVisibility();
-  nextTick(() => {
-    modified.value = false;
-  });
+  syncSavedState();
 });
 
-const modified = ref(false);
 watch(
-  () => config,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  (newValue, oldValue) => {
-    //直接监听
-    modified.value = true;
+  () => config.value,
+  () => {
+    syncDirtyState();
   },
   {
     deep: true,
@@ -205,38 +315,51 @@ watch(
 );
 watch(
   () => replyDebugMode.value,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  (newValue, oldValue) => {
-    //直接监听
-    modified.value = true;
+  () => {
+    syncDirtyState();
   },
 );
 
 const submit = async () => {
+  const shouldNotifyDangerousReload =
+    JSON.parse(savedConfigSnapshot.value || '{}').exposeDangerousSealInst !== config.value.exposeDangerousSealInst;
   await store.diceAdvancedConfigSet(config.value);
   await postCustomReplyDebug(replyDebugMode.value);
   config.value = await store.diceAdvancedConfigGet();
   resetCredentialVisibility();
-  modified.value = false;
+  syncSavedState();
   emit('update:advanced-settings-show', config.value.show);
-  nextTick(async () => {
-    modified.value = false;
-  });
+  if (shouldNotifyDangerousReload) {
+    ElMessage.info('设置已变更；若 JS 环境已启用，核心已自动重载 JS 环境使其生效。');
+  }
 };
 
 const submitGiveup = async () => {
+  clearDangerousSealInstConfirmTimer();
+  dangerousSealInstDialogVisible.value = false;
+  dangerousSealInstConfirmCountdown.value = 0;
   config.value = await store.diceAdvancedConfigGet();
   replyDebugMode.value = (await getCustomReplyDebug()).value;
   resetCredentialVisibility();
-  modified.value = false;
-  nextTick(() => {
-    modified.value = false;
-  });
+  syncSavedState();
 };
+
+onBeforeUnmount(() => {
+  clearDangerousSealInstConfirmTimer();
+});
 </script>
 
 <style scoped lang="css">
 .toggle-credential-visibility {
   cursor: pointer;
+}
+
+.dangerous-dialog-content p {
+  margin: 0 0 12px;
+}
+
+.dangerous-dialog-content ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
 }
 </style>

@@ -107,6 +107,22 @@
                   <el-text size="large" tag="b">{{ i.name }}</el-text>
                   <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
                   <el-tag v-if="i.official" size="small" type="success">官方</el-tag>
+                  <el-tooltip
+                    v-if="i.hasDangerousApiUsage"
+                    placement="top"
+                    :content="formatDangerousApiUsageSummary(i)">
+                    <el-tag size="small" type="danger">高权限 API</el-tag>
+                  </el-tooltip>
+                  <el-button
+                    v-for="usage in i.dangerousApiUsages"
+                    :key="`${i.filename}-${usage.id}-header`"
+                    type="danger"
+                    link
+                    size="small"
+                    class="dangerous-api-link"
+                    @click.stop="openDangerousApiUsageDialog(i, usage)">
+                    {{ usage.name }}
+                  </el-button>
 
                   <el-tooltip content="该插件使用 TypeScript 编写">
                     <el-tag
@@ -230,6 +246,66 @@
                   >
                 </el-space>
               </template>
+            </el-dialog>
+
+            <el-dialog
+              v-model="dangerousApiDialogVisible"
+              class="dangerous-api-dialog-window"
+              width="72rem"
+              align-center
+              :title="dangerousApiDialogTitle">
+              <div v-if="selectedDangerousApiUsage" class="dangerous-api-dialog">
+                <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
+                  <!--<template #title>{{ selectedDangerousApiUsage.risk }}</template>-->
+                  <template #default>
+                    <!--{{ selectedDangerousApiUsage.description }}-->
+                    这里只能列出源码里直接写出的调用位置和直接成员访问，无法完整追踪经变量别名转手后的所有调用。
+                  </template>
+                </el-alert>
+                <el-descriptions :column="1" border style="margin-bottom: 16px">
+                  <el-descriptions-item label="插件">
+                    {{ selectedDangerousApiScript?.name || '&lt;未知>' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="危险 API">
+                    {{ selectedDangerousApiUsage.name }}
+                  </el-descriptions-item>
+                  <el-descriptions-item label="检测到的直接成员">
+                    {{
+                      (selectedDangerousApiUsage.referencedMembers ?? []).length > 0
+                        ? (selectedDangerousApiUsage.referencedMembers ?? []).join('、')
+                        : '未检测到直接成员访问'
+                    }}
+                  </el-descriptions-item>
+                </el-descriptions>
+                <el-table
+                  :data="selectedDangerousApiUsage.occurrences ?? []"
+                  border
+                  max-height="520"
+                  empty-text="未检测到调用位置">
+                  <el-table-column label="位置" width="120">
+                    <template #default="{ row }">
+                      <div class="dangerous-api-position">
+                        <div>第 {{ row.line }} 行</div>
+                        <div>第 {{ row.column }} 列</div>
+                      </div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="access" label="访问形式" min-width="220" />
+                  <el-table-column prop="kind" label="类型" width="110">
+                    <template #default="{ row }">{{ formatDangerousApiOccurrenceKind(row.kind) }}</template>
+                  </el-table-column>
+                  <el-table-column prop="member" label="成员" min-width="160">
+                    <template #default="{ row }">{{ row.member || '直接引用' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="memberDescription" label="说明" min-width="320">
+                    <template #default="{ row }">
+                      <div class="dangerous-api-description">
+                        {{ getDangerousApiOccurrenceDescription(selectedDangerousApiUsage, row) }}
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
             </el-dialog>
           </main>
         </el-tab-pane>
@@ -833,7 +909,13 @@ import * as dayjs from 'dayjs';
 import { basicSetup, EditorView } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { isEqual, size } from 'lodash-es';
-import type { JsPluginConfig, JsPluginConfigItem, JsScriptInfo } from '~/type.d.ts';
+import type {
+  JsDangerousAPIOccurrence,
+  JsDangerousAPIUsage,
+  JsPluginConfig,
+  JsPluginConfigItem,
+  JsScriptInfo,
+} from '~/type.d.ts';
 import { postUtilsCheckCronExpr } from '~/api/utils';
 import {
   checkJsUpdate,
@@ -1150,6 +1232,59 @@ onBeforeUnmount(() => {
 
 const jsList = ref<JsScriptInfo[]>([]);
 const jsFilter = ref<string>('');
+const dangerousApiDialogVisible = ref(false);
+const selectedDangerousApiScript = ref<JsScriptInfo | null>(null);
+const selectedDangerousApiUsage = ref<JsDangerousAPIUsage | null>(null);
+
+const normalizeDangerousApiOccurrence = (
+  occurrence: Partial<JsDangerousAPIOccurrence> | null | undefined,
+): JsDangerousAPIOccurrence => ({
+  line: occurrence?.line ?? 0,
+  column: occurrence?.column ?? 0,
+  kind: occurrence?.kind ?? 'direct',
+  member: occurrence?.member ?? '',
+  access: occurrence?.access ?? '',
+  memberDescription: occurrence?.memberDescription ?? '',
+});
+
+const normalizeDangerousApiUsage = (
+  usage: Partial<JsDangerousAPIUsage> | null | undefined,
+): JsDangerousAPIUsage => ({
+  id: usage?.id ?? '',
+  name: usage?.name ?? '',
+  description: usage?.description ?? '',
+  risk: usage?.risk ?? '',
+  occurrences: Array.isArray(usage?.occurrences)
+    ? usage.occurrences.map(item => normalizeDangerousApiOccurrence(item))
+    : [],
+  referencedMembers: Array.isArray(usage?.referencedMembers)
+    ? usage.referencedMembers.filter((item): item is string => typeof item === 'string')
+    : [],
+});
+
+const normalizeJsScriptInfo = (script: Partial<JsScriptInfo> | null | undefined): JsScriptInfo => ({
+  name: script?.name ?? '',
+  enable: Boolean(script?.enable),
+  version: script?.version ?? '',
+  author: script?.author ?? '',
+  license: script?.license ?? '',
+  homepage: script?.homepage ?? '',
+  desc: script?.desc ?? '',
+  grant: script?.grant,
+  updateTime: script?.updateTime ?? 0,
+  installTime: script?.installTime ?? 0,
+  errText: script?.errText ?? '',
+  filename: script?.filename ?? '',
+  updateUrls: Array.isArray(script?.updateUrls) ? script.updateUrls : [],
+  official: Boolean(script?.official),
+  builtin: Boolean(script?.builtin),
+  builtinUpdated: Boolean(script?.builtinUpdated),
+  hasDangerousApiUsage: Boolean(script?.hasDangerousApiUsage),
+  dangerousApiUsages: Array.isArray(script?.dangerousApiUsages)
+    ? script.dangerousApiUsages.map(item => normalizeDangerousApiUsage(item))
+    : [],
+});
+
 const jsFilterCount = computed(() => jsList.value.length - filteredJsList.value.length);
 const filteredJsList = computed(() =>
   jsList.value.filter(js => {
@@ -1164,6 +1299,187 @@ const filteredJsList = computed(() =>
     );
   }),
 );
+
+const formatDangerousApiUsageSummary = (js: JsScriptInfo) =>
+  js.dangerousApiUsages
+    .map((usage: JsDangerousAPIUsage) => `${usage.name}: ${usage.risk}`)
+    .join('\n');
+
+const formatDangerousApiOccurrenceKind = (kind: string) => {
+  switch (kind) {
+    case 'method':
+      return '方法';
+    case 'property':
+      return '属性';
+    default:
+      return '直接引用';
+  }
+};
+
+const sealInstDangerousMemberDescriptions: Record<string, string> = {
+  ImSession: '当前 IM 会话对象，包含端点、群组会话和消息处理运行态。',
+  imSession: '当前 IM 会话对象，包含端点、群组会话和消息处理运行态。',
+  CmdMap: '核心命令映射表，包含已注册的命令项。',
+  ExtList: '当前扩展列表，包含已注册扩展对象。',
+  ExtRegistry: '扩展注册表，用于按名称或别名索引扩展。',
+  ActiveWithGraph: '扩展开关联动图，用于处理 ActiveWith 依赖关系。',
+  ActiveWithGraphMu: '保护扩展开关联动图的读写锁。',
+  ExtRegistryVersion: '扩展注册表版本号，扩展变更时递增。',
+  RollParser: '骰点表达式解析器实例。',
+  LastUpdatedTime: '最近一次标记为已修改的时间戳。',
+  TextMap: '当前文本模板映射表。',
+  BaseConfig: '基础配置对象，包含实例名和数据目录等基础信息。',
+  DBOperator: '数据库操作器，用于访问底层数据库。',
+  Logger: '核心日志记录器。',
+  LogWriter: '供 UI 使用的日志写入器。',
+  IsDeckLoading: '当前是否正在加载牌堆。',
+  DeckList: '当前牌堆列表。',
+  deckList: '当前牌堆列表。',
+  CommandPrefix: '当前命令前缀列表，例如 .、。等，会影响命令解析入口。',
+  commandPrefix: '当前命令前缀列表，例如 .、。等，会影响命令解析入口。',
+  DiceMasters: '当前骰主列表。改写后可直接影响管理权限。',
+  diceMasters: '当前骰主列表。改写后可直接影响管理权限。',
+  MasterUnlockCode: '当前骰主解锁码。',
+  MasterUnlockCodeTime: '当前骰主解锁码的更新时间。',
+  CustomReplyConfig: '自定义回复配置列表。',
+  TextMapRaw: '原始文本模板配置。',
+  TextMapHelpInfo: '文本模板帮助信息映射。',
+  TextMapCompatible: '文本模板兼容层映射。',
+  ConfigManager: '插件配置管理器。',
+  Parent: '所属 DiceManager 实例。',
+  CocExtraRules: 'COC 额外规则映射。',
+  Cron: '核心 cron 调度器。',
+  AliveNoticeEntry: '存活通知任务的 cron 条目 ID。',
+  JsPrinter: 'JS 控制台输出记录器。',
+  ExtLoopManager: 'JS 事件循环管理器。',
+  JsScriptList: '当前加载的 JS 脚本元数据列表。',
+  JsScriptCron: 'JS 脚本专用 cron 调度器。',
+  JsScriptCronLock: 'JS 脚本 cron 调度器的互斥锁。',
+  JsReloadLock: 'JS 重载锁，用于避免并发重载。',
+  JsBuiltinDigestSet: '内置脚本摘要表，用于判断内置脚本是否被更新。',
+  JsLoadingScript: '当前正在加载的脚本元数据。',
+  GameSystemMap: '游戏系统模板映射。',
+  RunAfterLoaded: '核心加载完成后待执行的回调列表。',
+  UIEndpoint: 'UI 使用的端点信息。',
+  CensorManager: '敏感词审查管理器。',
+  AttrsManager: '属性管理器。',
+  Config: '核心配置对象，包含 JS 开关、邮件、日志、风控等大量运行配置。',
+  AdvancedConfig: '高级配置对象，包含危险开关和跑团日志后端等高级设置。',
+  PublicDice: '公骰客户端对象，用于与公骰服务端通信。',
+  PublicDiceTimerId: '公骰心跳任务的 cron 条目 ID。',
+  ContainerMode: '当前是否处于容器模式。',
+  IsAlreadyLoadConfig: '核心配置是否已完成加载。',
+  SaveDatabaseInsertCheckMapFlag: '数据库插入检查表的初始化标记。',
+  SaveDatabaseInsertCheckMap: '数据库插入检查映射。',
+  StoreManager: '扩展商店管理器。',
+  JsExtRegistry: 'JS 扩展真实注册表。',
+  ExtUpdateTime: '扩展变更时间戳，用于触发延迟更新。',
+  JsReloading: '当前是否正在重载 JS 扩展。',
+  DirtyGroups: '脏群组列表，用于保存优化。',
+  MarkModified: '标记核心状态已修改，更新时间戳以触发后续保存。',
+  StartStartupJsLoad: '在启动阶段异步开始加载 JS 脚本。',
+  WaitStartupJsLoaded: '等待启动阶段的 JS 脚本加载完成。',
+  CocExtraRulesAdd: '添加一条 COC 额外规则。',
+  Init: '初始化核心实例，包括配置、扩展、调度器和各类管理器。',
+  ExtFind: '按名称或别名查找扩展。',
+  ExtAliasToName: '将扩展别名转换成主扩展名。',
+  ExtRemove: '移除一个扩展。',
+  MasterRefresh: '整理骰主列表并去重。',
+  MasterAdd: '向骰主列表中新增一项，可能直接提升管理权限。',
+  MasterCheck: '检查某个群组 ID 或用户 ID 是否拥有骰主权限。',
+  MasterRemove: '从骰主列表中移除一项。',
+  UnlockCodeUpdate: '刷新或生成骰主解锁码。',
+  UnlockCodeVerify: '校验给定解锁码是否有效。',
+  IsMaster: '检查某个统一 ID 是否属于骰主。',
+  ApplyAliveNotice: '重建并应用存活通知定时任务。',
+  GameSystemTemplateAddEx: '添加或覆盖一个游戏系统模板。',
+  GameSystemTemplateAdd: '添加一个游戏系统模板，已存在时不会覆盖。',
+  ResetQuitInactiveCron: '重建退群判定的定时任务。',
+  PublicDiceEndpointRefresh: '向公骰服务刷新端点在线信息。',
+  PublicDiceInfoRegister: '向公骰服务注册或更新公骰信息。',
+  PublicDiceSetupTick: '重建公骰心跳定时更新。',
+  PublicDiceSetup: '初始化公骰客户端并完成注册、端点刷新与心跳配置。',
+  StoreSetup: '初始化扩展商店管理器。',
+  NoticeForEveryEndpoint: '向各端点发送通知消息。',
+  RegisterBuiltinExt: '注册内置扩展。',
+  RegisterBuiltinSystemTemplate: '注册内置游戏系统模板。',
+  RegisterExtension: '向核心注册新的扩展对象，直接影响扩展系统。',
+  GetExtDataDir: '返回指定扩展的数据目录路径，并在必要时创建目录。',
+  GetDiceDataPath: '返回核心数据目录下指定名称对应的路径。',
+  GetExtConfigFilePath: '返回指定扩展配置文件的完整路径。',
+  JsInit: '初始化并重建整个 JS 运行环境。',
+  JsShutdown: '关闭 JS 环境。',
+  JsLoadScripts: '扫描脚本目录并加载脚本元数据与脚本内容。',
+  JsReload: '重建并重载整个 JS 环境。',
+  JsExtSettingVacuum: '清理已删除脚本对应的插件配置。该方法已标记为弃用且存在已知问题。',
+  JsParseMeta: '解析脚本文件的元数据头和签名信息。',
+  JsLoadScriptRaw: '加载并执行单个脚本文件。',
+  JsCheckUpdate: '检查某个 JS 脚本是否存在更新。',
+  JsUpdate: '应用某个 JS 脚本的更新文件。',
+  JsDownload: '下载 JS 脚本或其更新文件。',
+  GenerateTextMap: '根据原始配置重建文本模板映射。',
+  SaveText: '将文本模板配置落盘保存。',
+  ApplyExtDefaultSettings: '应用扩展默认设置。',
+  Save: '将当前配置和高级配置落盘保存。',
+  CanSendMail: '检查邮件配置是否完整可用。',
+  SendMail: '按当前邮件配置发送通知邮件。',
+  SendMailRow: '直接发送邮件，可指定主题、收件人、正文和附件。',
+  GetBanList: '获取当前黑名单/信任列表。',
+  NewCensorManager: '初始化敏感词审查管理器。',
+  CensorMsg: '执行一条消息的敏感词审查。',
+  DeckCheckUpdate: '检查某个牌堆是否存在更新。',
+  DeckUpdate: '应用某个牌堆更新文件。',
+  DeckDownload: '下载牌堆或其更新文件。',
+};
+
+const getDangerousApiOccurrenceDescription = (
+  usage: JsDangerousAPIUsage | null,
+  occurrence: { memberDescription?: string; member?: string; kind?: string },
+) => {
+  if (occurrence.memberDescription) {
+    return occurrence.memberDescription;
+  }
+  if (!usage) {
+    return '暂无说明';
+  }
+  if (usage.id === 'seal.inst') {
+    if (!occurrence.member) {
+      return '直接获取高权限 API 本体。后续可继续读取字段、调用方法或转存到其它变量。';
+    }
+    const exact = sealInstDangerousMemberDescriptions[occurrence.member];
+    if (exact) {
+      return exact;
+    }
+    const lowerFirst = occurrence.member[0].toLowerCase() + occurrence.member.slice(1);
+    if (sealInstDangerousMemberDescriptions[lowerFirst]) {
+      return sealInstDangerousMemberDescriptions[lowerFirst];
+    }
+    const upperFirst = occurrence.member[0].toUpperCase() + occurrence.member.slice(1);
+    if (sealInstDangerousMemberDescriptions[upperFirst]) {
+      return sealInstDangerousMemberDescriptions[upperFirst];
+    }
+  }
+  if (occurrence.kind === 'method') {
+    return '检测到对高权限实例方法的直接调用，但当前没有预置说明。';
+  }
+  if (occurrence.kind === 'property') {
+    return '检测到对高权限实例字段或属性的直接访问，但当前没有预置说明。';
+  }
+  return '直接获取高权限 API 本体。后续可继续读取字段、调用方法或转存到其它变量。';
+};
+
+const dangerousApiDialogTitle = computed(() => {
+  if (!selectedDangerousApiUsage.value) {
+    return '高权限 API 调用明细';
+  }
+  return `${selectedDangerousApiUsage.value.name} 调用明细`;
+});
+
+const openDangerousApiUsageDialog = (script: JsScriptInfo, usage: JsDangerousAPIUsage) => {
+  selectedDangerousApiScript.value = normalizeJsScriptInfo(script);
+  selectedDangerousApiUsage.value = normalizeDangerousApiUsage(usage);
+  dangerousApiDialogVisible.value = true;
+};
 const jsConfig = ref<{ [key: string]: JsPluginConfig }>({});
 const jsConfigGroupActive = ref<{ [pluginName: string]: string }>({});
 const configGroupsByPlugin = computed<Record<string, JsConfigGroup[]>>(() => {
@@ -1187,7 +1503,7 @@ const jsStatus = async () => {
 
 const refreshList = async () => {
   const lst = await getJsList();
-  jsList.value = lst;
+  jsList.value = Array.isArray(lst) ? lst.map(item => normalizeJsScriptInfo(item)) : [];
 };
 
 const initConfigGroupActive = () => {
@@ -1426,5 +1742,32 @@ const jsUpdate = async () => {
 
 .js-item {
   min-width: 100%;
+}
+
+.dangerous-api-link {
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.dangerous-api-dialog-window .el-dialog {
+  width: min(72rem, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dangerous-api-dialog-window .el-dialog__body {
+  overflow-y: auto;
+}
+
+.dangerous-api-position {
+  line-height: 1.35;
+}
+
+.dangerous-api-description {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
 }
 </style>
