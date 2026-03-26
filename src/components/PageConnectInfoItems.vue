@@ -768,6 +768,7 @@
                 store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
               "></el-option>
             <el-option label="QQ(Milky)" :value="17"></el-option>
+            <el-option label="QQ(内置Milky)" :value="18"></el-option>
             <el-option label="QQ(onebot11正向WS)" :value="6"></el-option>
             <el-option label="QQ(onebot11反向WS)" :value="11"></el-option>
             <el-option label="QQ(官方机器人)" :value="10"></el-option>
@@ -968,11 +969,18 @@
           }}</el-text>
         </el-form-item>
         <el-form-item
-          v-if="form.accountType === 0"
+          v-if="form.accountType === 0 || form.accountType === 18"
           label="账号"
           :label-width="formLabelWidth"
           required>
           <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+        </el-form-item>
+
+        <el-form-item v-if="form.accountType === 18" label="" :label-width="formLabelWidth">
+          <small>
+            <div style="color: #aa4422">输入的 QQ 账号务必是你即将扫码登录的账号</div>
+            <div style="color: #aa4422">否则登录会失败</div>
+          </small>
         </el-form-item>
 
         <el-form-item v-if="form.accountType === 0" label="密码" :label-width="formLabelWidth">
@@ -1859,7 +1867,8 @@
                 (form.account === '' ||
                   form.signServerVersion === '' ||
                   form.signServerName === '')) ||
-              (form.accountType === 17 && (form.wsGateway === '' || form.restGateway === ''))
+              (form.accountType === 17 && (form.wsGateway === '' || form.restGateway === '')) ||
+              (form.accountType === 18 && form.account === '')
             "
             @click="goStepTwo">
             下一步</el-button
@@ -2422,7 +2431,7 @@ const handleSignServerAdd = () => {
 const handleSignServerDelete = (url: string) => {
   if (form.signServerConfig?.signServers) {
     form.signServerConfig.signServers = form.signServerConfig.signServers.filter(server => {
-      return server.url != url;
+      return server.url !== url;
     });
   }
 };

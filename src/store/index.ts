@@ -16,6 +16,7 @@ import {
   postAddKook,
   postAddLagrange,
   postAddMilky,
+  postAddMilkyInternal,
   postAddMinecraft,
   postAddOfficialQQ,
   postAddOnebot11ReverseWs,
@@ -375,6 +376,11 @@ export const useStore = defineStore('main', {
             info = await postAddMilky(token, wsGateway, restGateway);
           }
           break;
+        case 18:
+          {
+            info = await postAddMilkyInternal(Number(account), 'lagrangeV2');
+          }
+          break;
       }
       return info as DiceConnection;
     },
@@ -442,7 +448,7 @@ export const useStore = defineStore('main', {
         // 试图做一次登录，以获取 token
         await this.signIn('defaultSignin');
       }
-      return this.token != '';
+      return this.token !== '';
     },
   },
 });
