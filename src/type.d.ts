@@ -102,6 +102,7 @@ export interface AdvancedConfig {
   storyLogBackendUrl: string;
   storyLogApiVersion: string;
   storyLogBackendToken: string;
+  customReplyCooldown: number;
   exposeDangerousSealInst: boolean;
 }
 

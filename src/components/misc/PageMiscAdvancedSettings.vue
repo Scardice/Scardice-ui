@@ -77,7 +77,8 @@
         开启后会向插件暴露 <code>seal.inst</code>，等同于把核心 <code>*Dice</code> 实例直接交给 JS。
       </template>
       <template #default>
-        插件将可能直接修改核心配置、增删骰主、强制重载或关闭 JS 环境、读取和改写部分运行时状态、发送通知或邮件。
+        插件将可能直接修改核心配置、增删骰主、强制重载或关闭 JS
+        环境、读取和改写部分运行时状态、发送通知或邮件。
         不当使用或恶意脚本可能导致权限提升、配置损坏、扩展异常重载、服务中断，甚至借由现有配置向外发送敏感内容。
       </template>
     </el-alert>
@@ -111,6 +112,20 @@
         </el-tooltip>
       </template>
       <el-checkbox v-model="replyDebugMode">开启</el-checkbox>
+    </el-form-item>
+    <el-form-item label="全局统一冷却时间">
+      <template #label>
+        <span>统一冷却时间</span>
+        <el-tooltip
+          raw-content
+          content="所有自定义回复统一使用这个冷却时间，不再使用各回复文件里的 interval。单位为秒。">
+          <el-icon>
+            <question-filled />
+          </el-icon>
+        </el-tooltip>
+      </template>
+      <el-input-number v-model="config.customReplyCooldown" :min="0.1" :step="0.5" :precision="1" />
+      <el-text class="ml-2" type="info">秒</el-text>
     </el-form-item>
 
     <h3>跑团日志</h3>
@@ -198,6 +213,7 @@ const config = ref<AdvancedConfig>({
   storyLogBackendUrl: '',
   storyLogApiVersion: '',
   storyLogBackendToken: '',
+  customReplyCooldown: 5,
   exposeDangerousSealInst: false,
 });
 const replyDebugMode = ref(false);
@@ -247,7 +263,8 @@ const toggleCredentialVisibility = (key: string) => {
 
 const syncDirtyState = () => {
   modified.value =
-    JSON.stringify(config.value) !== savedConfigSnapshot.value || replyDebugMode.value !== savedReplyDebugMode.value;
+    JSON.stringify(config.value) !== savedConfigSnapshot.value ||
+    replyDebugMode.value !== savedReplyDebugMode.value;
 };
 
 const clearDangerousSealInstConfirmTimer = () => {
@@ -322,7 +339,8 @@ watch(
 
 const submit = async () => {
   const shouldNotifyDangerousReload =
-    JSON.parse(savedConfigSnapshot.value || '{}').exposeDangerousSealInst !== config.value.exposeDangerousSealInst;
+    JSON.parse(savedConfigSnapshot.value || '{}').exposeDangerousSealInst !==
+    config.value.exposeDangerousSealInst;
   await store.diceAdvancedConfigSet(config.value);
   await postCustomReplyDebug(replyDebugMode.value);
   config.value = await store.diceAdvancedConfigGet();
