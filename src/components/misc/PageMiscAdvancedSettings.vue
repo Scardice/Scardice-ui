@@ -2,6 +2,14 @@
   <el-affix v-if="modified" :offset="60">
     <div class="tip-danger">
       <el-text type="danger" size="large" tag="strong">内容已修改，不要忘记保存！</el-text>
+      <el-button
+        class="button"
+        type="primary"
+        :icon="DocumentChecked"
+        :disabled="!modified"
+        @click="submit"
+        >点我保存</el-button
+      >
     </div>
   </el-affix>
 
@@ -198,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { Hide, QuestionFilled, View } from '@element-plus/icons-vue';
+import { DocumentChecked, Hide, QuestionFilled, View } from '@element-plus/icons-vue';
 import { useStore } from '~/store';
 import type { AdvancedConfig } from '~/type.d.ts';
 import { getCustomReplyDebug, postCustomReplyDebug } from '~/api/configs';

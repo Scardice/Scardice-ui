@@ -15,6 +15,14 @@
   <el-affix v-if="modified" :offset="70">
     <div class="tip-danger">
       <el-text type="danger" size="large" tag="strong">内容已修改，不要忘记保存！</el-text>
+      <el-button
+        class="button"
+        type="primary"
+        :icon="DocumentChecked"
+        :disabled="!modified"
+        @click="doSave"
+        >点我保存</el-button
+      >
     </div>
   </el-affix>
 

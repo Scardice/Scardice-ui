@@ -19,6 +19,14 @@
   <el-affix v-if="configNeedSave" :offset="70">
     <div class="tip-danger">
       <el-text type="danger" size="large" tag="strong">设置存在修改，别忘记保存！</el-text>
+      <el-button
+        class="button"
+        type="primary"
+        :icon="DocumentChecked"
+        :disabled="!configNeedSave"
+        @click="summitConfig"
+        >点我保存</el-button
+      >
     </div>
   </el-affix>
 
@@ -228,7 +236,7 @@
 
 <script lang="ts" setup>
 import type { FormRules, FormInstance, ElTree } from 'element-plus';
-import { Delete, Refresh, Setting, Upload } from '@element-plus/icons-vue';
+import { Delete, DocumentChecked, Refresh, Setting, Upload } from '@element-plus/icons-vue';
 import { trim } from 'lodash-es';
 import type { HelpDoc, HelpTextItem, HelpTextItemQuery } from '~/type.d.ts';
 import {

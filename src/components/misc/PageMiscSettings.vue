@@ -2,6 +2,14 @@
   <el-affix v-if="modified" :offset="60">
     <div class="tip-danger">
       <el-text type="danger" size="large" tag="strong">内容已修改，不要忘记保存！</el-text>
+      <el-button
+        class="button"
+        type="primary"
+        :icon="DocumentChecked"
+        :disabled="!modified"
+        @click="submit"
+        >点我保存</el-button
+      >
     </div>
   </el-affix>
 
@@ -374,11 +382,7 @@
       <el-tooltip raw-content content="在这个时间窗口内，连续使用同一条指令会被视作刷屏加重。">
         <el-icon><question-filled /></el-icon>
       </el-tooltip>
-      <el-input-number
-        v-model="config.spamSameCommandWindowSec"
-        :min="1"
-        :step="1"
-        clearable />
+      <el-input-number v-model="config.spamSameCommandWindowSec" :min="1" :step="1" clearable />
     </el-form-item>
 
     <el-form-item>
@@ -388,11 +392,7 @@
         content="连续同指令越多，令牌恢复越慢；该值用于限制最大减速倍率，例如 5 表示最多变慢 5 倍。">
         <el-icon><question-filled /></el-icon>
       </el-tooltip>
-      <el-input-number
-        v-model="config.spamRecoveryMultiplierMax"
-        :min="1"
-        :step="1"
-        clearable />
+      <el-input-number v-model="config.spamRecoveryMultiplierMax" :min="1" :step="1" clearable />
     </el-form-item>
 
     <el-form-item>
@@ -743,7 +743,13 @@
 </template>
 
 <script lang="ts" setup>
-import { CirclePlusFilled, CircleClose, QuestionFilled, Upload } from '@element-plus/icons-vue';
+import {
+  CirclePlusFilled,
+  CircleClose,
+  DocumentChecked,
+  QuestionFilled,
+  Upload,
+} from '@element-plus/icons-vue';
 import { cloneDeep, toNumber } from 'lodash-es';
 import { postMailTest, postUploadToUpgrade } from '~/api/dice';
 import { useStore } from '~/store';
