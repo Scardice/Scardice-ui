@@ -64,7 +64,7 @@
               <el-upload
                 action=""
                 multiple
-                accept="application/javascript,application/typescript,.js,.ts"
+                accept="*"
                 class="upload"
                 :before-upload="beforeUpload"
                 :file-list="uploadFileList">
@@ -292,7 +292,9 @@
                   </el-table-column>
                   <el-table-column prop="access" label="访问形式" min-width="220" />
                   <el-table-column prop="kind" label="类型" width="110">
-                    <template #default="{ row }">{{ formatDangerousApiOccurrenceKind(row.kind) }}</template>
+                    <template #default="{ row }">
+                      {{ formatDangerousApiOccurrenceKind(row.kind) }}
+                    </template>
                   </el-table-column>
                   <el-table-column prop="member" label="成员" min-width="160">
                     <template #default="{ row }">{{ row.member || '直接引用' }}</template>
@@ -1563,7 +1565,11 @@ const jsShutdown = async () => {
 };
 
 const beforeUpload = async (file: UploadRawFile) => {
-  // UploadRawFile
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext !== 'js' && ext !== 'ts') {
+    ElMessage.error('仅支持上传 .js 或 .ts 格式的插件文件');
+    return false;
+  }
   const fd = new FormData();
   fd.append('file', file);
   await uploadJs(file);
