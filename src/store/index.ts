@@ -11,7 +11,6 @@ import {
   postAddDingtalk,
   postAddDiscord,
   postAddDodo,
-  postAddGocq,
   postAddGocqSeparate,
   postAddKook,
   postAddLagrange,
@@ -25,7 +24,6 @@ import {
   postaddSealChat,
   postAddSlack,
   postAddTelegram,
-  postAddWalleQ,
 } from '~/api/im_connections';
 import { getBaseInfo, getHello, getLogFetchAndClear, getPreInfo } from '~/api/others';
 import { getSalt, signin } from '~/api/signin';
@@ -89,7 +87,7 @@ export interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
-  builtinMode: 'gocq' | 'lagrange' | 'lagrange-gocq';
+  builtinMode: 'gocq' | 'lagrange';
   built_in_mode: string; // Milky 的字段，跟 ob 不太一样
   signServerVer: string;
   signServerName: string;
@@ -291,9 +289,6 @@ export const useStore = defineStore('main', {
         accountType,
         nickname,
         account,
-        password,
-        protocol,
-        appVersion,
         token,
         botToken,
         appToken,
@@ -307,12 +302,9 @@ export const useStore = defineStore('main', {
         appSecret,
         clientID,
         robotCode,
-        implementation,
         relWorkDir,
         connectUrl,
         accessToken,
-        useSignServer,
-        signServerConfig,
         signServerName,
         signServerVersion,
         reverseAddr,
@@ -325,20 +317,6 @@ export const useStore = defineStore('main', {
       let info = null;
       switch (accountType) {
         //QQ
-        case ImConnectionTypeGocqLegacy:
-          if (implementation === 'gocq') {
-            info = await postAddGocq(
-              account,
-              password,
-              protocol,
-              appVersion,
-              useSignServer,
-              signServerConfig,
-            );
-          } else if (implementation === 'walle-q') {
-            info = await postAddWalleQ(account, password, protocol);
-          }
-          break;
         case ImConnectionTypeDiscord:
           info = await postAddDiscord(token.trim(), proxyURL, reverseProxyUrl, reverseProxyCDNUrl);
           break;
@@ -389,12 +367,6 @@ export const useStore = defineStore('main', {
             info = await postAddLagrange(account, signServerName, signServerVersion);
           }
           break;
-        // lagrange gocq deprecated
-        // case 16:
-        //   {
-        //     info = await postAddLagrange(account, signServerName, signServerVersion, true);
-        //   }
-        //   break;
         case ImConnectionTypeMilkySeparate:
           {
             info = await postAddMilky(token, wsGateway, restGateway);

@@ -27,30 +27,6 @@ export function getLagrangeSignInfo() {
   );
 }
 
-export function postAddGocq(
-  account: string,
-  password: string,
-  protocol: number,
-  appVersion: string,
-  useSignServer: boolean,
-  signServerConfig: SignServerConfig,
-) {
-  return request<DiceConnection>(
-    'post',
-    'addGocq',
-    {
-      account,
-      password,
-      protocol,
-      appVersion,
-      useSignServer,
-      signServerConfig,
-    },
-    'json',
-    { timeout: 65000 },
-  );
-}
-
 export function postAddWalleQ(account: string, password: string, protocol: number) {
   return request<DiceConnection>('post', 'addWalleQ', { account, password, protocol }, 'json', {
     timeout: 65000,
@@ -289,7 +265,7 @@ interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
-  builtinMode: 'gocq' | 'lagrange' | 'lagrange-gocq';
+  builtinMode: 'gocq' | 'lagrange';
   built_in_mode: string; // Milky
   signServerVer: string;
   signServerName: string;

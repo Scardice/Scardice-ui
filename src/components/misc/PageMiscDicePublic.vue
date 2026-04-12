@@ -230,8 +230,6 @@ const refreshInfo = async () => {
           switch (dc.adapter.builtinMode) {
             case 'lagrange':
               return '内置客户端';
-            case 'lagrange-gocq':
-              return '内置gocq';
             case 'gocq':
               return '分离部署';
           }

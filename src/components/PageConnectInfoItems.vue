@@ -252,23 +252,6 @@
             </el-form-item>
           </template>
 
-          <template
-            v-if="
-              i.platform === 'QQ' &&
-              i.protocolType === 'onebot' &&
-              i.adapter.builtinMode === 'lagrange-gocq'
-            ">
-            <el-form-item label="接入方式">
-              <div>内置 gocq</div>
-            </el-form-item>
-            <el-form-item label="签名版本">
-              <div>{{ i.adapter.signServerVer }}</div>
-            </el-form-item>
-            <el-form-item label="签名服务">
-              <div>{{ i.adapter.signServerName }}</div>
-            </el-form-item>
-          </template>
-
           <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
             <el-form-item label="协议">
               <div>[已弃用]Red</div>
@@ -734,15 +717,6 @@
         >该支持仍处于实验阶段，部分功能尚未完善。<br />- QQ 平台适配目标版本 0.2.x 以上的
         Chronocat。</el-alert
       >
-      <el-alert
-        v-if="form.accountType === 0"
-        type="error"
-        :closable="false"
-        style="margin-bottom: 1.5rem">
-        内置 gocq 方案已不再支持，目前仅为兼容性保留，<strong>新增入口已关闭</strong>。<br />
-        使用内置方案请切换到新的内置客户端。<br />
-        如果你依然需要使用 gocq，可以切换到分离部署方式进行连接，但我们非常不建议您再继续使用 gocq。
-      </el-alert>
       <el-alert
         v-if="
           store.diceServers.length > 0 &&
@@ -2585,14 +2559,8 @@ onBeforeMount(async () => {
     supportedQQVersions.value = ['', ...versionsRes.versions];
   }
 
-  // form.accountType 默认账号类型，在 android 与 mac 系统中，默认账号类型为内置 gocq，其余系统为内置客户端
+  // form.accountType 默认账号类型为内置客户端
   if (store.diceServers.length > 0) {
-    if (
-      store.diceServers[0].baseInfo.OS === 'android' ||
-      store.diceServers[0].baseInfo.OS === 'darwin'
-    ) {
-      form.accountType = 16;
-    }
     if (store.diceServers[0].baseInfo.containerMode) {
       form.accountType = 6;
     }
