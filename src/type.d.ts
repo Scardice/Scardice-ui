@@ -1,5 +1,3 @@
-import type BanConfig from './components/misc/banList/BanConfig.vue';
-
 export interface JsDangerousAPIUsage {
   id: string;
   name: string;
@@ -65,6 +63,7 @@ export interface HelpDocHelpInfo {
 }
 
 export interface HelpDoc {
+  key: string;
   name: string;
   path: string;
   group: string;
