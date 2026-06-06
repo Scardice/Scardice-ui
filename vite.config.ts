@@ -57,9 +57,7 @@ export default defineConfig(({ mode }) => ({
       compiler: 'vue3',
       autoInstall: true,
     }),
-    legacy({
-      targets: ['defaults'],
-    }),
+    // legacy plugin removed - modern admin UI does not need IE11/legacy polyfills
   ],
   build: {
     sourcemap: false,
