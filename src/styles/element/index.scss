@@ -1,31 +1,491 @@
-$--colors: (
-  'primary': (
-    // "base": green,
-  ),
-  'success': (
-    'base': #21ba45,
-  ),
-  'warning': (
-    'base': #f2711c,
-  ),
-  'danger': (
-    'base': #db2828,
-  ),
-  'error': (
-    'base': #db2828,
-  ),
-  'info': (
-    'base': #42b8dd,
-  ),
-);
+// ========================================
+// Scardice Element Plus Theme Overrides
+// Glassmorphism + Brand Colors (Transgender Pride Flag)
+// Pure CSS variable approach (no Sass forwarding to avoid module errors)
+// ========================================
 
-// You should use them in scss, because we calculate it by sass.
-// comment next lines to use default color
-@forward 'element-plus/theme-chalk/src/common/var.scss' with (
-  // do not use same name, it will override.
-  $colors: $--colors,
-  $button-padding-horizontal: ('default': 50px)
-);
+// We use CSS custom properties only. This is the most compatible way
+// to theme Element Plus without triggering internal Sass module issues.
+
+:root {
+  // Primary = brand pink
+  --el-color-primary: #f5a9b8;
+  --el-color-primary-light-3: #f8c2cd;
+  --el-color-primary-light-5: #fbdae1;
+  --el-color-primary-light-7: #fdedf0;
+  --el-color-primary-light-8: #fef4f6;
+  --el-color-primary-light-9: #fff9fa;
+  --el-color-primary-dark-2: #d88e9d;
+
+  // Success = brand cyan
+  --el-color-success: #5bcefa;
+  --el-color-success-light-3: #8dd4f2;
+  --el-color-success-light-5: #b3e3f7;
+  --el-color-success-light-7: #d9f1fb;
+  --el-color-success-light-8: #e8f6fc;
+  --el-color-success-light-9: #f3fafe;
+  --el-color-success-dark-2: #3aa8e0;
+
+  // Border & fill
+  --el-border-color: rgba(245, 169, 184, 0.25);
+  --el-border-color-lighter: rgba(245, 169, 184, 0.12);
+  --el-fill-color-blank: var(--sd-color-bg-card);
+  --el-fill-color-light: var(--sd-color-bg-card-weak);
+  --el-text-color-primary: #1f2937;
+  --el-text-color-regular: #4b5563;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-placeholder: #9ca3af;
+
+  // Border radius
+  --el-border-radius-base: var(--sd-radius-sm);
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: var(--sd-radius-full);
+
+  // Box shadow
+  --el-box-shadow-light: var(--sd-shadow-card);
+  --el-box-shadow: var(--sd-shadow-soft);
+}
+
+// ========================================
+// Dark Theme Overrides for Element Plus
+// ========================================
+[data-theme='dark'] {
+  // Primary stays brand pink (good contrast on dark)
+  --el-color-primary: #f5a9b8;
+  --el-color-primary-light-3: #f8c2cd;
+  --el-color-primary-light-5: #fbdae1;
+  --el-color-primary-light-7: #fdedf0;
+  --el-color-primary-light-8: #fef4f6;
+  --el-color-primary-light-9: #fff9fa;
+  --el-color-primary-dark-2: #d88e9d;
+
+  // Success stays brand cyan
+  --el-color-success: #5bcefa;
+  --el-color-success-light-3: #8dd4f2;
+  --el-color-success-light-5: #b3e3f7;
+  --el-color-success-light-7: #d9f1fb;
+  --el-color-success-light-8: #e8f6fc;
+  --el-color-success-light-9: #f3fafe;
+  --el-color-success-dark-2: #3aa8e0;
+
+  // Border & fill - darker for dark mode
+  --el-border-color: rgba(245, 169, 184, 0.2);
+  --el-border-color-lighter: rgba(245, 169, 184, 0.1);
+  --el-fill-color-blank: var(--sd-color-bg-card);
+  --el-fill-color-light: var(--sd-color-bg-card-weak);
+
+  // Text colors - lighter for dark mode
+  --el-text-color-primary: #e5e7eb;
+  --el-text-color-regular: #9ca3af;
+  --el-text-color-secondary: #6b7280;
+  --el-text-color-placeholder: #6b7280;
+
+  // Border radius (same as light)
+  --el-border-radius-base: var(--sd-radius-sm);
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: var(--sd-radius-full);
+
+  // Box shadow - softer on dark
+  --el-box-shadow-light: var(--sd-shadow-card);
+  --el-box-shadow: var(--sd-shadow-soft);
+
+  // Tooltip & Popper
+  --el-tooltip-bg-color: rgba(35, 40, 55, 0.95);
+  --el-popper-text-color: var(--sd-color-text-primary);
+}
+
+// ========================================
+// Glassmorphism Component Overrides
+// ========================================
+
+// el-card — glass card (no individual backdrop-filter to avoid cascade)
+.el-card {
+  --el-card-border-radius: var(--sd-radius-lg);
+  --el-card-padding: 16px;
+
+  background: var(--sd-glass-bg);
+  border: var(--sd-glass-border);
+  box-shadow: var(--sd-shadow-card);
+  border-color: transparent;
+
+  .el-dialog & {
+    background: var(--sd-color-bg-card-strong);
+  }
+}
+
+.el-descriptions {
+  background: var(--sd-glass-bg);
+  border: var(--sd-glass-border);
+  border-radius: var(--sd-radius-md);
+  padding: 1rem;
+}
+
+.cm-gutters {
+  background: var(--sd-glass-bg) !important;
+  border-right-color: var(--sd-glass-border) !important;
+  color: var(--sd-color-text-secondary) !important;
+}
+
+.cm-activeLineGutter {
+  background: rgba(245, 169, 184, 0.08) !important;
+}
+
+[data-theme='dark'] .helptips {
+  background-color: var(--sd-color-bg-card) !important;
+}
+
+[data-theme='dark'] .helptips .el-collapse-item__header {
+  background-color: var(--sd-color-bg-card) !important;
+}
+
+[data-theme='dark'] .helptips .el-collapse-item__wrap {
+  background-color: var(--sd-color-bg-card-weak) !important;
+}
+
+[data-theme='dark'] .helptips .el-collapse-item__content {
+  color: var(--sd-color-text-secondary);
+}
+
+// el-form
+.el-form {
+  background: var(--sd-color-bg-card-weak);
+  border-radius: var(--sd-radius-md);
+  padding: 1.5rem;
+
+  .el-card &,
+  .el-dialog & {
+    background: transparent;
+    padding: 0;
+  }
+}
+
+.el-form-item__label {
+  color: var(--sd-color-text-secondary);
+  font-weight: 500;
+}
+
+.el-form-item.is-required .el-form-item__label {
+  color: var(--sd-color-brand-pink);
+}
+
+.el-form-item__label::before {
+  color: var(--el-color-primary) !important;
+}
+
+// el-input — glass input
+.el-input__wrapper {
+  background: rgba(254, 247, 248, 0.5);
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+  border-radius: var(--sd-radius-sm);
+  transition:
+    box-shadow 0.2s,
+    background 0.2s;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(245, 169, 184, 0.4) inset;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px var(--el-color-primary) inset;
+  background: rgba(254, 247, 248, 0.8);
+}
+
+.el-input__inner {
+  color: var(--el-text-color-primary);
+}
+
+.el-input__inner::placeholder {
+  color: var(--el-text-color-placeholder);
+}
+
+.el-textarea__inner {
+  background: rgba(254, 247, 248, 0.5);
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+  border-radius: var(--sd-radius-sm);
+  color: var(--el-text-color-primary);
+}
+
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px var(--el-color-primary) inset;
+}
+
+// el-table — global glass table (no individual backdrop-filter)
+.el-table {
+  --el-table-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-border-color: rgba(245, 169, 184, 0.12);
+
+  background: var(--sd-color-bg-card-weak);
+  border-radius: var(--sd-radius-md);
+}
+
+.el-table th.el-table__cell {
+  background-color: rgba(245, 169, 184, 0.08);
+  color: var(--sd-color-text-secondary);
+  font-weight: 600;
+}
+
+.el-table .el-table__body tr:hover > td {
+  background-color: rgba(245, 169, 184, 0.06);
+}
+
+.el-table__inner-wrapper::before {
+  display: none;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: rgba(245, 169, 184, 0.04);
+}
+
+// el-collapse — glass collapse (no individual backdrop-filter)
+.el-collapse-item {
+  background: var(--sd-color-bg-card);
+  border-radius: var(--sd-radius-md);
+  margin-bottom: 0.5rem;
+  border-top: none;
+  border-bottom: none;
+}
+
+.el-collapse-item {
+  background: var(--sd-color-bg-card);
+  backdrop-filter: var(--sd-glass-blur);
+  border-radius: var(--sd-radius-md);
+  margin-bottom: 0.5rem;
+  border-top: none;
+  border-bottom: none;
+}
+
+.el-collapse-item__header {
+  background: transparent;
+  padding: 0.75rem 1rem;
+  border-radius: var(--sd-radius-md);
+  height: auto;
+  color: var(--sd-color-text-primary);
+  font-weight: 500;
+
+  &.is-active {
+    color: var(--sd-color-brand-pink);
+  }
+}
+
+.el-collapse-item__wrap {
+  background: transparent;
+  border-bottom: none;
+}
+
+.el-collapse-item__content {
+  background: var(--sd-color-bg-card-weak);
+  padding: 0.5rem 1rem 1rem;
+  border-radius: 0 0 var(--sd-radius-md) var(--sd-radius-md);
+}
+
+.el-collapse-item .el-collapse-item__arrow {
+  color: var(--sd-color-brand-cyan);
+}
+
+// el-dialog — glass dialog (no individual backdrop-filter)
+.el-dialog {
+  --el-dialog-bg-color: var(--sd-color-bg-card-strong);
+  --el-dialog-border-radius: var(--sd-radius-lg);
+
+  background: var(--sd-color-bg-card-strong);
+  border: var(--sd-glass-border);
+  box-shadow: 0 8px 32px rgba(245, 169, 184, 0.15);
+}
+
+.el-dialog__header {
+  padding: 1rem 1.25rem 0.5rem;
+  border-bottom: 1px solid rgba(245, 169, 184, 0.1);
+}
+
+.el-dialog__title {
+  color: var(--sd-color-text-primary);
+  font-weight: 600;
+}
+
+.el-dialog__body {
+  padding: 1rem 1.25rem;
+  color: var(--sd-color-text-secondary);
+}
+
+.el-dialog__footer {
+  padding: 0.5rem 1.25rem 1rem;
+  border-top: 1px solid rgba(245, 169, 184, 0.1);
+}
+
+.el-overlay-dialog {
+  background-color: rgba(245, 169, 184, 0.08);
+}
+
+// el-tag
+.el-tag {
+  --el-tag-border-radius: var(--sd-radius-sm);
+}
+
+.el-tag--primary {
+  --el-tag-bg-color: var(--el-color-primary-light-9);
+  --el-tag-border-color: var(--el-color-primary-light-7);
+  --el-tag-text-color: var(--el-color-primary);
+}
+
+.el-tag--success {
+  --el-tag-bg-color: var(--el-color-success-light-9);
+  --el-tag-border-color: var(--el-color-success-light-7);
+  --el-tag-text-color: var(--el-color-success-dark-2);
+}
+
+.el-tag.el-tag--plain {
+  background: var(--sd-color-bg-card-weak);
+}
+
+// el-button
+.el-button--primary {
+  --el-button-bg-color: var(--el-color-primary);
+  --el-button-border-color: var(--el-color-primary);
+  --el-button-hover-bg-color: var(--el-color-primary-light-3);
+  --el-button-hover-border-color: var(--el-color-primary-light-3);
+  --el-button-active-bg-color: var(--el-color-primary-dark-2);
+  --el-button-active-border-color: var(--el-color-primary-dark-2);
+
+  border-radius: var(--sd-radius-sm);
+  transition: all 0.2s;
+}
+
+.el-button--success {
+  --el-button-bg-color: var(--el-color-success);
+  --el-button-border-color: var(--el-color-success);
+  --el-button-hover-bg-color: var(--el-color-success-light-3);
+  --el-button-hover-border-color: var(--el-color-success-light-3);
+  --el-button-active-bg-color: var(--el-color-success-dark-2);
+  --el-button-active-border-color: var(--el-color-success-dark-2);
+}
+
+// ========================================
+// Element Plus Dark Element Overrides
+// ========================================
+[data-theme='dark'] {
+  .el-overlay-dialog {
+    background-color: rgba(0, 0, 0, 0.4);
+  }
+
+  .el-dialog__header {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .el-dialog__footer {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .el-dialog {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .el-input__wrapper {
+    background: rgba(40, 45, 60, 0.5);
+    box-shadow: 0 0 0 1px rgba(245, 169, 184, 0.15) inset;
+  }
+
+  .el-input__wrapper:hover {
+    box-shadow: 0 0 0 1px rgba(245, 169, 184, 0.25) inset;
+  }
+
+  .el-input__wrapper.is-focus {
+    box-shadow: 0 0 0 2px var(--el-color-primary) inset;
+    background: rgba(50, 55, 70, 0.7);
+  }
+
+  .el-textarea__inner {
+    background: rgba(40, 45, 60, 0.5);
+    box-shadow: 0 0 0 1px rgba(245, 169, 184, 0.15) inset;
+  }
+
+  .el-textarea__inner:focus {
+    box-shadow: 0 0 0 2px var(--el-color-primary) inset;
+  }
+
+  .el-table {
+    background: var(--sd-color-bg-card-weak);
+  }
+
+  .el-table th.el-table__cell {
+    background-color: rgba(60, 65, 80, 0.5);
+    color: var(--sd-color-text-secondary);
+  }
+
+  .el-table .el-table__body tr:hover > td {
+    background-color: rgba(245, 169, 184, 0.06);
+  }
+
+  .el-collapse-item {
+    background: var(--sd-color-bg-card);
+  }
+
+  .el-message-box {
+    background: var(--sd-color-bg-card-strong);
+    border: var(--sd-glass-border);
+    border-radius: var(--sd-radius-lg);
+  }
+
+  .el-message-box__title {
+    color: var(--sd-color-text-primary);
+  }
+
+  .el-message-box__message {
+    color: var(--sd-color-text-secondary);
+  }
+
+  .el-menu--dark {
+    background: linear-gradient(
+      135deg,
+      rgba(30, 40, 55, 0.92) 0%,
+      rgba(35, 28, 40, 0.82) 100%
+    ) !important;
+    backdrop-filter: blur(6px);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .el-card__footer {
+    color: var(--sd-color-text-secondary);
+    border-top-color: var(--sd-glass-border);
+  }
+
+  .el-popper.is-dark {
+    background: rgba(35, 40, 55, 0.96);
+    color: #f9fafb;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .el-popper__arrow::before {
+    background: rgba(35, 40, 55, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .el-menu--collapse .el-sub-menu.is-opened > .el-sub-menu__title {
+    color: var(--sd-color-brand-cyan);
+  }
+
+  .el-sub-menu .el-menu {
+    background: rgba(35, 40, 55, 0.96) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .el-sub-menu .el-menu .el-menu-item {
+    color: var(--sd-color-text-secondary);
+  }
+
+  .el-sub-menu .el-menu .el-menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    color: var(--sd-color-text-primary);
+  }
+
+  .el-sub-menu .el-menu .el-menu-item.is-active {
+    background-color: rgba(245, 169, 184, 0.12) !important;
+    color: var(--sd-color-brand-cyan);
+  }
+}
 
 // if you want to import all
 // @use "element-plus/theme-chalk/src/index.scss" as *;

@@ -1,7 +1,8 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 
-// import "~/styles/element/index.scss";
+// Scardice custom Element Plus theme (glassmorphism + brand colors)
+import '~/styles/element/index.scss';
 
 // import ElementPlus from "element-plus";
 // import all element css, uncommented next line

@@ -1,0 +1,312 @@
+diff --git a/src/Main.vue b/src/Main.vue
+index 081fa7a..5be31f6 100644
+--- a/src/Main.vue
++++ b/src/Main.vue
+@@ -1,11 +1,12 @@
+ <!-- eslint-disable vue/multi-word-component-names -->
+ <template>
+-  <el-container id="root" class="bg-gray-600 mx-auto my-0 h-screen flex flex-col">
+-    <el-header class="nav bg-inherit flex-none text-white flex justify-between">
++  <el-container id="root" class="bg-[#F5A9B8] mx-auto my-0 h-screen flex flex-col">
++    <el-header
++      class="nav bg-inherit flex-none text-gray-800 flex justify-between rounded-b-2xl shadow-sm z-10">
+       <el-space alignment="center" :size="0" style="height: 60px">
+         <div class="menu-button-wrapper mx-2">
+           <el-button link size="large" @click="drawerMenu = true">
+-            <el-icon color="#fff" size="1.5rem">
++            <el-icon color="#1F2937" size="1.5rem">
+               <IconMenu />
+             </el-icon>
+           </el-button>
+@@ -40,7 +41,7 @@
+       <el-space
+         v-show="store.canAccess"
+         size="large"
+-        style="color: #fff; font-size: small; text-align: right">
++        style="color: #1f2937; font-size: small; text-align: right">
+         <div style="cursor: pointer" @click="dialogFeed = true">
+           <el-badge value="new" :hidden="newsChecked">
+             <img :src="imgNews" alt="news" style="width: 2.3rem" />
+@@ -52,13 +53,12 @@
+             <el-tag
+               effect="dark"
+               size="small"
+-              disable-transitions
+               style="margin-right: 0.3rem"
+               :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
+               {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
+             </el-tag>
+             <el-tooltip :content="store.curDice.baseInfo.version" placement="bottom">
+-              <el-text size="large" style="color: #fff">
++              <el-text size="large" style="color: #1f2937">
+                 {{ store.curDice.baseInfo.versionSimple }}
+               </el-text>
+             </el-tooltip>
+@@ -71,12 +71,20 @@
+     </el-header>
+ 
+     <div class="flex-grow overflow-y-auto flex">
+-      <div class="menu bg-inherit flex-none overflow-y-auto no-scrollbar">
++      <div
++        class="menu bg-inherit flex-none overflow-y-auto no-scrollbar rounded-r-2xl shadow-sm mr-3">
+         <Menu v-model:advanced-config-counter="advancedConfigCounter" type="dark" />
+       </div>
+ 
+-      <div class="bg-gray-100 h-auto text-left flex-1 overflow-y-auto">
+-        <el-main ref="rightbox" v-loading="loading" class="main-container w-full h-full">
++      <div
++        class="relative h-auto text-left flex-1 overflow-y-auto overflow-x-hidden rounded-tl-2xl shadow-inner"
++        :class="bgUrl ? 'bg-cover bg-center' : 'bg-[#FEF7F8]'"
++        :style="bgUrl ? { backgroundImage: `url(${bgUrl})` } : {}">
++        <el-main
++          ref="rightbox"
++          v-loading="loading"
++          class="main-container w-full h-full relative"
++          :class="bgUrl ? 'backdrop-blur-lg bg-[#FEF7F8]/50' : ''">
+           <router-view
+             v-if="!loading"
+             @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)" />
+@@ -90,9 +98,9 @@
+     direction="ltr"
+     :show-close="false"
+     size="50%"
+-    class="drawer-menu bg-gray-600">
++    class="drawer-menu bg-[#F5A9B8]">
+     <template #header>
+-      <div class="text-white flex items-center justify-between">
++      <div class="text-gray-800 flex items-center justify-between">
+         <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
+           <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
+             >Scardice</span
+@@ -176,6 +184,15 @@ dayjs.extend(relativeTime);
+ 
+ const loading = useStorage('router-view-loading', true);
+ 
++// Try to load background.png — if it doesn't exist, fallback to solid color
++const bgModules = import.meta.glob('/src/assets/background.png', {
++  eager: true,
++  query: '?url',
++  import: 'default',
++});
++const bgModulesMap = bgModules as Record<string, string>;
++const bgUrl = computed(() => Object.values(bgModulesMap)[0] || '');
++
+ const store = useStore();
+ const password = ref('');
+ 
+@@ -315,34 +332,40 @@ body {
+ }
+ 
+ ::-webkit-scrollbar {
+-  width: 8px;
+-  height: 8px;
++  width: 10px;
++  height: 10px;
+ }
+ 
+ ::-webkit-scrollbar-track-piece {
+-  background: #fafafa;
++  background: rgba(245, 169, 184, 0.18);
++  border-radius: 999px;
+ }
+ 
+ ::-webkit-scrollbar-thumb {
+-  background: #bdbdbd;
++  background: #5bcefa;
++  border-radius: 999px;
+ }
+ 
+ ::-webkit-scrollbar-corner {
+-  background: #fafafa;
++  background: rgba(245, 169, 184, 0.18);
+ }
+ 
+ ::-webkit-scrollbar-thumb:window-inactive {
+-  background: #e0e0e0;
++  background: #8dd4f2;
+ }
+ 
+ ::-webkit-scrollbar-thumb:hover {
+-  background: #9e9e9e;
++  background: #3aa8e0;
+ }
+ 
+ .main-container {
+   padding: 2rem;
+   box-sizing: border-box;
+   min-height: 100%;
++  text-rendering: optimizeLegibility;
++  -webkit-font-smoothing: antialiased;
++  -moz-osx-font-smoothing: grayscale;
++  text-shadow: 0 1px 3px rgba(254, 247, 248, 0.5);
+ }
+ 
+ .h100 {
+@@ -416,7 +439,7 @@ body {
+ }
+ 
+ .drawer-menu {
+-  background-color: #545c64;
++  background-color: #f5a9b8;
+ 
+   .el-drawer__header {
+     margin: 0;
+diff --git a/src/components/Menu.vue b/src/components/Menu.vue
+index cfb0161..550112c 100644
+--- a/src/components/Menu.vue
++++ b/src/components/Menu.vue
+@@ -2,10 +2,10 @@
+ <template>
+   <el-menu
+     :unique-opened="true"
+-    style="border-right: 0"
++    style="border-right: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; overflow: hidden"
+     :active-text-color="twColors.amber[300]"
+-    :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
+-    :text-color="props.type === 'dark' ? '#fff' : undefined"
++    :background-color="props.type === 'dark' ? '#5BCEFA' : undefined"
++    :text-color="props.type === 'dark' ? '#1F2937' : undefined"
+     router
+     :default-active="route.path">
+     <el-menu-item index="/home">
+@@ -158,4 +158,30 @@ const store = useStore();
+ const route = useRoute();
+ </script>
+ 
+-<style scoped lang="css"></style>
++<style scoped lang="css">
++.el-menu-item {
++  margin: 2px 6px !important;
++  width: auto !important;
++  border-radius: 8px !important;
++  transition: all 0.2s ease !important;
++}
++
++.el-menu-item:hover {
++  background-color: rgba(255, 255, 255, 0.18) !important;
++}
++
++.el-menu-item.is-active {
++  background-color: rgba(255, 255, 255, 0.1) !important;
++}
++
++.el-sub-menu__title {
++  border-radius: 8px !important;
++  margin: 2px 6px !important;
++  width: auto !important;
++  transition: all 0.2s ease !important;
++}
++
++.el-sub-menu__title:hover {
++  background-color: rgba(255, 255, 255, 0.12) !important;
++}
++</style>
+diff --git a/src/components/PageHome.vue b/src/components/PageHome.vue
+index 09d1d2a..d26cba7 100644
+--- a/src/components/PageHome.vue
++++ b/src/components/PageHome.vue
+@@ -115,17 +115,23 @@
+     </div>
+   </div>
+ 
+-  <el-divider class="latest-log-warn">
+-    <el-text type="warning" size="small" class="hover:cursor-pointer" @click="scrollDown"
++  <div class="flex items-center gap-3 latest-log-warn">
++    <el-divider class="flex-1 !my-0" />
++    <el-text
++      type="warning"
++      size="small"
++      class="hover:cursor-pointer whitespace-nowrap"
++      @click="scrollDown"
+       >点击下拉到底查看最新</el-text
+     >
+-  </el-divider>
++    <el-divider class="flex-1 !my-0" />
++  </div>
+ 
+   <div class="hidden md:block p-0 logs">
+     <el-table
+       :data="filteredLogs"
+       :row-class-name="getLogRowClassName"
+-      :header-cell-style="{ backgroundColor: '#f3f5f7' }">
++      :header-cell-style="{ backgroundColor: 'rgba(243, 245, 247, 0.4)' }">
+       <el-table-column label="时间" width="90">
+         <template #default="scope">
+           <div style="display: flex; align-items: center">
+@@ -208,7 +214,7 @@
+     :data="filteredLogs"
+     class="md:hidden w-full logs"
+     :row-class-name="getLogRowClassName"
+-    :header-cell-style="{ backgroundColor: '#f3f5f7' }">
++    :header-cell-style="{ backgroundColor: 'rgba(243, 245, 247, 0.4)' }">
+     <el-table-column label="时间" width="60">
+       <template #default="scope">
+         <div style="display: flex; align-items: center">
+@@ -556,9 +562,6 @@ onBeforeUnmount(() => {
+ .latest-log-warn {
+   margin-top: 0;
+   margin-bottom: 1rem;
+-  :deep(.el-divider__text) {
+-    background: #f3f4f6;
+-  }
+ }
+ 
+ .log-controls {
+@@ -595,28 +598,51 @@ onBeforeUnmount(() => {
+ </style>
+ 
+ <style lang="css">
++.el-table {
++  --el-table-bg-color: transparent;
++  --el-table-header-bg-color: transparent;
++}
++
++.el-table .el-table__header-wrapper,
++.el-table .el-table__header {
++  background: transparent;
++}
++
++.el-table thead tr {
++  background-color: transparent;
++}
++
++.el-table th.el-table__cell {
++  background-color: rgba(243, 245, 247, 0.4);
++}
++
+ .el-table .warning-row {
+-  --el-table-tr-bg-color: var(--el-color-warning-light-8);
++  --el-table-tr-bg-color: rgba(250, 232, 184, 0.45);
+   &:hover {
+-    --el-table-tr-bg-color: var(--el-color-warning-light-9);
++    --el-table-tr-bg-color: rgba(250, 232, 184, 0.6);
+   }
+ }
+ 
+ .el-table .danger-row {
+-  --el-table-tr-bg-color: var(--el-color-danger-light-8);
++  --el-table-tr-bg-color: rgba(254, 201, 201, 0.45);
+   &:hover {
+-    --el-table-tr-bg-color: var(--el-color-danger-light-9);
++    --el-table-tr-bg-color: rgba(254, 201, 201, 0.6);
+   }
+ }
+ 
+ .el-table .normal-row {
+-  --el-table-tr-bg-color: #f3f5f7;
++  --el-table-tr-bg-color: rgba(243, 245, 247, 0.45);
+   &:hover {
+-    --el-table-tr-bg-color: var(--el-color-primary-light-9);
++    --el-table-tr-bg-color: rgba(243, 245, 247, 0.6);
+   }
+ }
+ 
+ .no-hover:hover > td {
+   background-color: initial !important;
+ }
++
++/* Darken secondary text for better readability over glass background */
++.main-container .el-text--info {
++  color: #6b7280;
++}
+ </style>
