@@ -129,11 +129,15 @@ const filteredWords = computed(() =>
   }),
 );
 
-censorStore.$subscribe(async (_, state) => {
+const unsubscribe = censorStore.$subscribe(async (_, state) => {
   if (state.wordsNeedRefresh === true) {
     await refreshWords();
     state.wordsNeedRefresh = false;
   }
+});
+
+onBeforeUnmount(() => {
+  unsubscribe();
 });
 
 const refreshWords = async () => {

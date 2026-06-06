@@ -93,11 +93,15 @@ interface SensitiveWordFile {
 
 const files = ref<SensitiveWordFile[]>();
 
-censorStore.$subscribe(async (_, state) => {
+const unsubscribe = censorStore.$subscribe(async (_, state) => {
   if (state.filesNeedRefresh === true) {
     await refreshFiles();
     state.filesNeedRefresh = false;
   }
+});
+
+onBeforeUnmount(() => {
+  unsubscribe();
 });
 
 const refreshFiles = async () => {

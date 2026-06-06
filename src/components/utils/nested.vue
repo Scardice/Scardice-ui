@@ -166,7 +166,7 @@ import {
   Plus,
 } from '@element-plus/icons-vue';
 import draggable from 'vuedraggable';
-import { breakpointsTailwind } from '@vueuse/core';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 
 const props = defineProps<{ tasks: Array<any> }>();
 

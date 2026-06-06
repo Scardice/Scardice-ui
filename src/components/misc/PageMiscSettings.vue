@@ -915,7 +915,7 @@ const mailTest = async () => {
 
 <style scoped lang="css">
 .about {
-  background-color: #fff;
+  background-color: rgba(254, 247, 248, 0.8);
   padding: 2rem;
   line-height: 2rem;
   text-align: left;

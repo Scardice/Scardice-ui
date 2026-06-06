@@ -115,18 +115,24 @@
     </div>
   </div>
 
-  <el-divider class="latest-log-warn">
-    <el-text type="warning" size="small" class="hover:cursor-pointer" @click="scrollDown"
+  <div class="flex items-center gap-3 latest-log-warn">
+    <el-divider class="flex-1 !my-0" />
+    <el-text
+      type="warning"
+      size="small"
+      class="hover:cursor-pointer whitespace-nowrap"
+      @click="scrollDown"
       >点击下拉到底查看最新</el-text
     >
-  </el-divider>
+    <el-divider class="flex-1 !my-0" />
+  </div>
 
-  <div class="hidden md:block p-0 logs">
+  <div class="p-0 logs">
     <el-table
       :data="filteredLogs"
       :row-class-name="getLogRowClassName"
-      :header-cell-style="{ backgroundColor: '#f3f5f7' }">
-      <el-table-column label="时间" width="90">
+      :header-cell-style="{ backgroundColor: 'rgba(243, 245, 247, 0.4)' }">
+      <el-table-column label="时间" :width="65">
         <template #default="scope">
           <div style="display: flex; align-items: center">
             <el-icon v-if="scope.row.msg.startsWith('onebot | ')" color="var(--el-color-warning)"
@@ -146,25 +152,25 @@
               <span
                 v-if="scope.row.msg.startsWith('onebot | ')"
                 style="color: var(--el-color-warning)"
-                >{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span
+                >{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span
               >
               <span
                 v-else-if="scope.row.msg.startsWith('发给')"
                 style="color: var(--el-color-primary)"
-                >{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span
+                >{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span
               >
               <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{
-                dayjs.unix(scope.row.ts).format('HH:mm:ss')
+                dayjs.unix(scope.row.ts).format('HH:mm')
               }}</span>
               <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{
-                dayjs.unix(scope.row.ts).format('HH:mm:ss')
+                dayjs.unix(scope.row.ts).format('HH:mm')
               }}</span>
-              <span v-else>{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
+              <span v-else>{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
             </span>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="level" label="级别" width="55">
+      <el-table-column prop="level" label="级别" width="55" :show-overflow-tooltip="true">
         <template #default="scope">
           <el-text v-if="scope.row.msg.startsWith('onebot | ')" type="warning">{{
             scope.row.level
@@ -208,7 +214,7 @@
     :data="filteredLogs"
     class="md:hidden w-full logs"
     :row-class-name="getLogRowClassName"
-    :header-cell-style="{ backgroundColor: '#f3f5f7' }">
+    :header-cell-style="{ backgroundColor: 'rgba(243, 245, 247, 0.4)' }">
     <el-table-column label="时间" width="60">
       <template #default="scope">
         <div style="display: flex; align-items: center">
@@ -361,12 +367,11 @@ const getUILogLimit = () => {
   return Math.floor(raw);
 };
 
-const trimLogs = (logs: SysLog[]) => {
-  const limit = getUILogLimit();
-  if (logs.length <= limit) {
-    return logs;
-  }
-  return logs.slice(logs.length - limit);
+const trimLogsInPlace = (logs: SysLog[], limit: number) => {
+  if (logs.length <= limit) return;
+  // Remove oldest entries from the front
+  const excess = logs.length - limit;
+  logs.splice(0, excess);
 };
 
 const closeLogStream = () => {
@@ -391,7 +396,8 @@ const openLogStream = () => {
     try {
       const data = JSON.parse((event as MessageEvent).data);
       if (Array.isArray(data)) {
-        store.curDice.logs = trimLogs(data as SysLog[]);
+        store.curDice.logs = data as SysLog[];
+        trimLogsInPlace(store.curDice.logs, getUILogLimit());
       }
     } catch {
       // ignore parse failures
@@ -404,8 +410,9 @@ const openLogStream = () => {
     }
     try {
       const data = JSON.parse((event as MessageEvent).data) as SysLog;
-      const merged = [...store.curDice.logs, data];
-      store.curDice.logs = trimLogs(merged);
+      // Use mutating operations to avoid O(n) array copies on every log event
+      store.curDice.logs.push(data);
+      trimLogsInPlace(store.curDice.logs, getUILogLimit());
     } catch {
       // ignore parse failures
     }
@@ -556,9 +563,6 @@ onBeforeUnmount(() => {
 .latest-log-warn {
   margin-top: 0;
   margin-bottom: 1rem;
-  :deep(.el-divider__text) {
-    background: #f3f4f6;
-  }
 }
 
 .log-controls {
@@ -576,7 +580,7 @@ onBeforeUnmount(() => {
 }
 
 .log-level-filter__label {
-  color: #6b7280;
+  color: var(--sd-color-text-secondary);
   font-size: 0.82rem;
   white-space: nowrap;
 }
@@ -590,33 +594,74 @@ onBeforeUnmount(() => {
 
 .log-refresh-toggle {
   padding-left: 0.9rem;
-  border-left: 1px solid #d1d5db;
+  border-left: 1px solid var(--sd-glass-border);
 }
 </style>
 
 <style lang="css">
+.el-table {
+  --el-table-bg-color: transparent;
+  --el-table-header-bg-color: transparent;
+}
+
+.el-table .el-table__header-wrapper,
+.el-table .el-table__header {
+  background: transparent;
+}
+
+.el-table thead tr {
+  background-color: transparent;
+}
+
+.el-table th.el-table__cell {
+  background-color: rgba(243, 245, 247, 0.4);
+}
+
 .el-table .warning-row {
-  --el-table-tr-bg-color: var(--el-color-warning-light-8);
+  --el-table-tr-bg-color: rgba(250, 232, 184, 0.45);
   &:hover {
-    --el-table-tr-bg-color: var(--el-color-warning-light-9);
+    --el-table-tr-bg-color: rgba(250, 232, 184, 0.6);
   }
 }
 
 .el-table .danger-row {
-  --el-table-tr-bg-color: var(--el-color-danger-light-8);
+  --el-table-tr-bg-color: rgba(254, 201, 201, 0.45);
   &:hover {
-    --el-table-tr-bg-color: var(--el-color-danger-light-9);
+    --el-table-tr-bg-color: rgba(254, 201, 201, 0.6);
   }
 }
 
 .el-table .normal-row {
-  --el-table-tr-bg-color: #f3f5f7;
+  --el-table-tr-bg-color: rgba(243, 245, 247, 0.45);
   &:hover {
-    --el-table-tr-bg-color: var(--el-color-primary-light-9);
+    --el-table-tr-bg-color: rgba(243, 245, 247, 0.6);
   }
 }
 
 .no-hover:hover > td {
   background-color: initial !important;
+}
+
+/* Darken secondary text for better readability over glass background */
+.main-container .el-text--info {
+  color: var(--sd-color-text-secondary);
+}
+
+[data-theme='dark'] .el-table .warning-row {
+  --el-table-tr-bg-color: rgba(180, 140, 80, 0.2);
+}
+[data-theme='dark'] .el-table .danger-row {
+  --el-table-tr-bg-color: rgba(160, 70, 70, 0.2);
+}
+[data-theme='dark'] .el-table .normal-row {
+  --el-table-tr-bg-color: rgba(60, 65, 80, 0.15);
+}
+
+[data-theme='dark'] .el-table th.el-table__cell {
+  background-color: rgba(60, 65, 80, 0.4) !important;
+}
+
+[data-theme='dark'] .el-table td.el-table__cell {
+  color: var(--sd-color-text-primary);
 }
 </style>

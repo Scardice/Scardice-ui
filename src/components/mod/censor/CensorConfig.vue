@@ -300,11 +300,16 @@ watch(
   { deep: true },
 );
 
-censorStore.$subscribe(async (_, state) => {
+const unsubscribe = censorStore.$subscribe(async (_, state) => {
   if (state.settingsNeedRefresh === true) {
     await refreshCensorConfig();
     state.settingsNeedRefresh = false;
   }
+});
+
+onBeforeUnmount(() => {
+  clearInterval(timerId);
+  unsubscribe();
 });
 
 const timerId: number = 0;

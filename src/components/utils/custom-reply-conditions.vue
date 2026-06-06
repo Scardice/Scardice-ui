@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Delete, QuestionFilled } from '@element-plus/icons-vue';
-import { breakpointsTailwind } from '@vueuse/core';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 
 interface ReplyCondition {
   condType: string;

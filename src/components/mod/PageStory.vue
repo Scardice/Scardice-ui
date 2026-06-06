@@ -3,11 +3,14 @@ import { Back, Delete, Select, Upload } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import randomColor from 'randomcolor';
-import resolveConfig from 'tailwindcss/resolveConfig';
-import tailwindConfig from '../../../tailwind.config';
-import { getStoryInfo, getStoryLogPage, getStoryItemPage, deleteStoryLog } from '~/api/story';
-import { postStoryLog } from '~/api/story';
-const twColors = resolveConfig(tailwindConfig).theme.colors;
+import { twColors } from '~/utils/colors';
+import {
+  getStoryInfo,
+  getStoryLogPage,
+  getStoryItemPage,
+  deleteStoryLog,
+  postStoryLog,
+} from '~/api/story';
 
 interface Log {
   id: number;
@@ -463,6 +466,6 @@ onBeforeMount(async () => {
 <style scoped lang="css">
 .pagination {
   margin-top: 10px;
-  background-color: #f3f5f7;
+  background-color: rgba(254, 247, 248, 0.6);
 }
 </style>

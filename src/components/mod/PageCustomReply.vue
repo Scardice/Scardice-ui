@@ -586,14 +586,14 @@ onBeforeUnmount(() => {
 }
 
 .helptips {
-  background-color: #f3f5f7;
+  background-color: rgba(254, 247, 248, 0.6);
 
   :deep(.el-collapse-item__header) {
-    background-color: #f3f5f7;
+    background-color: rgba(254, 247, 248, 0.6);
   }
 
   :deep(.el-collapse-item__wrap) {
-    background-color: #f3f5f7;
+    background-color: rgba(254, 247, 248, 0.6);
   }
 }
 </style>
@@ -659,7 +659,7 @@ onBeforeUnmount(() => {
 }
 
 .about {
-  background-color: #fff;
+  background-color: rgba(254, 247, 248, 0.8);
   padding: 2rem;
   line-height: 2rem;
   text-align: left;

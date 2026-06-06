@@ -203,14 +203,14 @@ onBeforeMount(async () => {
 
 <style scoped lang="css">
 .helptips {
-  background-color: #f3f5f7;
+  background-color: var(--sd-color-bg-card);
 
   :deep(.el-collapse-item__header) {
-    background-color: #f3f5f7;
+    background-color: var(--sd-color-bg-card);
   }
 
   :deep(.el-collapse-item__wrap) {
-    background-color: #f3f5f7;
+    background-color: var(--sd-color-bg-card-weak);
   }
 }
 

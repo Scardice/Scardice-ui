@@ -42,6 +42,8 @@
         <el-button type="primary" :icon="Setting" @click="configDialogVisible = true"
           >设置</el-button
         >
+        <el-button @click="checkAll">全选</el-button>
+        <el-button @click="invertCheck">反选</el-button>
       </el-space>
 
       <el-dialog v-model="uploadDialogVisible" title="上传帮助文档">
@@ -349,6 +351,30 @@ const deleteFiles = async () => {
   }
 };
 
+const getAllCheckableKeys = (treeData: HelpDoc[]): string[] => {
+  const keys: string[] = [];
+  const walk = (nodes: HelpDoc[]) => {
+    for (const node of nodes) {
+      if (!node.deleted) keys.push(node.key);
+      if (node.children) walk(node.children);
+    }
+  };
+  walk(treeData);
+  return keys;
+};
+
+const checkAll = () => {
+  const keys = getAllCheckableKeys(docTree.value);
+  fileTreeRef.value?.setCheckedKeys(keys);
+};
+
+const invertCheck = () => {
+  const allKeys = getAllCheckableKeys(docTree.value);
+  const checkedKeys = fileTreeRef.value?.getCheckedKeys(false) as string[];
+  const unchecked = allKeys.filter(k => !checkedKeys.includes(k));
+  fileTreeRef.value?.setCheckedKeys(unchecked);
+};
+
 const getHelpDocTag = (
   loadStatus: number,
   deleted: boolean,
@@ -547,7 +573,7 @@ onBeforeMount(async () => {
 
 .file-tree-title {
   padding: 0 23px 6px 50px;
-  border-bottom: #dcdfe6 solid 1px;
+  border-bottom: 1px solid var(--sd-glass-border);
   margin-bottom: 10px;
 
   flex: 1;
@@ -556,7 +582,39 @@ onBeforeMount(async () => {
 }
 
 .file-tree {
-  background-color: #f3f5f7;
+  border-radius: var(--sd-radius-sm);
+  background-color: var(--sd-color-bg-card);
+  padding: 6px 0;
+
+  // Indent guide lines for tree nodes
+  :deep(.el-tree-node__children) {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 16px;
+      left: 7px;
+      width: 1px;
+      background: var(--sd-glass-border);
+    }
+  }
+
+  :deep(.el-tree-node__content) {
+    padding-left: 8px !important;
+    margin: 2px 0;
+    border-radius: 4px;
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: rgba(127, 127, 127, 0.08);
+    }
+  }
+
+  :deep(.el-checkbox__label) {
+    display: none;
+  }
 }
 
 .file-line {
@@ -581,7 +639,9 @@ onBeforeMount(async () => {
 }
 
 .item-list {
-  background-color: #f3f5f7;
+  border-radius: var(--sd-radius-sm);
+  padding: 6px 0;
+  background-color: var(--sd-color-bg-card);
 }
 
 .el-table .cell {
@@ -590,7 +650,52 @@ onBeforeMount(async () => {
 
 .item-list-pagination {
   margin-top: 10px;
-  background-color: #f3f5f7;
+  border-radius: var(--sd-radius-sm);
+  padding: 6px 0;
+  background-color: var(--sd-color-bg-card);
+}
+
+.file-line {
+  flex: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.file-info {
+  flex: auto;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.item-list-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.item-list {
+  border-radius: 8px;
+  padding: 6px 0;
+  background-color: var(--sd-color-bg-card);
+}
+
+.item-list-pagination {
+  margin-top: 10px;
+  border-radius: 8px;
+  padding: 6px 0;
+  background-color: var(--sd-color-bg-card);
+}
+
+.el-table .cell {
+  white-space: pre-line;
+}
+
+.item-list-pagination {
+  margin-top: 10px;
+  background-color: var(--sd-color-bg-card);
 }
 
 .del-line {

@@ -85,11 +85,21 @@ const logQuery = ref({
   total: 0,
 });
 
-censorStore.$subscribe(async (_, state) => {
+const unsubscribe = censorStore.$subscribe(async (_, state) => {
   if (state.logsNeedRefresh === true) {
     await refreshCensorLog();
     state.logsNeedRefresh = false;
   }
+});
+
+onBeforeUnmount(() => {
+  unsubscribe();
+});
+
+onBeforeUnmount(() => {
+  // Note: $subscribe returns an unsubscribe function, but we need to capture it.
+  // The current code leaks the subscription. This is a placeholder fix.
+  // Proper fix requires storing the return value of $subscribe.
 });
 
 const handleCurrentPageChange = async (val: number) => {
@@ -142,6 +152,6 @@ onMounted(async () => {
 }
 
 .pagination {
-  background-color: #f3f5f7;
+  background-color: rgba(254, 247, 248, 0.6);
 }
 </style>

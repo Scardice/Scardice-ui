@@ -1,11 +1,14 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <el-container id="root" class="bg-gray-600 mx-auto my-0 h-screen flex flex-col">
-    <el-header class="nav bg-inherit flex-none text-white flex justify-between">
+  <el-container
+    id="root"
+    class="bg-[var(--sd-color-brand-pink)] mx-auto my-0 h-screen flex flex-col">
+    <el-header
+      class="nav bg-inherit flex-none text-[var(--sd-color-text-primary)] flex justify-between rounded-b-2xl shadow-sm z-10">
       <el-space alignment="center" :size="0" style="height: 60px">
         <div class="menu-button-wrapper mx-2">
           <el-button link size="large" @click="drawerMenu = true">
-            <el-icon color="#fff" size="1.5rem">
+            <el-icon color="var(--sd-color-text-primary)" size="1.5rem">
               <IconMenu />
             </el-icon>
           </el-button>
@@ -40,7 +43,21 @@
       <el-space
         v-show="store.canAccess"
         size="large"
-        style="color: #fff; font-size: small; text-align: right">
+        style="color: var(--sd-color-text-primary); font-size: small; text-align: right">
+        <!-- Theme toggle button -->
+        <el-tooltip
+          :content="`当前主题: ${themePreference === 'auto' ? '跟随系统' : themePreference === 'light' ? '亮色' : '暗色'}（点击切换）`"
+          placement="bottom">
+          <el-button link size="large" @click="cycleTheme">
+            <el-icon size="1.3rem">
+              <component
+                :is="
+                  currentTheme === 'dark' ? Moon : themePreference === 'auto' ? Monitor : Sunny
+                " />
+            </el-icon>
+          </el-button>
+        </el-tooltip>
+
         <div style="cursor: pointer" @click="dialogFeed = true">
           <el-badge value="new" :hidden="newsChecked">
             <img :src="imgNews" alt="news" style="width: 2.3rem" />
@@ -52,13 +69,12 @@
             <el-tag
               effect="dark"
               size="small"
-              disable-transitions
               style="margin-right: 0.3rem"
               :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
               {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
             </el-tag>
             <el-tooltip :content="store.curDice.baseInfo.version" placement="bottom">
-              <el-text size="large" style="color: #fff">
+              <el-text size="large" style="color: var(--sd-color-text-primary)">
                 {{ store.curDice.baseInfo.versionSimple }}
               </el-text>
             </el-tooltip>
@@ -71,14 +87,26 @@
     </el-header>
 
     <div class="flex-grow overflow-y-auto flex">
-      <div class="menu bg-inherit flex-none overflow-y-auto no-scrollbar">
+      <div
+        class="menu bg-inherit flex-none overflow-y-auto no-scrollbar rounded-r-2xl shadow-sm mr-3">
         <Menu v-model:advanced-config-counter="advancedConfigCounter" type="dark" />
       </div>
 
-      <div class="bg-gray-100 h-auto text-left flex-1 overflow-y-auto">
-        <el-main ref="rightbox" v-loading="loading" class="main-container w-full h-full">
+      <div
+        class="relative h-auto text-left flex-1 overflow-y-auto overflow-x-hidden rounded-tl-2xl shadow-inner"
+        :class="bgUrl ? 'bg-cover bg-center' : 'bg-[var(--sd-color-bg-card-weak)]'"
+        :style="bgUrl ? { backgroundImage: `url(${bgUrl})` } : {}"
+        v-loading="loading">
+        <el-main
+          ref="rightbox"
+          class="main-container w-full h-full relative"
+          :class="
+            bgUrl
+              ? 'backdrop-blur-lg bg-[var(--sd-color-bg-card-weak)]'
+              : 'bg-[var(--sd-color-bg-card-weak)]'
+          ">
           <router-view
-            v-if="!loading"
+            v-show="!loading"
             @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)" />
         </el-main>
       </div>
@@ -90,9 +118,9 @@
     direction="ltr"
     :show-close="false"
     size="50%"
-    class="drawer-menu bg-gray-600">
+    class="drawer-menu bg-[var(--sd-color-brand-pink)]">
     <template #header>
-      <div class="text-white flex items-center justify-between">
+      <div class="text-[var(--sd-color-text-primary)] flex items-center justify-between">
         <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
           <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
             >Scardice</span
@@ -161,7 +189,7 @@
 import { useStore } from './store';
 import imgNews from '~/assets/news.png';
 
-import { Check, Menu as IconMenu } from '@element-plus/icons-vue';
+import { Check, Menu as IconMenu, Sunny, Moon, Monitor } from '@element-plus/icons-vue';
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -170,11 +198,21 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { passwordHash } from './utils';
 import { getNewUtils, postUtilsCheckNews } from './api/utils';
 import { checkSecurity } from './api/others';
+import { useStorage } from '@vueuse/core';
+import { currentTheme, cycleTheme, themePreference } from '~/composables/useTheme';
 
 dayjs.locale('zh-cn');
 dayjs.extend(relativeTime);
 
 const loading = useStorage('router-view-loading', true);
+
+// Background image: dynamic based on theme
+import bgDesktopLight from '~/assets/background/desktop.webp';
+import bgDesktopDark from '~/assets/background_dark/desktop.webp';
+
+const bgUrl = computed(() => {
+  return currentTheme.value === 'dark' ? bgDesktopDark : bgDesktopLight;
+});
 
 const store = useStore();
 const password = ref('');
@@ -309,40 +347,43 @@ const refreshAdvancedSettings = async (show: boolean) => {
 </script>
 
 <style>
-html,
-body {
-  height: 100%;
-}
-
+/* Scrollbar - now uses brand CSS variables (single source of truth) */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track-piece {
-  background: #fafafa;
+  background: var(--sd-scrollbar-track);
+  border-radius: var(--sd-radius-full);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #bdbdbd;
+  background: var(--sd-scrollbar-thumb);
+  border-radius: var(--sd-radius-full);
 }
 
 ::-webkit-scrollbar-corner {
-  background: #fafafa;
+  background: var(--sd-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb:window-inactive {
-  background: #e0e0e0;
+  background: var(--sd-color-brand-cyan-light);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9e9e9e;
+  background: var(--sd-scrollbar-thumb-hover);
 }
 
 .main-container {
-  padding: 2rem;
+  padding: var(--sd-space-lg);
   box-sizing: border-box;
   min-height: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-shadow: 0 1px 3px var(--sd-color-bg-card-weak);
+  will-change: transform;
 }
 
 .h100 {
@@ -363,13 +404,13 @@ body {
   }
 
   .main-container {
-    padding: 1rem;
+    padding: var(--sd-space-md);
   }
 }
 
 @media screen and (min-width: 640px) {
   .nav {
-    padding: 0 1rem 0 1.5rem;
+    padding: 0 var(--sd-space-md) 0 var(--sd-space-lg);
   }
 
   .menu {
@@ -393,7 +434,7 @@ body {
     sans-serif;
   /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
   text-align: center;
-  color: #2c3e50;
+  color: var(--sd-color-text-primary);
   height: 100%;
   display: flex;
 }
@@ -416,15 +457,23 @@ body {
 }
 
 .drawer-menu {
-  background-color: #545c64;
+  background-color: var(--sd-color-brand-pink);
 
   .el-drawer__header {
     margin: 0;
-    padding: 1rem;
+    padding: var(--sd-space-md);
   }
 
   .el-drawer__body {
     padding: 0;
   }
+}
+
+[data-theme='dark'] .main-container {
+  text-shadow: none;
+}
+
+[data-theme='dark'] .drawer-menu {
+  background-color: var(--sd-color-brand-pink);
 }
 </style>

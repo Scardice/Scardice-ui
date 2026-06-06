@@ -2,10 +2,10 @@
 <template>
   <el-menu
     :unique-opened="true"
-    style="border-right: 0"
+    style="border-right: var(--sd-menu-border); border-radius: 12px; overflow: hidden"
     :active-text-color="twColors.amber[300]"
-    :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
-    :text-color="props.type === 'dark' ? '#fff' : undefined"
+    :background-color="props.type === 'dark' ? 'var(--sd-menu-bg)' : undefined"
+    :text-color="props.type === 'dark' ? 'var(--sd-menu-text)' : undefined"
     router
     :default-active="route.path">
     <el-menu-item index="/home">
@@ -140,10 +140,7 @@ import {
 } from '@element-plus/icons-vue';
 import { useStore } from '~/store';
 import type { ModelRef } from 'vue';
-import resolveConfig from 'tailwindcss/resolveConfig';
-import tailwindConfig from '../../tailwind.config';
-
-const twColors = resolveConfig(tailwindConfig).theme.colors;
+import { twColors } from '~/utils/colors';
 
 const props = defineProps<{
   type: 'light' | 'dark';
@@ -158,4 +155,75 @@ const store = useStore();
 const route = useRoute();
 </script>
 
-<style scoped lang="css"></style>
+<style scoped lang="css">
+.el-menu-item {
+  margin: 2px 6px !important;
+  width: auto !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.el-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+.el-menu-item.is-active {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.el-sub-menu__title {
+  border-radius: 8px !important;
+  margin: 2px 6px !important;
+  width: auto !important;
+  transition: all 0.2s ease !important;
+}
+
+.el-sub-menu__title:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 让深色菜单更柔和，与粉色背景融合 */
+.el-menu--dark {
+  background: linear-gradient(
+    135deg,
+    rgba(92, 206, 250, 0.65) 0%,
+    rgba(245, 169, 184, 0.22) 100%
+  ) !important;
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .el-menu--dark {
+  background: linear-gradient(
+    135deg,
+    rgba(30, 40, 55, 0.92) 0%,
+    rgba(35, 28, 40, 0.82) 100%
+  ) !important;
+  backdrop-filter: blur(6px);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='dark'] .el-menu-item.is-active {
+  background-color: rgba(245, 169, 184, 0.12) !important;
+}
+
+[data-theme='dark'] .el-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme='dark'] .el-sub-menu__title:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+[data-theme='dark'] .el-sub-menu__title {
+  color: var(--sd-color-text-primary);
+}
+
+[data-theme='dark'] .el-menu-item {
+  color: var(--sd-color-text-secondary);
+}
+
+[data-theme='dark'] .el-menu-item.is-active {
+  color: var(--sd-color-brand-cyan);
+}
+</style>

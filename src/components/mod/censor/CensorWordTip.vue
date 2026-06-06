@@ -78,14 +78,14 @@ import { Search } from '@element-plus/icons-vue';
 </script>
 <style scoped>
 .wordtips {
-  background-color: #f3f5f7;
+  background-color: rgba(254, 247, 248, 0.6);
 }
 
 .wordtips :deep(.el-collapse-item__header) {
-  background-color: #f3f5f7;
+  background-color: rgba(254, 247, 248, 0.6);
 }
 
 .wordtips :deep(.el-collapse-item__wrap) {
-  background-color: #f3f5f7;
+  background-color: rgba(254, 247, 248, 0.6);
 }
 </style>

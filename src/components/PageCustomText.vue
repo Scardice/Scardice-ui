@@ -121,10 +121,7 @@
   </el-space>
 
   <el-collapse class="text-collapse" v-model="activeGroups">
-    <custom-text-box
-      :key="group"
-      v-for="[group, values] in reactive(doSort(category))"
-      :group="group">
+    <custom-text-box :key="group" v-for="[group, values] in sortedItems" :group="group">
       <template #values>
         <el-col :xs="24" :span="12" v-for="[k, v] in values" :key="k">
           <el-form ref="form" label-width="auto" label-position="top">
@@ -336,6 +333,8 @@ const importImpact = ref(true);
 const dialogImportVisible = ref(false);
 
 const activeGroups = ref(['__others__']);
+
+const sortedItems = computed(() => doSort(props.category));
 const doSort = (category: string) => {
   let items = Object.entries(store.curDice?.customTexts?.[category] ?? {});
   const helpInfo = store.curDice.customTextsHelpInfo[category];
@@ -670,27 +669,27 @@ watch(props, () => {
 }
 
 .helptips {
-  background-color: #f3f5f7;
+  background-color: var(--sd-color-bg-card);
 }
 
 .helptips :deep(.el-collapse-item__header) {
-  background-color: #f3f5f7;
+  background-color: var(--sd-color-bg-card);
 }
 
 .helptips :deep(.el-collapse-item__wrap) {
-  background-color: #f3f5f7;
+  background-color: var(--sd-color-bg-card-weak);
 }
 
 .text-collapse {
   width: 100%;
-  background-color: #f3f5f7;
+  background-color: var(--sd-color-bg-card);
 
   :deep(.el-collapse-item__header) {
-    background-color: #f3f5f7;
+    background-color: var(--sd-color-bg-card);
   }
 
   :deep(.el-collapse-item__wrap) {
-    background-color: #f3f5f7;
+    background-color: var(--sd-color-bg-card-weak);
   }
 }
 

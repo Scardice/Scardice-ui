@@ -17,7 +17,7 @@
 
   <div style="display: flex; flex-wrap: wrap">
     <div
-      v-for="(i, index) in reactive(store.curDice.conns)"
+      v-for="(i, index) in store.curDice.conns"
       :key="index"
       style="min-width: 20rem; flex: 1 0 50%; flex-grow: 0">
       <el-card
@@ -40,7 +40,16 @@
           v-if="
             i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode && store.curDice.qrcodes[i.id]
           "
-          style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1">
+          style="
+            position: absolute;
+            width: 17rem;
+            height: 14rem;
+            background: var(--sd-color-bg-card-strong);
+            backdrop-filter: var(--sd-glass-blur);
+            border: var(--sd-glass-border);
+            border-radius: var(--sd-radius-md);
+            z-index: 1;
+          ">
           <div style="margin-left: 2rem">需要同账号的手机 QQ 扫码登录 (限 2 分钟内完成):</div>
           <img
             style="
@@ -59,7 +68,16 @@
             i.adapter?.loginState === goCqHttpStateCode.InLoginBar &&
             i.adapter?.goCqHttpLoginDeviceLockUrl
           "
-          style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1">
+          style="
+            position: absolute;
+            width: 17rem;
+            height: 14rem;
+            background: var(--sd-color-bg-card-strong);
+            backdrop-filter: var(--sd-glass-blur);
+            border: var(--sd-glass-border);
+            border-radius: var(--sd-radius-md);
+            z-index: 1;
+          ">
           <!-- <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"> -->
 
           <template v-if="i.id === curCaptchaIdSet">
@@ -81,7 +99,16 @@
 
         <div
           v-if="i.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode"
-          style="position: absolute; width: 17rem; height: 18rem; background: #fff; z-index: 1">
+          style="
+            position: absolute;
+            width: 17rem;
+            height: 18rem;
+            background: var(--sd-color-bg-card-strong);
+            backdrop-filter: var(--sd-glass-blur);
+            border: var(--sd-glass-border);
+            border-radius: var(--sd-radius-md);
+            z-index: 1;
+          ">
           <div style="margin-left: 2rem">短信验证码流程</div>
           <div style="margin-top: 4rem">
             <el-form label-width="5rem">

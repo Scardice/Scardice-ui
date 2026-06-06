@@ -177,8 +177,8 @@
         href="https://dice.weizaima.com/public-dice"
         target="_blank"
         style="color: var(--el-link-text-color); transition: color 3s"
-        onmouseover="this.style.color='red'"
-        onmouseout="this.style.color='var(--el-link-text-color)'"
+        onmouseover="this.style.color = 'red'"
+        onmouseout="this.style.color = 'var(--el-link-text-color)'"
         ><el-avatar
           shape="circle"
           :size="50"
@@ -662,13 +662,11 @@ onBeforeUnmount(() => {
 }
 
 .about {
-  background-color: #fff;
+  background-color: var(--sd-color-bg-card-strong);
   padding: 2rem;
   line-height: 2rem;
   text-align: left;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 0 6px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--sd-shadow-card);
 }
 
 .subtitle {
