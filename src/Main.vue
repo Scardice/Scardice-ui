@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <el-container id="root" class="bg-gray-600 mx-auto my-0 h-screen flex flex-col">
-    <el-header class="nav bg-inherit flex-none text-white flex justify-between">
+  <el-container id="root" class="seal-root mx-auto my-0 h-screen flex flex-col">
+    <el-header class="nav flex-none text-white flex justify-between">
       <el-space alignment="center" :size="0" style="height: 60px">
         <div class="menu-button-wrapper mx-2">
           <el-button link size="large" @click="drawerMenu = true">
@@ -70,13 +70,17 @@
       </el-space>
     </el-header>
 
-    <div class="flex-grow overflow-y-auto flex">
-      <div class="menu bg-inherit flex-none overflow-y-auto no-scrollbar">
+    <div class="main-shell flex-grow flex">
+      <div class="menu flex-none overflow-y-auto no-scrollbar">
         <Menu v-model:advanced-config-counter="advancedConfigCounter" type="dark" />
       </div>
 
-      <div class="bg-gray-100 h-auto text-left flex-1 overflow-y-auto">
-        <el-main ref="rightbox" v-loading="loading" class="main-container w-full h-full">
+      <div ref="contentBox" class="seal-content h-auto text-left flex-1">
+        <div class="seal-background" aria-hidden="true">
+          <div class="seal-background-image"></div>
+          <div class="seal-background-mask"></div>
+        </div>
+        <el-main ref="rightbox" v-loading="loading" class="main-container w-full">
           <router-view
             v-if="!loading"
             @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)" />
@@ -170,11 +174,21 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { passwordHash } from './utils';
 import { getNewUtils, postUtilsCheckNews } from './api/utils';
 import { checkSecurity } from './api/others';
+import { applyUiBeautifyConfig, useUiBeautifyConfig } from '~/utils/ui-beautify';
 
 dayjs.locale('zh-cn');
 dayjs.extend(relativeTime);
 
 const loading = useStorage('router-view-loading', true);
+const uiBeautifyConfig = useUiBeautifyConfig();
+
+watch(
+  uiBeautifyConfig,
+  value => {
+    applyUiBeautifyConfig(value);
+  },
+  { deep: true, immediate: true },
+);
 
 const store = useStore();
 const password = ref('');
@@ -275,6 +289,48 @@ onBeforeMount(async () => {
 let timerId: number;
 
 const rightbox = ref(null);
+const contentBox = ref<HTMLElement | null>(null);
+let backgroundResizeObserver: ResizeObserver | undefined;
+let backgroundRectFrame = 0;
+
+const syncBackgroundRect = () => {
+  const el = contentBox.value;
+  if (!el) {
+    return;
+  }
+  const rect = el.getBoundingClientRect();
+  el.style.setProperty('--seal-content-left', `${rect.left}px`);
+  el.style.setProperty('--seal-content-top', `${rect.top}px`);
+  el.style.setProperty('--seal-content-width', `${rect.width}px`);
+  el.style.setProperty('--seal-content-height', `${rect.height}px`);
+};
+
+const queueBackgroundRectSync = () => {
+  if (backgroundRectFrame) {
+    window.cancelAnimationFrame(backgroundRectFrame);
+  }
+  backgroundRectFrame = window.requestAnimationFrame(() => {
+    backgroundRectFrame = 0;
+    syncBackgroundRect();
+  });
+};
+
+onMounted(() => {
+  queueBackgroundRectSync();
+  window.addEventListener('resize', queueBackgroundRectSync);
+  if (contentBox.value) {
+    backgroundResizeObserver = new ResizeObserver(queueBackgroundRectSync);
+    backgroundResizeObserver.observe(contentBox.value);
+  }
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', queueBackgroundRectSync);
+  backgroundResizeObserver?.disconnect();
+  if (backgroundRectFrame) {
+    window.cancelAnimationFrame(backgroundRectFrame);
+  }
+});
 
 const drawerMenu = ref<boolean>(false);
 
@@ -312,6 +368,9 @@ const refreshAdvancedSettings = async (show: boolean) => {
 html,
 body {
   height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -320,29 +379,47 @@ body {
 }
 
 ::-webkit-scrollbar-track-piece {
-  background: #fafafa;
+  background: var(--seal-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #bdbdbd;
+  background: var(--seal-scrollbar-thumb);
 }
 
 ::-webkit-scrollbar-corner {
-  background: #fafafa;
+  background: var(--seal-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb:window-inactive {
-  background: #e0e0e0;
+  background: var(--seal-surface-muted);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9e9e9e;
+  background: var(--seal-scrollbar-thumb-hover);
 }
 
 .main-container {
   padding: 2rem;
   box-sizing: border-box;
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.main-shell {
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.seal-content {
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .h100 {
@@ -388,13 +465,13 @@ body {
 }
 
 #app {
-  font-family:
-    'PingFang SC', 'Helvetica Neue', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei', '微软雅黑',
-    sans-serif;
+  font-family: var(--seal-font-family);
   /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
   text-align: center;
-  color: #2c3e50;
+  color: var(--seal-text-color);
   height: 100%;
+  width: 100%;
+  overflow: hidden;
   display: flex;
 }
 
@@ -416,7 +493,7 @@ body {
 }
 
 .drawer-menu {
-  background-color: #545c64;
+  background-color: var(--seal-nav-bg);
 
   .el-drawer__header {
     margin: 0;

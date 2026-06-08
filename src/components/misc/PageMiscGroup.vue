@@ -1,41 +1,81 @@
 <template>
-  <h2>群管理</h2>
-  <div style="display: flex">
-    <span style="margin-right: 1rem; white-space: nowrap">平台：</span>
-    <span style="margin-right: -0.2rem">
+  <div class="group-page-header">
+    <div>
+      <h2>群管理</h2>
+      <el-text type="info"
+        >当前显示 {{ groupItems.length }} / {{ groupList.items?.length || 0 }} 个群组</el-text
+      >
+    </div>
+    <el-space wrap>
+      <el-button :icon="Refresh" @click="refreshListWithNameRetry">刷新</el-button>
+      <!-- Scardice-core 当前没有 /group/delete_one 接口。
+      请自行添加 /group/delete_one 的接口后，再启用批量删除入口。
+      <el-button
+        type="danger"
+        :icon="Delete"
+        :disabled="selectedGroupIds.length === 0"
+        @click="deleteSelectedGroups">
+        删除所选 {{ selectedGroupIds.length }}
+      </el-button>
+      -->
+    </el-space>
+  </div>
+
+  <section class="group-filter-panel">
+    <div class="group-filter-row">
+      <span class="group-filter-label">平台</span>
       <el-checkbox-group v-model="checkList">
-        <el-checkbox label="QQ-Group:">QQ 群</el-checkbox>
-        <el-checkbox label="QQ-CH-Group:">QQ 频道</el-checkbox>
-        <el-checkbox label="DISCORD-CH-Group:">Discord 频道</el-checkbox>
-        <el-checkbox label="DODO-Group:">Dodo 频道</el-checkbox>
-        <el-checkbox label="KOOK-CH-Group:">KOOK 频道</el-checkbox>
-        <el-checkbox label="DINGTALK-Group:">钉钉群</el-checkbox>
-        <el-checkbox label="SLACK-CH-Group:">Slack 频道</el-checkbox>
-        <el-checkbox label="TG-Group:">TG 群</el-checkbox>
-        <el-checkbox label="SEALCHAT-Group:">Sealchat 频道</el-checkbox>
+        <el-checkbox v-for="item in platformOptions" :key="item.value" :label="item.value">
+          {{ item.label }}
+        </el-checkbox>
       </el-checkbox-group>
-    </span>
-  </div>
-  <div>
-    <span style="margin-right: 1rem">其他：</span>
-    <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>
-    <el-checkbox v-model="filter30daysUnused">30 天未使用</el-checkbox>
-  </div>
-  <div>
-    <span style="margin-right: 1rem">搜索：</span>
-    <el-input
-      v-model="searchBy"
-      style="max-width: 15rem"
-      placeholder="请输入帐号或群名的一部分"></el-input>
-  </div>
+    </div>
+    <div class="group-filter-row">
+      <span class="group-filter-label">协议端</span>
+      <el-select
+        v-model="endpointFilter"
+        clearable
+        filterable
+        :value-on-clear="''"
+        @clear="endpointFilter = ''"
+        style="width: 18rem"
+        placeholder="全部协议端">
+        <el-option
+          v-for="item in endpointOptions"
+          :key="item.value"
+          :value="item.value"
+          :label="item.label" />
+      </el-select>
+    </div>
+    <div class="group-filter-row">
+      <span class="group-filter-label">状态</span>
+      <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>
+      <el-checkbox v-model="filter30daysUnused">30 天未使用</el-checkbox>
+      <el-checkbox v-model="showOfflineOnly">只看离线群组</el-checkbox>
+    </div>
+    <div class="group-filter-row">
+      <span class="group-filter-label">搜索</span>
+      <el-input
+        v-model="searchBy"
+        clearable
+        style="max-width: 20rem"
+        placeholder="请输入帐号或群名的一部分" />
+    </div>
+  </section>
 
   <div style="margin-top: 2rem">
     <div v-bind="containerProps" style="height: calc(100vh - 22.5rem)">
       <div v-bind="wrapperProps">
         <div v-for="item in list" :key="item.index" style="">
-          <foldable-card style="margin-top: 1rem">
+          <foldable-card class="group-card">
             <template #title>
               <el-space class="item-header" size="large" alignment="center">
+                <!-- Scardice-core 当前没有 /group/delete_one 接口。
+                请自行添加 /group/delete_one 的接口后，再启用批量选择。
+                <el-checkbox
+                  :model-value="selectedGroupIds.includes(item.data.groupId)"
+                  @change="toggleGroupSelection(item.data.groupId, $event)" />
+                -->
                 <el-switch
                   v-model="item.data.active"
                   style="
@@ -56,6 +96,13 @@
                     >{{ item.data.groupId }}</el-text
                   >
                   <el-text>「{{ item.data.groupName || '未获取到' }}」</el-text>
+                  <el-tag size="small" effect="plain">{{
+                    getPlatformLabel(item.data.groupId)
+                  }}</el-tag>
+                  <el-tag v-if="isGroupOffline(item.data)" size="small" type="info" effect="dark">
+                    离线
+                  </el-tag>
+                  <el-tag v-else size="small" type="success" effect="plain">在线</el-tag>
                 </el-space>
               </el-space>
             </template>
@@ -70,6 +117,17 @@
                 @click="saveOne(item.data, item.index)"
                 >保存</el-button
               >
+              <!-- Scardice-core 当前没有 /group/delete_one 接口。
+              请自行添加 /group/delete_one 的接口后，再启用删除群聊数据。
+              <el-button
+                type="danger"
+                size="small"
+                :icon="Delete"
+                plain
+                @click="deleteGroupDataLocal(item.data)"
+                >删除群聊数据</el-button
+              >
+              -->
               <template v-if="item.data.groupId.startsWith('QQ-Group:')">
                 <el-tooltip
                   v-for="(_, j) in item.data.diceIdExistsMap"
@@ -98,7 +156,7 @@
                 item.data.enteredTime ? dayjs.unix(item.data.enteredTime).fromNow() : '未知'
               }}</el-descriptions-item>
               <el-descriptions-item label="邀请人">{{
-                item.data.inviteUserId || '未知'
+                formatInviter(item.data)
               }}</el-descriptions-item>
               <el-descriptions-item label="Log状态">{{
                 item.data.logOn ? '开启' : '关闭'
@@ -106,7 +164,17 @@
               <el-descriptions-item label="迎新">{{
                 item.data.showGroupWelcome ? '开启' : '关闭'
               }}</el-descriptions-item>
-              <el-descriptions-item />
+              <el-descriptions-item label="协议端">
+                <el-tag
+                  v-for="endpoint in getGroupEndpointIds(item.data)"
+                  :key="endpoint"
+                  size="small"
+                  style="margin-right: 0.35rem"
+                  effect="plain">
+                  {{ endpoint }}
+                </el-tag>
+                <el-text v-if="getGroupEndpointIds(item.data).length === 0" type="info">无</el-text>
+              </el-descriptions-item>
               <el-descriptions-item :span="3" label="启用扩展">
                 <span v-if="item.data.tmpExtList">
                   <el-tag
@@ -132,7 +200,7 @@
                   }}
                 </el-descriptions-item>
                 <el-descriptions-item label="邀请人">{{
-                  item.data.inviteUserId || '未知'
+                  formatInviter(item.data)
                 }}</el-descriptions-item>
               </el-descriptions>
             </template>
@@ -167,7 +235,7 @@
         }}</el-descriptions-item>
         <el-descriptions-item label="入群时间">{{ i.enteredTime ? dayjs.unix(i.enteredTime).fromNow() : '未知'
         }}</el-descriptions-item>
-        <el-descriptions-item label="邀请人">{{ i.inviteUserId || '未知' }}</el-descriptions-item>
+        <el-descriptions-item label="邀请人">{{ formatInviter(i) }}</el-descriptions-item>
         <el-descriptions-item label="Log 状态">{{ i.logOn ? '开启' : '关闭' }}</el-descriptions-item>
         <el-descriptions-item label="迎新">{{ i.showGroupWelcome ? '开启' : '关闭' }}</el-descriptions-item>
         <el-descriptions-item />
@@ -184,7 +252,7 @@
 </template>
 
 <script lang="ts" setup>
-import { DocumentChecked, Close } from '@element-plus/icons-vue';
+import { DocumentChecked, Close, Refresh } from '@element-plus/icons-vue';
 import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { now, sortBy } from 'lodash-es';
@@ -198,10 +266,74 @@ const groupList = ref<any>({});
 
 const orderByTimeDesc = ref(true);
 const filter30daysUnused = ref(false);
+const showOfflineOnly = ref(false);
+const endpointFilter = ref('');
 const searchBy = ref('');
+// Scardice-core 当前没有 /group/delete_one 接口。
+// 请自行添加 /group/delete_one 的接口后，再启用批量选择状态。
+// const selectedGroupIds = ref<string[]>([]);
+
+const platformOptions = [
+  { value: 'QQ-Group:', label: 'QQ 群' },
+  { value: 'QQ-CH-Group:', label: 'QQ 频道' },
+  { value: 'DISCORD-CH-Group:', label: 'Discord 频道' },
+  { value: 'DODO-Group:', label: 'Dodo 频道' },
+  { value: 'KOOK-CH-Group:', label: 'KOOK 频道' },
+  { value: 'DINGTALK-Group:', label: '钉钉群' },
+  { value: 'SLACK-CH-Group:', label: 'Slack 频道' },
+  { value: 'TG-Group:', label: 'TG 群' },
+  { value: 'SEALCHAT-Group:', label: 'Sealchat 频道' },
+];
+
+const getGroupEndpointIds = (group: any) => Object.keys(group?.diceIdExistsMap || {});
+
+const getActiveEndpointIds = (group: any) =>
+  Object.entries(group?.diceIdActiveMap || {})
+    .filter(([, active]) => Boolean(active))
+    .map(([id]) => id);
+
+const isGroupOffline = (group: any) => getActiveEndpointIds(group).length === 0;
+
+const getPlatformLabel = (groupId: string) =>
+  platformOptions.find(item => groupId.startsWith(item.value))?.label || '其他';
+
+const formatInviter = (group: any) => {
+  const inviter = group?.inviter || {};
+  return inviter.display || group?.inviteUserId || '未知';
+};
+
+const getInviterSearchText = (group: any) => {
+  const inviter = group?.inviter || {};
+  return [
+    group?.inviteUserId,
+    inviter.userId,
+    inviter.rawId,
+    inviter.qq,
+    inviter.name,
+    inviter.display,
+  ]
+    .filter(Boolean)
+    .join(' ');
+};
+
+const endpointOptions = computed(() => {
+  const map = new Map<string, number>();
+  for (const group of groupList.value.items || []) {
+    for (const id of getGroupEndpointIds(group)) {
+      map.set(id, (map.get(id) || 0) + 1);
+    }
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([value, count]) => ({
+      value,
+      label: `${value}（${count}）`,
+    }));
+});
 
 const groupItems = computed<any[]>(() => {
   if (groupList.value.items) {
+    const activeEndpointFilter = endpointFilter.value || '';
     // const groupListItems = cloneDeep(groupList.value.items)
     let items = [];
     for (const i of groupList.value.items) {
@@ -218,10 +350,19 @@ const groupItems = computed<any[]>(() => {
         if (i.groupId.indexOf(searchBy.value) !== -1) {
           a = true;
         }
-        if (i.groupName.indexOf(searchBy.value) !== -1) {
+        if ((i.groupName || '').indexOf(searchBy.value) !== -1) {
           b = true;
         }
-        ok = a || b;
+        const c = getInviterSearchText(i).indexOf(searchBy.value) !== -1;
+        ok = a || b || c;
+      }
+
+      if (ok && activeEndpointFilter !== '') {
+        ok = getGroupEndpointIds(i).includes(activeEndpointFilter);
+      }
+
+      if (ok && showOfflineOnly.value) {
+        ok = isGroupOffline(i);
       }
 
       if (ok) {
@@ -248,6 +389,22 @@ const groupItems = computed<any[]>(() => {
 const refreshList = async () => {
   const data = await getGroupList();
   groupList.value = data;
+  // Scardice-core 当前没有 /group/delete_one 接口。
+  // 请自行添加 /group/delete_one 的接口后，再启用选择状态同步。
+  // selectedGroupIds.value = selectedGroupIds.value.filter(id =>
+  //   (data.items || []).some((item: any) => item.groupId === id),
+  // );
+};
+
+const shouldRetryGroupName = (name?: string) => !name || name.trim() === '未获取到';
+
+const refreshListWithNameRetry = async () => {
+  await refreshList();
+  if ((groupList.value.items || []).some((item: any) => shouldRetryGroupName(item.groupName))) {
+    setTimeout(() => {
+      refreshList();
+    }, 900);
+  }
 };
 
 const { list, containerProps, wrapperProps } = useVirtualList(groupItems, {
@@ -320,8 +477,56 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
   });
 };
 
+// Scardice-core 当前没有 /group/delete_one 接口。
+// 请自行添加 /group/delete_one 的接口后，再启用下方删除功能。
+// const deleteGroupDataLocal = async (i: any) => {
+//   await ElMessageBox.confirm(
+//     `只删除本地保存的群聊数据，不会发送退群请求。\n确认删除 ${i.groupId}？`,
+//     '删除群聊数据',
+//     {
+//       confirmButtonText: '删除',
+//       cancelButtonText: '取消',
+//       type: 'warning',
+//     },
+//   );
+//   await deleteGroupData(i.groupId);
+//   await refreshList();
+//   ElMessage.success('群聊数据已删除');
+// };
+
+// const toggleGroupSelection = (groupId: string, checked: string | number | boolean) => {
+//   const selected = Boolean(checked);
+//   if (selected && !selectedGroupIds.value.includes(groupId)) {
+//     selectedGroupIds.value.push(groupId);
+//   } else if (!selected) {
+//     selectedGroupIds.value = selectedGroupIds.value.filter(item => item !== groupId);
+//   }
+// };
+
+// const deleteSelectedGroups = async () => {
+//   const ids = [...selectedGroupIds.value];
+//   if (ids.length === 0) {
+//     return;
+//   }
+//   await ElMessageBox.confirm(
+//     `只删除本地保存的群聊数据，不会发送退群请求。\n确认删除选中的 ${ids.length} 个群组？`,
+//     '批量删除群聊数据',
+//     {
+//       confirmButtonText: '删除',
+//       cancelButtonText: '取消',
+//       type: 'warning',
+//     },
+//   );
+//   for (const groupId of ids) {
+//     await deleteGroupData(groupId);
+//   }
+//   selectedGroupIds.value = [];
+//   await refreshList();
+//   ElMessage.success(`已删除 ${ids.length} 个群聊数据`);
+// };
+
 onBeforeMount(async () => {
-  await refreshList();
+  await refreshListWithNameRetry();
 });
 </script>
 
@@ -348,5 +553,50 @@ span.left {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: space-between;
+}
+
+.group-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.group-filter-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--seal-panel-bg);
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.group-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.group-filter-label {
+  min-width: 4rem;
+  color: var(--el-text-color-secondary);
+  font-weight: 700;
+}
+
+.group-card {
+  margin-top: 1rem;
+}
+
+@media screen and (max-width: 700px) {
+  .group-page-header {
+    flex-direction: column;
+  }
+
+  .group-filter-label {
+    width: 100%;
+  }
 }
 </style>
