@@ -50,7 +50,11 @@
       </el-table-column>
       <el-table-column label="用户" prop="userId"></el-table-column>
       <el-table-column label="群" prop="groupId"></el-table-column>
-      <el-table-column label="内容" prop="content"></el-table-column>
+      <el-table-column label="内容" prop="content">
+        <template #default="scope">
+          <log-rich-content :content="scope.row.content" />
+        </template>
+      </el-table-column>
       <el-table-column label="消息时间">
         <template #default="scope">
           {{ dayjs.unix(scope.row.createdAt).format('YYYY-MM-DD HH:mm:ss') }}
@@ -65,6 +69,7 @@ import dayjs from 'dayjs';
 import { useCensorStore } from '~/components/mod/censor/censor';
 import { Refresh } from '@element-plus/icons-vue';
 import { getCensorLogs } from '~/api/censor';
+import LogRichContent from '~/components/utils/log-rich-content.vue';
 
 const censorStore = useCensorStore();
 

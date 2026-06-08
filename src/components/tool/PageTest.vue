@@ -25,7 +25,7 @@
         </div>
         <div class="right">
           <div class="name">{{ i.isSeal ? '余烬核心' : i.name }}</div>
-          <div class="content">{{ i.content }}</div>
+          <div class="content"><log-rich-content :content="i.content" /></div>
         </div>
       </div>
     </div>
@@ -66,11 +66,12 @@ import { getRecentMessage, postExec } from '~/api/dice';
 import { reloadDeck as postReloadDeck } from '~/api/deck';
 import { reloadHelpDoc } from '~/api/helpdoc';
 import { reloadJS } from '~/api/js';
+import LogRichContent from '~/components/utils/log-rich-content.vue';
 const store = useStore();
 
 const mode = ref<'private' | 'group'>('private');
 
-let timerMsg: number;
+let timerMsg: ReturnType<typeof setInterval>;
 onBeforeMount(async () => {
   restaurants.value = loadAll();
   timerMsg = setInterval(async () => {
@@ -87,15 +88,18 @@ onBeforeMount(async () => {
       if (msg.length) {
         // 拉下滚动条
         nextTick(() => {
-          const el = chat.value as any;
+          const el = chat.value;
           if (el) {
             el.scrollTop = el.scrollHeight;
           }
         });
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e: any) {}
-  }, 1000) as any;
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('获取最近消息失败', error);
+      }
+    }
+  }, 1000);
 });
 
 onBeforeUnmount(() => {
@@ -111,8 +115,8 @@ interface RestaurantItem {
 
 const input = ref('');
 
-const chat = ref(null);
-const autocomplete = ref(null);
+const chat = ref<HTMLElement | null>(null);
+const autocomplete = ref<{ suggestions: RestaurantItem[] } | null>(null);
 
 let lastTime = 0;
 
@@ -141,8 +145,7 @@ const doSend = async () => {
       //     isSeal: true
       //   })
       // }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
+    } catch {
       store.talkLogs.push({
         name: '',
         content: '消息过于频繁',
@@ -152,12 +155,12 @@ const doSend = async () => {
     }
 
     nextTick(() => {
-      const el = chat.value as any;
+      const el = chat.value;
       if (el) {
         el.scrollTop = el.scrollHeight;
       }
 
-      const elAc = autocomplete.value as any;
+      const elAc = autocomplete.value;
       if (elAc) {
         elAc.suggestions = [];
       }
@@ -166,7 +169,7 @@ const doSend = async () => {
   }
 };
 
-const querySearch = (queryString: string, cb: any) => {
+const querySearch = (queryString: string, cb: (results: RestaurantItem[]) => void) => {
   // console.log(queryString, input.value)
   const results = input.value ? restaurants.value.filter(createFilter(input.value)) : [];
   // call callback function to return suggestions

@@ -183,23 +183,19 @@
       </el-table-column>
       <el-table-column prop="msg" label="信息">
         <template #default="scope">
-          <span
-            v-if="scope.row.msg.startsWith('onebot | ')"
-            style="color: var(--el-color-warning)"
-            >{{ scope.row.msg }}</span
-          >
-          <span
-            v-else-if="scope.row.msg.startsWith('发给')"
-            style="color: var(--el-color-primary)"
-            >{{ scope.row.msg }}</span
-          >
-          <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{
-            scope.row.msg
-          }}</span>
-          <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{
-            scope.row.msg
-          }}</span>
-          <span v-else>{{ scope.row.msg }}</span>
+          <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)"
+            ><log-rich-content :content="scope.row.msg"
+          /></span>
+          <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)"
+            ><log-rich-content :content="scope.row.msg"
+          /></span>
+          <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">
+            <log-rich-content :content="scope.row.msg" />
+          </span>
+          <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">
+            <log-rich-content :content="scope.row.msg" />
+          </span>
+          <span v-else><log-rich-content :content="scope.row.msg" /></span>
         </template>
       </el-table-column>
     </el-table>
@@ -234,19 +230,19 @@
     </el-table-column>
     <el-table-column prop="msg" label="信息">
       <template #default="scope">
-        <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">{{
-          scope.row.msg
-        }}</span>
-        <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">{{
-          scope.row.msg
-        }}</span>
-        <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{
-          scope.row.msg
-        }}</span>
-        <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{
-          scope.row.msg
-        }}</span>
-        <span v-else>{{ scope.row.msg }}</span>
+        <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">
+          <log-rich-content :content="scope.row.msg" />
+        </span>
+        <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">
+          <log-rich-content :content="scope.row.msg" />
+        </span>
+        <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">
+          <log-rich-content :content="scope.row.msg" />
+        </span>
+        <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">
+          <log-rich-content :content="scope.row.msg" />
+        </span>
+        <span v-else><log-rich-content :content="scope.row.msg" /></span>
       </template>
     </el-table-column>
   </el-table>
@@ -309,6 +305,7 @@ import { filesize } from 'filesize';
 import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue';
 import { getUtilsCheckNetWorkHealth } from '~/api/utils';
 import { postUpgrade } from '~/api/dice';
+import LogRichContent from '~/components/utils/log-rich-content.vue';
 
 const store = useStore();
 
@@ -335,8 +332,8 @@ const networkHealth = ref({
   timestamp: number;
 });
 
-let timerId: number;
-let checkTimerId: number;
+let timerId: ReturnType<typeof setInterval>;
+let checkTimerId: ReturnType<typeof setInterval>;
 let logSSE: EventSource | null = null;
 
 const normalizeLogLevel = (level: unknown): LogLevel => {
@@ -354,7 +351,7 @@ const filteredLogs = computed(() => {
 });
 
 const getUILogLimit = () => {
-  const raw = Number((store.curDice.config as any)?.logPageItemLimit ?? 100);
+  const raw = Number(store.curDice.config?.logPageItemLimit ?? 100);
   if (!Number.isFinite(raw) || raw <= 0) {
     return 100;
   }
@@ -393,8 +390,10 @@ const openLogStream = () => {
       if (Array.isArray(data)) {
         store.curDice.logs = trimLogs(data as SysLog[]);
       }
-    } catch {
-      // ignore parse failures
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('日志快照解析失败', error);
+      }
     }
   });
 
@@ -406,8 +405,10 @@ const openLogStream = () => {
       const data = JSON.parse((event as MessageEvent).data) as SysLog;
       const merged = [...store.curDice.logs, data];
       store.curDice.logs = trimLogs(merged);
-    } catch {
-      // ignore parse failures
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('日志解析失败', error);
+      }
     }
   });
 
@@ -430,9 +431,8 @@ const doUpgrade = async () => {
     ElMessageBox.alert(ret.text + '<br>如果几分钟后服务没有恢复，检查一下余烬目录', '升级', {
       dangerouslyUseHTMLString: true,
     });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
-    // ElMessageBox.alert('升级失败', '升级')
+  } catch (error) {
+    console.error('升级失败', error);
   }
 };
 
@@ -454,7 +454,7 @@ const scrollDown = () => {
 //   }
 // };
 
-const getLogRowClassName = ({ row }: { row: any }) => {
+const getLogRowClassName = ({ row }: { row: SysLog }) => {
   switch (normalizeLogLevel(row.level)) {
     case 'warn':
       return 'no-hover warning-row';
@@ -495,13 +495,13 @@ onBeforeMount(async () => {
 
   timerId = setInterval(() => {
     now.value = dayjs();
-  }, 5000) as any;
+  }, 5000);
   checkTimerId = setInterval(
     async () => {
       await refreshNetworkHealth();
     },
     5 * 60 * 1000,
-  ) as any; // 5 min 一次
+  ); // 5 min 一次
 });
 
 watch(autoRefresh, enabled => {

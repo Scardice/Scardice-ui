@@ -86,6 +86,7 @@ declare module 'vue' {
     IBiFiletypeXlsx: typeof import('~icons/bi/filetype-xlsx')['default']
     IBiFolder2: typeof import('~icons/bi/folder2')['default']
     ICarbonContainerSoftware: typeof import('~icons/carbon/container-software')['default']
+    LogRichContent: typeof import('./src/components/utils/log-rich-content.vue')['default']
     Menu: typeof import('./src/components/Menu.vue')['default']
     Nested: typeof import('./src/components/utils/nested.vue')['default']
     PageAbout: typeof import('./src/components/PageAbout.vue')['default']

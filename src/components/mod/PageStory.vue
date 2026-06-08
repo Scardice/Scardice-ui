@@ -7,6 +7,7 @@ import resolveConfig from 'tailwindcss/resolveConfig';
 import tailwindConfig from '../../../tailwind.config';
 import { getStoryInfo, getStoryLogPage, getStoryItemPage, deleteStoryLog } from '~/api/story';
 import { postStoryLog } from '~/api/story';
+import LogRichContent from '~/components/utils/log-rich-content.vue';
 const twColors = resolveConfig(tailwindConfig).theme.colors;
 
 interface Log {
@@ -33,7 +34,7 @@ interface Item {
 
 async function getInfo() {
   return getStoryInfo();
-  //   return backend.get(url("info")) as any
+  //   return backend.get(url("info"))
 }
 
 // async function getLogs() {
@@ -55,7 +56,7 @@ const getLogPage = getStoryLogPage;
 // async function getLogPage(params: { pageNum: number, pageSize: number, name?: string, groupId?: string, createdTimeBegin?: number, createdTimeEnd?: number }) {
 //     return await backend.get(url("logs/page"), {
 //       headers: {token: token}, params: params
-//     }) as any
+//     })
 // }
 
 // async function getItems(v: Log) {
@@ -91,7 +92,7 @@ async function uploadLog(v: Log) {
     type: 'warning',
   });
   return postStoryLog(v);
-  // return backend.post(url("uploadLog"), v,{ headers: { token }}) as any
+  // return backend.post(url("uploadLog"), v,{ headers: { token }})
 }
 
 //
@@ -179,7 +180,7 @@ async function DelLogs() {
   }).then(async () => {
     const ls = [];
     for (const v of logs.value) {
-      if (v.pitch == true) {
+      if (v.pitch === true) {
         ls.push(v);
       }
     }
@@ -431,13 +432,10 @@ onBeforeMount(async () => {
         </ElCard>
         <div class="my-4 px-4">
           <template v-for="(v, i1) in items" :key="i1">
-            <p :style="{ color: users[v.IMUserId][0] }">
+            <div class="story-log-message" :style="{ color: users[v.IMUserId][0] }">
               <span>{{ v.nickname }}：</span>
-              <template v-for="(p1, i2) in v.message.split('\n')" :key="i2">
-                <span>{{ p1 }}</span
-                ><br />
-              </template>
-            </p>
+              <log-rich-content :content="v.message" />
+            </div>
           </template>
         </div>
         <div style="display: flex; justify-content: center">
@@ -464,5 +462,11 @@ onBeforeMount(async () => {
 .pagination {
   margin-top: 10px;
   background-color: #f3f5f7;
+}
+
+.story-log-message {
+  margin: 1em 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 </style>
