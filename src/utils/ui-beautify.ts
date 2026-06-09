@@ -802,6 +802,15 @@ const getBackgroundSize = (fit: UiBackgroundFit | undefined) => {
   return fit || 'cover';
 };
 
+const getResourceDataPath = (path: string) => {
+  const token = typeof localStorage === 'undefined' ? '' : (localStorage.getItem('t') ?? '').trim();
+  const params = new URLSearchParams({ path });
+  if (token) {
+    params.set('token', token);
+  }
+  return `/sd-api/resource/data?${params.toString()}`;
+};
+
 export const normalizeBackgroundPath = (path: string) => {
   const trimmed = path.trim().replace(/\\/g, '/');
   if (!trimmed) {
@@ -809,7 +818,11 @@ export const normalizeBackgroundPath = (path: string) => {
   }
   const dataImage = trimmed.match(/^\/?data\/images\/(.+)$/i);
   if (dataImage) {
-    return `/sd-data/images/${dataImage[1].replace(/^\/+/, '')}`;
+    return getResourceDataPath(`data/images/${dataImage[1].replace(/^\/+/, '')}`);
+  }
+  const sdDataImage = trimmed.match(/^\/?sd-data\/images\/(.+)$/i);
+  if (sdDataImage) {
+    return getResourceDataPath(`data/images/${sdDataImage[1].replace(/^\/+/, '')}`);
   }
   if (/^(https?:|data:|blob:|\/|\.\/|\.\.\/)/i.test(trimmed)) {
     return trimmed;
