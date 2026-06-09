@@ -4,7 +4,7 @@
     :unique-opened="true"
     style="border-right: 0"
     :active-text-color="twColors.amber[300]"
-    :background-color="props.type === 'dark' ? twColors.gray[600] : undefined"
+    :background-color="props.type === 'dark' ? 'var(--seal-nav-bg)' : undefined"
     :text-color="props.type === 'dark' ? '#fff' : undefined"
     router
     :default-active="route.path">
@@ -116,6 +116,10 @@
 
       <el-menu-item index="/tool/resource">
         <span>资源管理</span>
+      </el-menu-item>
+
+      <el-menu-item index="/tool/ui-beautify">
+        <span>UI 美化</span>
       </el-menu-item>
     </el-sub-menu>
 

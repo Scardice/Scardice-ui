@@ -17,6 +17,12 @@ export function postQuitGroup(config: QuitGroupConfig) {
   return request('post', 'quit_one', config);
 }
 
+// Scardice-core 当前没有 /group/delete_one 接口。
+// 请自行添加 /group/delete_one 的接口后，再启用下方封装。
+// export function deleteGroupData(groupId: string) {
+//   return request<{ result: true }>('post', 'delete_one', { groupId });
+// }
+
 type QuitGroupConfig = {
   groupId: string; // 群组ID
   diceId: string; // 骰子ID
@@ -45,6 +51,7 @@ type GroupItem = {
   groupWelcomeMessage: string; // 群组欢迎消息
   enteredTime: number; // 加入时间
   inviteUserId: string; // 邀请用户的ID
+  inviter?: GroupInviterInfo; // 邀请人展示信息
   tmpPlayerNum: number; // 临时玩家数量
   tmpExtList: string[]; // 临时扩展列表
   defaultHelpGroup: string; // 默认帮助组
@@ -71,10 +78,19 @@ type GroupDetail = {
   groupWelcomeMessage: string; // 群组欢迎消息内容
   enteredTime: number; // 群组的加入时间戳
   inviteUserId: string; // 邀请用户的ID
+  inviter?: GroupInviterInfo; // 邀请人展示信息
   tmpPlayerNum: number; // 临时玩家数量
   tmpExtList: string[]; // 临时激活的扩展插件列表
   defaultHelpGroup: string; // 默认帮助组
   changed: boolean; // 是否有变更
+};
+
+type GroupInviterInfo = {
+  userId: string; // Scardice 标准ID
+  rawId: string; // 平台原始ID
+  qq: string; // QQ号
+  name: string; // 缓存昵称
+  display: string; // 后端生成的展示文本
 };
 
 type Extension = {

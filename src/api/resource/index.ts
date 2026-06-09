@@ -29,6 +29,11 @@ export function deleteResource(path: string) {
   return request<{ result: false; err: string } | { result: true }>('delete', '', { path });
 }
 
+export function saveResourceBlob(file: Blob, filename: string) {
+  const upload = file instanceof File ? file : new File([file], filename, { type: file.type });
+  return createResource(upload);
+}
+
 export function getResourceData(path: string, thumbnail: boolean = false) {
   return request<Blob>('get', '/data', { path, thumbnail }, 'form', {
     responseType: 'blob',
