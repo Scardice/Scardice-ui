@@ -8,8 +8,6 @@
     </div>
     <el-space wrap>
       <el-button :icon="Refresh" @click="refreshListWithNameRetry">刷新</el-button>
-      <!-- Scardice-core 当前没有 /group/delete_one 接口。
-      请自行添加 /group/delete_one 的接口后，再启用批量删除入口。
       <el-button
         type="danger"
         :icon="Delete"
@@ -17,7 +15,6 @@
         @click="deleteSelectedGroups">
         删除所选 {{ selectedGroupIds.length }}
       </el-button>
-      -->
     </el-space>
   </div>
 
@@ -70,12 +67,10 @@
           <foldable-card class="group-card">
             <template #title>
               <el-space class="item-header" size="large" alignment="center">
-                <!-- Scardice-core 当前没有 /group/delete_one 接口。
-                请自行添加 /group/delete_one 的接口后，再启用批量选择。
                 <el-checkbox
+                  :disabled="!isGroupOffline(item.data)"
                   :model-value="selectedGroupIds.includes(item.data.groupId)"
                   @change="toggleGroupSelection(item.data.groupId, $event)" />
-                -->
                 <el-switch
                   v-model="item.data.active"
                   style="
@@ -117,17 +112,15 @@
                 @click="saveOne(item.data, item.index)"
                 >保存</el-button
               >
-              <!-- Scardice-core 当前没有 /group/delete_one 接口。
-              请自行添加 /group/delete_one 的接口后，再启用删除群聊数据。
               <el-button
                 type="danger"
                 size="small"
                 :icon="Delete"
+                :disabled="!isGroupOffline(item.data)"
                 plain
                 @click="deleteGroupDataLocal(item.data)"
-                >删除群聊数据</el-button
+                >删除本地数据</el-button
               >
-              -->
               <template v-if="item.data.groupId.startsWith('QQ-Group:')">
                 <el-tooltip
                   v-for="(_, j) in item.data.diceIdExistsMap"
@@ -252,11 +245,11 @@
 </template>
 
 <script lang="ts" setup>
-import { DocumentChecked, Close, Refresh } from '@element-plus/icons-vue';
+import { DocumentChecked, Close, Delete, Refresh } from '@element-plus/icons-vue';
 import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { now, sortBy } from 'lodash-es';
-import { getGroupList, postQuitGroup, setGroup } from '~/api/group';
+import { deleteGroupLocalData, getGroupList, postQuitGroup, setGroup } from '~/api/group';
 
 dayjs.extend(relativeTime);
 
@@ -269,9 +262,7 @@ const filter30daysUnused = ref(false);
 const showOfflineOnly = ref(false);
 const endpointFilter = ref('');
 const searchBy = ref('');
-// Scardice-core 当前没有 /group/delete_one 接口。
-// 请自行添加 /group/delete_one 的接口后，再启用批量选择状态。
-// const selectedGroupIds = ref<string[]>([]);
+const selectedGroupIds = ref<string[]>([]);
 
 const platformOptions = [
   { value: 'QQ-Group:', label: 'QQ 群' },
@@ -389,11 +380,8 @@ const groupItems = computed<any[]>(() => {
 const refreshList = async () => {
   const data = await getGroupList();
   groupList.value = data;
-  // Scardice-core 当前没有 /group/delete_one 接口。
-  // 请自行添加 /group/delete_one 的接口后，再启用选择状态同步。
-  // selectedGroupIds.value = selectedGroupIds.value.filter(id =>
-  //   (data.items || []).some((item: any) => item.groupId === id),
-  // );
+  const existingIds = new Set((data.items || []).map((item: any) => item.groupId));
+  selectedGroupIds.value = selectedGroupIds.value.filter(id => existingIds.has(id));
 };
 
 const shouldRetryGroupName = (name?: string) => !name || name.trim() === '未获取到';
@@ -477,53 +465,84 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
   });
 };
 
-// Scardice-core 当前没有 /group/delete_one 接口。
-// 请自行添加 /group/delete_one 的接口后，再启用下方删除功能。
-// const deleteGroupDataLocal = async (i: any) => {
-//   await ElMessageBox.confirm(
-//     `只删除本地保存的群聊数据，不会发送退群请求。\n确认删除 ${i.groupId}？`,
-//     '删除群聊数据',
-//     {
-//       confirmButtonText: '删除',
-//       cancelButtonText: '取消',
-//       type: 'warning',
-//     },
-//   );
-//   await deleteGroupData(i.groupId);
-//   await refreshList();
-//   ElMessage.success('群聊数据已删除');
-// };
+const getGroupLocalDataDeleteError = (res: Awaited<ReturnType<typeof deleteGroupLocalData>>) => {
+  if (res.result) {
+    return '';
+  }
+  const activeDiceIds = res.data?.activeDiceIds || [];
+  if (activeDiceIds.length > 0) {
+    return `${res.err}：${activeDiceIds.join('、')}`;
+  }
+  return res.err || '删除失败';
+};
 
-// const toggleGroupSelection = (groupId: string, checked: string | number | boolean) => {
-//   const selected = Boolean(checked);
-//   if (selected && !selectedGroupIds.value.includes(groupId)) {
-//     selectedGroupIds.value.push(groupId);
-//   } else if (!selected) {
-//     selectedGroupIds.value = selectedGroupIds.value.filter(item => item !== groupId);
-//   }
-// };
+const deleteGroupRecord = async (groupId: string) => {
+  const res = await deleteGroupLocalData({
+    groupId,
+    scopes: ['group_record'],
+  });
+  if (!res.result) {
+    throw new Error(getGroupLocalDataDeleteError(res));
+  }
+};
 
-// const deleteSelectedGroups = async () => {
-//   const ids = [...selectedGroupIds.value];
-//   if (ids.length === 0) {
-//     return;
-//   }
-//   await ElMessageBox.confirm(
-//     `只删除本地保存的群聊数据，不会发送退群请求。\n确认删除选中的 ${ids.length} 个群组？`,
-//     '批量删除群聊数据',
-//     {
-//       confirmButtonText: '删除',
-//       cancelButtonText: '取消',
-//       type: 'warning',
-//     },
-//   );
-//   for (const groupId of ids) {
-//     await deleteGroupData(groupId);
-//   }
-//   selectedGroupIds.value = [];
-//   await refreshList();
-//   ElMessage.success(`已删除 ${ids.length} 个群聊数据`);
-// };
+const deleteGroupDataLocal = async (i: any) => {
+  await ElMessageBox.confirm(
+    `只删除本地保存的群组记录，不会发送退群请求，也不会解散群。\n在线群组请先关闭服务或退群后再删除。\n确认删除 ${i.groupId}？`,
+    '删除本地群组记录',
+    {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  );
+  await deleteGroupRecord(i.groupId);
+  selectedGroupIds.value = selectedGroupIds.value.filter(id => id !== i.groupId);
+  await refreshList();
+  ElMessage.success('本地群组记录已删除');
+};
+
+const toggleGroupSelection = (groupId: string, checked: string | number | boolean) => {
+  const selected = Boolean(checked);
+  if (selected && !selectedGroupIds.value.includes(groupId)) {
+    selectedGroupIds.value.push(groupId);
+  } else if (!selected) {
+    selectedGroupIds.value = selectedGroupIds.value.filter(item => item !== groupId);
+  }
+};
+
+const deleteSelectedGroups = async () => {
+  const ids = [...selectedGroupIds.value];
+  if (ids.length === 0) {
+    return;
+  }
+  await ElMessageBox.confirm(
+    `只删除本地保存的群组记录，不会发送退群请求，也不会解散群。\n确认删除选中的 ${ids.length} 个群组？`,
+    '批量删除本地群组记录',
+    {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  );
+
+  const failed: string[] = [];
+  for (const groupId of ids) {
+    try {
+      await deleteGroupRecord(groupId);
+    } catch (error: any) {
+      failed.push(`${groupId}: ${error?.message || '删除失败'}`);
+    }
+  }
+
+  selectedGroupIds.value = [];
+  await refreshList();
+  if (failed.length > 0) {
+    ElMessage.error(`部分本地群组记录删除失败：${failed.join('；')}`);
+    return;
+  }
+  ElMessage.success(`已删除 ${ids.length} 个本地群组记录`);
+};
 
 onBeforeMount(async () => {
   await refreshListWithNameRetry();

@@ -17,11 +17,9 @@ export function postQuitGroup(config: QuitGroupConfig) {
   return request('post', 'quit_one', config);
 }
 
-// Scardice-core 当前没有 /group/delete_one 接口。
-// 请自行添加 /group/delete_one 的接口后，再启用下方封装。
-// export function deleteGroupData(groupId: string) {
-//   return request<{ result: true }>('post', 'delete_one', { groupId });
-// }
+export function deleteGroupLocalData(config: GroupLocalDataDeleteConfig) {
+  return request<GroupLocalDataDeleteResponse>('post', 'local_data/delete', config);
+}
 
 type QuitGroupConfig = {
   groupId: string; // 群组ID
@@ -29,6 +27,44 @@ type QuitGroupConfig = {
   silence: boolean; // 是否开启静默模式
   extraText: string; // 额外的文本信息
 };
+
+export type GroupLocalDataDeleteScope = 'group_record' | 'players' | 'attrs';
+
+export type GroupLocalDataDeleteConfig = {
+  groupId: string; // 群组ID
+  scopes?: GroupLocalDataDeleteScope[]; // 删除范围，默认只删除群组记录
+  allowActive?: boolean; // 是否允许删除仍有启用骰号的群组
+  dryRun?: boolean; // 是否只预览不删除
+};
+
+export type GroupLocalDataDeleteResult = {
+  groupId: string;
+  scopes: GroupLocalDataDeleteScope[];
+  dryRun: boolean;
+  existedInMemory: boolean;
+  activeDiceIds: string[];
+  existingDiceIds: string[];
+  deleted: {
+    groupRecord: boolean;
+    groupInfoRows: number;
+    playerRows: number;
+    groupAttrRows: number;
+    groupUserAttrRows: number;
+  };
+};
+
+export type GroupLocalDataDeleteResponse =
+  | {
+      result: true;
+      data: GroupLocalDataDeleteResult;
+      testMode?: boolean;
+    }
+  | {
+      result: false;
+      err: string;
+      data?: GroupLocalDataDeleteResult;
+      supportedScopes?: GroupLocalDataDeleteScope[];
+    };
 
 type GroupItem = {
   active: boolean; // 群组是否激活
