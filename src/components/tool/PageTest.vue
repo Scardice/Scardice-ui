@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <div ref="chat" class="flex-1 overflow-y-auto">
+    <div ref="chat" class="flex-1 overflow-y-auto min-h-0">
       <div
         :key="index"
         v-for="(i, index) in store.talkLogs"

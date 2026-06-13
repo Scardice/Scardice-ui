@@ -409,7 +409,7 @@ body {
 .main-container {
   padding: 2rem;
   box-sizing: border-box;
-  min-height: 100%;
+  height: 100%;
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
@@ -433,7 +433,8 @@ body {
 }
 
 .route-page {
-  min-height: 100%;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .main-shell {
