@@ -1,12 +1,37 @@
-import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios';
+import axios, { AxiosHeaders, type AxiosError, type AxiosRequestConfig } from 'axios';
+import axiosRetry from 'axios-retry';
 import qs from 'qs';
 
 type HttpMethod = 'post' | 'get' | 'put' | 'delete';
 type RequestContentType = 'form' | 'json' | 'formdata';
 
-const http = axios.create({
-  baseURL: '/sd-api',
-  timeout: 10000,
+export const urlBase = import.meta.env.DEV
+  ? ''
+  : '//' + window.location.hostname + ':' + location.port;
+
+export const apiBaseURL = `${urlBase}/sd-api`;
+export const requestTimeout = 35000;
+
+export const http = axios.create({
+  baseURL: apiBaseURL,
+  timeout: requestTimeout,
+  withCredentials: false,
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+});
+
+axiosRetry(http, {
+  retries: 3,
+  retryDelay: retryCount => retryCount * 1000,
+  retryCondition: error => {
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      return false;
+    }
+    return axiosRetry.isNetworkOrIdempotentRequestError(error);
+  },
 });
 
 function setHeader(config: AxiosRequestConfig, key: string, value: string) {
@@ -51,6 +76,42 @@ function toFormData(payload: Record<string, unknown>) {
   return formData;
 }
 
+function getResponseErrorMessage(error: AxiosError) {
+  const status = error.response?.status;
+  if (status === 401) {
+    return '登录已失效，请重新登录';
+  }
+  if (status === 403) {
+    return '没有权限访问该资源';
+  }
+  if (status === 500) {
+    return '服务器内部错误';
+  }
+  if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
+    return '连接不到服务器';
+  }
+  return '请求失败';
+}
+
+function handleResponseError(error: AxiosError) {
+  const status = error.response?.status;
+
+  if (status === 401 || status === 403) {
+    try {
+      localStorage.removeItem('t');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
+  if (status === 401 || status === 403 || status === 500 || !error.response) {
+    console.error(getResponseErrorMessage(error));
+  }
+
+  return Promise.reject(error);
+}
+
 http.interceptors.request.use(config => {
   try {
     const token = localStorage.getItem('t');
@@ -68,18 +129,12 @@ http.interceptors.request.use(config => {
 
 http.interceptors.response.use(
   response => {
-    if (response.status === 200) {
+    if (response.status >= 200 && response.status < 300) {
       return response.data;
     }
-    console.error('服务器出错或者连接不到服务器');
     return Promise.reject(response);
   },
-  error => {
-    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-      console.error('连接不到服务器');
-    }
-    return Promise.reject(error);
-  },
+  handleResponseError,
 );
 
 export default function request<T = any>(

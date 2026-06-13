@@ -1965,7 +1965,7 @@ import { Plus, Edit, QuestionFilled, Delete } from '@element-plus/icons-vue';
 import { sleep } from '~/utils';
 import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 import {
   getConnectQQVersion,
   getLagrangeSignInfo,

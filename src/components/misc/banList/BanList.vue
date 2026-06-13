@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { UploadUserFile } from 'element-plus';
 import { Download, Delete, Plus, Upload } from '@element-plus/icons-vue';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { getBanConfigList, importBanConfig, postMapAddOne, postMapDelOne } from '~/api/banconfig';

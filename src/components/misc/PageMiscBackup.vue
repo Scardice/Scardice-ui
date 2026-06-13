@@ -215,7 +215,7 @@
 <script lang="ts" setup>
 import type { CheckboxValueType } from 'element-plus';
 import { useStore } from '~/store';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 import { filesize } from 'filesize';
 import { Delete, QuestionFilled, DocumentChecked } from '@element-plus/icons-vue';
 import { sum } from 'lodash-es';

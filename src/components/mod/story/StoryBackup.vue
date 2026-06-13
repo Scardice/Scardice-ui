@@ -72,7 +72,7 @@ import { filesize } from 'filesize';
 import { useStore } from '~/store';
 import type { Backup } from '~/api/story';
 import { getStoryBackUpList, postStoryBatchDel } from '~/api/story';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 
 const store = useStore();
 

@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import type { UploadUserFile } from 'element-plus';
 import { Delete, Download, Upload } from '@element-plus/icons-vue';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 import { useCensorStore } from '~/components/mod/censor/censor';
 import { deleteCensorFiles, getCensorFiles, uploadCensorFile } from '~/api/censor';
 

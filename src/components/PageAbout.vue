@@ -637,7 +637,7 @@
 <script lang="ts" setup>
 import { useStore } from '~/store';
 import imgHaibao from '~/assets/haibao1.png';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 
 const store = useStore();
 

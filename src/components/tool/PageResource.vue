@@ -2,7 +2,7 @@
 import type { Resource } from '~/store';
 import { useStore } from '~/store';
 import { filesize } from 'filesize';
-import { urlBase } from '~/backend';
+import { urlBase } from '~/api';
 import { CopyDocument, Delete, Download, Search, Upload } from '@element-plus/icons-vue';
 import ClipboardJS from 'clipboard';
 import {
