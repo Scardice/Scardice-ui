@@ -530,6 +530,10 @@ const resetCustomColors = () => {
   ElMessage.success('已恢复自定义配色默认值');
 };
 
+const applyCurrentUiConfig = () => {
+  applyUiBeautifyConfig(config.value);
+};
+
 const saveBackgroundConfig = async () => {
   const oldCropPath = config.value.backgroundCropPath;
   config.value.backgroundCropPath = '';
@@ -537,9 +541,8 @@ const saveBackgroundConfig = async () => {
     await deleteResource(oldCropPath).catch(() => undefined);
   }
   config.value.backgroundEnabled = true;
-  applyUiBeautifyConfig(config.value);
-  ElMessage.success('背景设置已保存，正在重载界面');
-  setTimeout(() => window.location.reload(), 250);
+  applyCurrentUiConfig();
+  ElMessage.success('背景设置已保存并已应用');
 };
 
 const loadImage = (src: string) =>
@@ -972,10 +975,9 @@ const saveSelectedCrop = async () => {
     if (cropMode.value === 'background') {
       config.value.backgroundPosition = 'center';
     }
-    applyUiBeautifyConfig(config.value);
+    applyCurrentUiConfig();
     cropDialogVisible.value = false;
-    ElMessage.success('背景剪裁已保存，正在重载界面');
-    setTimeout(() => window.location.reload(), 250);
+    ElMessage.success('背景剪裁已保存并已应用');
   } catch (error: any) {
     ElMessage.error(error?.message || '剪裁失败');
   } finally {
@@ -991,7 +993,7 @@ const clearBackgroundCrop = async () => {
   if (oldPath) {
     await deleteResource(oldPath).catch(() => undefined);
   }
-  applyUiBeautifyConfig(config.value);
+  applyCurrentUiConfig();
   ElMessage.success('已切回原图');
 };
 
@@ -1009,9 +1011,9 @@ const resetConfig = () => {
 
 watch(
   config,
-  value => {
+  () => {
     ensureCustomColors();
-    applyUiBeautifyConfig(value);
+    applyCurrentUiConfig();
   },
   { deep: true, immediate: true },
 );
