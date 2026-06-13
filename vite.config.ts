@@ -55,20 +55,15 @@ export default defineConfig(({ mode }) => ({
       autoInstall: true,
     }),
     chunkSplitPlugin({
-      strategy: 'unbundle',
       customSplitting: {
         'vendor-editor': [
           /node_modules\/codemirror/,
           /node_modules\/@codemirror/,
           /node_modules\/vue-diff/,
-          /node_modules\/highlight.js/
+          /node_modules\/highlight.js/,
         ],
-        'vendor-utils': [
-          /node_modules\/dayjs/,
-          /node_modules\/qs/,
-          /node_modules\/axios/
-        ]
-      }
+        'vendor-utils': [/node_modules\/dayjs/, /node_modules\/qs/, /node_modules\/axios/],
+      },
     }),
   ],
   build: {
