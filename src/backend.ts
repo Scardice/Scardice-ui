@@ -34,7 +34,7 @@ export function newRequestClient(baseURL: string) {
 // charyflys:为了方便调试，现将发后端的请求修改为代理转发
 // 如果要设置测试转发端口，在.env 文件下设置 VITE_APP_APIURL="目标地址"即可
 export const urlBase =
-  import.meta.env.NODE_ENV == 'development'
+  import.meta.env.DEV
     ? ''
     : '//' + window.location.hostname + ':' + location.port;
 

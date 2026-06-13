@@ -50,14 +50,16 @@ app
 
 const store = useStore();
 
-store.trySignIn().then(() => {
+store.trySignIn().finally(() => {
   app.mount('#app');
 });
 
-try {
-  (window as any).store = store;
-  (globalThis as any).store = store;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-} catch (e) {}
+if (import.meta.env.DEV) {
+  try {
+    (window as any).store = store;
+    (globalThis as any).store = store;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (e) {}
+}
 
 // app.use(ElementPlus);
