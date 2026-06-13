@@ -19,19 +19,26 @@ const props = defineProps<{
 
 const imageMarkerPattern = /\[图:([^\]]+)\]|\[CQ:image,([^\]]+)\]/g;
 const base64PrefixPattern = /^(?:base64|base):\/\//i;
+const cqImageTargetKeys = new Set(['file', 'url', 'file/url']);
+
+const decodeCQParamValue = (value: string): string => {
+  return value
+    .replace(/&#44;/g, ',')
+    .replace(/&#91;/g, '[')
+    .replace(/&#93;/g, ']')
+    .replace(/&amp;/gi, '&');
+};
 
 const parseCQImageTarget = (paramsText: string): string | undefined => {
-  const params = paramsText.split(',');
-  for (const param of params) {
-    const equalIndex = param.indexOf('=');
-    if (equalIndex === -1) {
+  const paramMatches = [...paramsText.matchAll(/(?:^|,)\s*([^=,\s]+)\s*=/g)];
+  for (const [index, match] of paramMatches.entries()) {
+    const key = match[1]?.trim().toLowerCase();
+    if (!cqImageTargetKeys.has(key)) {
       continue;
     }
-    const key = param.slice(0, equalIndex).trim();
-    if (key !== 'file' && key !== 'url') {
-      continue;
-    }
-    const value = param.slice(equalIndex + 1).trim();
+    const valueStart = (match.index ?? 0) + match[0].length;
+    const valueEnd = paramMatches[index + 1]?.index ?? paramsText.length;
+    const value = decodeCQParamValue(paramsText.slice(valueStart, valueEnd).trim());
     if (value) {
       return value;
     }
@@ -146,7 +153,12 @@ const parts = computed(() => parseRichContent(props.content));
     <template v-for="(part, index) in parts" :key="`${part.type}-${index}`">
       <span v-if="part.type === 'text'" class="log-rich-content__text">{{ part.text }}</span>
       <span v-else class="log-rich-content__image-block">
-        <img class="log-rich-content__image" :src="part.src" :alt="part.caption" loading="lazy" />
+        <img
+          class="log-rich-content__image"
+          :src="part.src"
+          :alt="part.caption"
+          loading="lazy"
+          referrerpolicy="no-referrer" />
         <span class="log-rich-content__caption">{{ part.caption }}</span>
       </span>
     </template>
