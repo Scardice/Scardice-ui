@@ -1,61 +1,110 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import PageAbout from '~/components/PageAbout.vue';
-import PageHome from '~/components/PageHome.vue';
-import PageConnectInfoItems from '~/components/PageConnectInfoItems.vue';
-import PageCustomText from '~/components/PageCustomText.vue';
-import PageCustomReply from '~/components/mod/PageCustomReply.vue';
-import PageJs from '~/components/mod/PageJs.vue';
-import PageMiscDeck from '~/components/mod/PageMiscDeck.vue';
-import PageHelpDoc from '~/components/mod/PageHelpDoc.vue';
-import PageStory from '~/components/mod/PageStory.vue';
-import PageCensor from '~/components/mod/PageCensor.vue';
-import PageTest from '~/components/tool/PageTest.vue';
-import PageResource from '~/components/tool/PageResource.vue';
-import PageUiBeautify from '~/components/tool/PageUiBeautify.vue';
-import PageMiscSettings from '~/components/misc/PageMiscSettings.vue';
-import PageMiscBackup from '~/components/misc/PageMiscBackup.vue';
-import PageMiscGroup from '~/components/misc/PageMiscGroup.vue';
-import PageMiscBan from '~/components/misc/PageMiscBan.vue';
-import PageMiscDicePublic from '~/components/misc/PageMiscDicePublic.vue';
-import PageMiscAdvancedSettings from '~/components/misc/PageMiscAdvancedSettings.vue';
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/home', name: 'home', component: PageHome },
-    { path: '/connect', component: PageConnectInfoItems },
-    { path: '/custom-text/:category', component: PageCustomText, props: true },
+    { path: '/home', name: 'home', component: () => import('~/components/PageHome.vue') },
+    {
+      path: '/connect',
+      name: 'connect',
+      component: () => import('~/components/PageConnectInfoItems.vue'),
+    },
+    {
+      path: '/custom-text/:category',
+      name: 'custom-text',
+      component: () => import('~/components/PageCustomText.vue'),
+      props: true,
+    },
     {
       path: '/mod',
+      name: 'mod',
       children: [
-        { path: 'js', component: PageJs },
-        { path: 'reply', component: PageCustomReply },
-        { path: 'deck', component: PageMiscDeck },
-        { path: 'helpdoc', component: PageHelpDoc },
-        { path: 'story', component: PageStory },
-        { path: 'censor', component: PageCensor },
+        { path: 'js', name: 'mod-js', component: () => import('~/components/mod/PageJs.vue') },
+        {
+          path: 'reply',
+          name: 'mod-reply',
+          component: () => import('~/components/mod/PageCustomReply.vue'),
+        },
+        {
+          path: 'deck',
+          name: 'mod-deck',
+          component: () => import('~/components/mod/PageMiscDeck.vue'),
+        },
+        {
+          path: 'helpdoc',
+          name: 'mod-helpdoc',
+          component: () => import('~/components/mod/PageHelpDoc.vue'),
+        },
+        {
+          path: 'story',
+          name: 'mod-story',
+          component: () => import('~/components/mod/PageStory.vue'),
+        },
+        {
+          path: 'censor',
+          name: 'mod-censor',
+          component: () => import('~/components/mod/PageCensor.vue'),
+        },
       ],
     },
     {
       path: '/tool',
+      name: 'tool',
       children: [
-        { path: 'test', component: PageTest },
-        { path: 'resource', component: PageResource },
-        { path: 'ui-beautify', component: PageUiBeautify },
+        {
+          path: 'test',
+          name: 'tool-test',
+          component: () => import('~/components/tool/PageTest.vue'),
+        },
+        {
+          path: 'resource',
+          name: 'tool-resource',
+          component: () => import('~/components/tool/PageResource.vue'),
+        },
+        {
+          path: 'ui-beautify',
+          name: 'tool-ui-beautify',
+          component: () => import('~/components/tool/PageUiBeautify.vue'),
+        },
       ],
     },
     {
       path: '/misc',
+      name: 'misc',
       children: [
-        { path: 'base-setting', component: PageMiscSettings },
-        { path: 'backup', component: PageMiscBackup },
-        { path: 'group', component: PageMiscGroup },
-        { path: 'ban', component: PageMiscBan },
-        { path: 'dice-public', component: PageMiscDicePublic },
-        { path: 'advanced-setting', component: PageMiscAdvancedSettings },
+        {
+          path: 'base-setting',
+          name: 'misc-base-setting',
+          component: () => import('~/components/misc/PageMiscSettings.vue'),
+        },
+        {
+          path: 'backup',
+          name: 'misc-backup',
+          component: () => import('~/components/misc/PageMiscBackup.vue'),
+        },
+        {
+          path: 'group',
+          name: 'misc-group',
+          component: () => import('~/components/misc/PageMiscGroup.vue'),
+        },
+        {
+          path: 'ban',
+          name: 'misc-ban',
+          component: () => import('~/components/misc/PageMiscBan.vue'),
+        },
+        {
+          path: 'dice-public',
+          name: 'misc-dice-public',
+          component: () => import('~/components/misc/PageMiscDicePublic.vue'),
+        },
+        {
+          path: 'advanced-setting',
+          name: 'misc-advanced-setting',
+          component: () => import('~/components/misc/PageMiscAdvancedSettings.vue'),
+        },
       ],
     },
-    { path: '/about', component: PageAbout },
+    { path: '/about', name: 'about', component: () => import('~/components/PageAbout.vue') },
     { path: '/:catchAll(.*)', name: 'default', redirect: { name: 'home' } },
   ],
 });

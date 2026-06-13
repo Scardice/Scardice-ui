@@ -81,9 +81,14 @@
           <div class="seal-background-mask"></div>
         </div>
         <el-main ref="rightbox" v-loading="loading" class="main-container w-full">
-          <router-view
-            v-if="!loading"
-            @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)" />
+          <router-view v-slot="{ Component, route }">
+            <transition name="route-fade" mode="out-in" appear>
+              <component
+                :is="Component"
+                :key="route.fullPath"
+                @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)" />
+            </transition>
+          </router-view>
         </el-main>
       </div>
     </div>
@@ -405,6 +410,23 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+}
+
+.route-fade-enter-active,
+.route-fade-leave-active {
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.route-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.route-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .main-shell {

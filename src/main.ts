@@ -21,15 +21,32 @@ import { useStore } from '~/store';
 const loading = useStorage('router-view-loading', true);
 import router from '~/router';
 
+let routeLoadingTimer: ReturnType<typeof window.setTimeout> | undefined;
+const clearRouteLoadingTimer = () => {
+  if (routeLoadingTimer) {
+    window.clearTimeout(routeLoadingTimer);
+    routeLoadingTimer = undefined;
+  }
+};
+
 router.beforeEach((to, from, next) => {
-  loading.value = true;
+  clearRouteLoadingTimer();
+  routeLoadingTimer = window.setTimeout(() => {
+    loading.value = true;
+  }, 120);
   next();
 });
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-router.afterEach((to, from) => {
-  setTimeout(() => {
+
+router.afterEach(() => {
+  clearRouteLoadingTimer();
+  window.setTimeout(() => {
     loading.value = false;
-  }, 300);
+  }, 80);
+});
+
+router.onError(() => {
+  clearRouteLoadingTimer();
+  loading.value = false;
 });
 
 import VueDiff from 'vue-diff';
