@@ -83,10 +83,13 @@
         <el-main ref="rightbox" v-loading="loading" class="main-container w-full">
           <router-view v-slot="{ Component, route }">
             <transition name="route-fade" mode="out-in" appear>
-              <component
-                :is="Component"
-                :key="route.fullPath"
-                @update:advanced-settings-show="(show: boolean) => refreshAdvancedSettings(show)" />
+              <div :key="route.fullPath" class="route-page">
+                <component
+                  :is="Component"
+                  @update:advanced-settings-show="
+                    (show: boolean) => refreshAdvancedSettings(show)
+                  " />
+              </div>
             </transition>
           </router-view>
         </el-main>
@@ -427,6 +430,10 @@ body {
 .route-fade-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+.route-page {
+  min-height: 100%;
 }
 
 .main-shell {
