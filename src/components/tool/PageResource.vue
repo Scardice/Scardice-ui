@@ -118,7 +118,11 @@ onBeforeMount(async () => {
     <el-table v-loading="loading" :data="images" table-layout="auto">
       <el-table-column align="center" min-width="64px">
         <template #default="scope">
-          <resource-render :key="scope.row.path" class="min-w-10" :data="scope.row" mini />
+          <resource-render
+            :key="scope.row.path"
+            class="min-w-10"
+            :data="scope.row as Resource"
+            mini />
         </template>
       </el-table-column>
       <el-table-column prop="path" label="路径" />
@@ -148,7 +152,7 @@ onBeforeMount(async () => {
               size="small"
               :icon="Search"
               plain
-              @click="handleShow(scope.row)">
+              @click="handleShow(scope.row as Resource)">
               详情
             </el-button>
             <el-button
@@ -168,7 +172,7 @@ onBeforeMount(async () => {
               size="small"
               :icon="Delete"
               plain
-              @click="deleteResource(scope.row)">
+              @click="deleteResource(scope.row as Resource)">
               删除
             </el-button>
           </el-space>

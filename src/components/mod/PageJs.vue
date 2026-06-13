@@ -700,7 +700,7 @@
                                       @click="
                                         doJsConfigRemoveItemAt(
                                           (c as unknown as JsPluginConfigItem).value,
-                                          index,
+                                          index as number,
                                           (config as unknown as JsPluginConfig).pluginName,
                                           (c as unknown as JsPluginConfigItem).key,
                                         )

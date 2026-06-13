@@ -77,7 +77,7 @@
                   <circle-plus-filled
                     v-if="index == 0"
                     @click="config.diceMasters = addItem(config.diceMasters)" />
-                  <circle-close v-else @click="removeItem(config.diceMasters, index)" />
+                  <circle-close v-else @click="removeItem(config.diceMasters, index as number)" />
                 </el-icon>
               </el-tooltip>
             </div>
@@ -122,7 +122,7 @@
                   <circle-plus-filled
                     v-if="index == 0"
                     @click="config.noticeIds = addItem(config.noticeIds)" />
-                  <circle-close v-else @click="removeItem(config.noticeIds, index)" />
+                  <circle-close v-else @click="removeItem(config.noticeIds, index as number)" />
                 </el-icon>
               </el-tooltip>
             </div>
@@ -698,7 +698,7 @@
                   <circle-plus-filled
                     v-if="index == 0"
                     @click="config.commandPrefix = addItem(config.commandPrefix)" />
-                  <circle-close v-else @click="removeItem(config.commandPrefix, index)" />
+                  <circle-close v-else @click="removeItem(config.commandPrefix, index as number)" />
                 </el-icon>
               </el-tooltip>
             </div>

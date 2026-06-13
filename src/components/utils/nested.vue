@@ -85,7 +85,7 @@
                   :icon="Delete"
                   size="small"
                   plain
-                  @click="deleteAnyItem(el.results, index)">
+                  @click="deleteAnyItem(el.results, index as number)">
                   <template v-if="notMobile" #default> 删除结果 </template>
                 </el-button>
               </div>
