@@ -104,7 +104,7 @@ const classicColors: UiThemeColors = {
   borderLight: '#ebeef5',
   text: '#2c3e50',
   textRegular: '#606266',
-  textSecondary: '#909399',
+  textSecondary: '#74787f',
   textMuted: '#a8abb2',
   codeBg: '#ecf5ff',
   tableHeader: '#f3f5f7',
@@ -232,14 +232,14 @@ export const uiThemeOptions: UiThemeOption[] = [
       surfaceSoft: '#202938',
       surfaceMuted: '#3a465a',
       input: '#273244',
-      border: '#49576c',
-      borderLight: '#5a687d',
+      border: '#65758c',
+      borderLight: '#53647b',
       text: '#e6edf7',
       textRegular: '#cbd5e1',
       textSecondary: '#9fb0c6',
       textMuted: '#8090a8',
       codeBg: '#142033',
-      tableHeader: '#303b50',
+      tableHeader: '#22314b',
     },
   },
   {
@@ -372,14 +372,14 @@ export const uiThemeOptions: UiThemeOption[] = [
       surfaceSoft: '#25183f',
       surfaceMuted: '#4a3474',
       input: '#30204f',
-      border: '#6d55a0',
-      borderLight: '#7e66b2',
+      border: '#8b72bf',
+      borderLight: '#71599f',
       text: '#f3ebff',
       textRegular: '#ddd0f6',
       textSecondary: '#bda8e6',
       textMuted: '#9b85c2',
       codeBg: '#21133d',
-      tableHeader: '#3c2864',
+      tableHeader: '#2b1d50',
     },
   },
   {
@@ -400,14 +400,14 @@ export const uiThemeOptions: UiThemeOption[] = [
       surfaceSoft: '#102b3a',
       surfaceMuted: '#24546a',
       input: '#15384a',
-      border: '#2f687c',
-      borderLight: '#3e7b90',
+      border: '#4d8fa4',
+      borderLight: '#37748a',
       text: '#e4f7fb',
       textRegular: '#bddce4',
       textSecondary: '#91bdca',
       textMuted: '#6f9dac',
       codeBg: '#0d2e43',
-      tableHeader: '#1b465b',
+      tableHeader: '#10354d',
     },
   },
   {
@@ -676,6 +676,8 @@ const getLuminance = (hex: string) => {
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 };
 
+const isDarkThemeColors = (colors: UiThemeColors) => getLuminance(colors.page) < 0.28;
+
 const backgroundPositionMap: Record<UiBackgroundPosition, string> = {
   center: 'center',
   top: 'center top',
@@ -720,7 +722,7 @@ export const deriveThemeFromPrimary = (value: string): UiThemeColors => {
       textSecondary: '#b7c4d6',
       textMuted: '#8fa0b8',
       codeBg: mix(primary, '#0b1220', 74),
-      tableHeader: panel,
+      tableHeader: mix(panel, '#020617', 18),
     };
   }
 
@@ -839,7 +841,7 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
   const root = document.documentElement;
   const colors = getUiThemeColors(config);
   const font = uiFontOptions.find(item => item.id === config.fontId) || uiFontOptions[0];
-  const isDark = ['dark', 'starry', 'deepSea'].includes(config.themeId || '');
+  const isDark = isDarkThemeColors(colors);
   const imageOpacity = getOpacity(config.backgroundImageOpacity ?? config.backgroundOpacity, 80);
   const cardOpacity = getOpacity(config.cardOpacity, 100);
   const cardAlpha = cardOpacity / 100;
@@ -892,12 +894,15 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
   setRootVar(root, '--el-fill-color-light', colors.surfaceMuted);
   setRootVar(root, '--el-fill-color', colors.surfaceMuted);
   setRootVar(root, '--el-fill-color-dark', mix(colors.surfaceMuted, colors.text, 14));
+  setRootVar(root, '--el-fill-color-darker', mix(colors.surfaceMuted, colors.text, 24));
   setRootVar(root, '--el-border-color', colors.border);
   setRootVar(root, '--el-border-color-light', colors.borderLight);
   setRootVar(root, '--el-border-color-lighter', colors.borderLight);
   setRootVar(root, '--el-border-color-extra-light', mix(colors.borderLight, colors.panel, 45));
   setRootVar(root, '--el-border-color-dark', mix(colors.border, colors.text, 14));
   setRootVar(root, '--el-border-color-darker', mix(colors.border, colors.text, 24));
+  setRootVar(root, '--el-border-color-hover', isDark ? colors.textMuted : colors.textSecondary);
+  setRootVar(root, '--el-border', `1px solid ${colors.border}`);
   setRootVar(root, '--el-text-color-primary', colors.text);
   setRootVar(root, '--el-text-color-regular', colors.textRegular);
   setRootVar(root, '--el-text-color-secondary', colors.textSecondary);
@@ -905,6 +910,21 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
   setRootVar(root, '--el-text-color-disabled', colors.textMuted);
   setRootVar(root, '--el-disabled-bg-color', colors.surfaceSoft);
   setRootVar(root, '--el-disabled-text-color', colors.textMuted);
+  setRootVar(root, '--el-disabled-border-color', colors.borderLight);
+  setRootVar(root, '--el-overlay-color', isDark ? 'rgba(0, 0, 0, 0.82)' : 'rgba(0, 0, 0, 0.72)');
+  setRootVar(root, '--el-overlay-color-light', isDark ? 'rgba(0, 0, 0, 0.68)' : 'rgba(0, 0, 0, 0.52)');
+  setRootVar(root, '--el-overlay-color-lighter', isDark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(0, 0, 0, 0.32)');
+  setRootVar(root, '--el-popper-border-radius', '4px');
+  setRootVar(root, '--el-popover-bg-color', colors.surface);
+  setRootVar(root, '--el-popover-border-color', colors.borderLight);
+  setRootVar(root, '--el-popover-title-text-color', colors.text);
+  setRootVar(root, '--el-table-header-bg-color', colors.tableHeader);
+  setRootVar(root, '--el-table-header-text-color', colors.text);
+  setRootVar(root, '--el-table-bg-color', colors.panel);
+  setRootVar(root, '--el-table-tr-bg-color', colors.panel);
+  setRootVar(root, '--el-table-row-hover-bg-color', colors.surfaceSoft);
+  setRootVar(root, '--el-table-border-color', colors.borderLight);
+  setRootVar(root, '--el-table-text-color', colors.textRegular);
   setRootVar(
     root,
     '--el-mask-color',
@@ -919,6 +939,25 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
     root,
     '--el-box-shadow-light',
     isDark ? '0 8px 22px rgba(0, 0, 0, 0.24)' : '0 8px 22px rgba(15, 23, 42, 0.08)',
+  );
+  setRootVar(
+    root,
+    '--el-box-shadow',
+    isDark
+      ? '0 12px 32px rgba(0, 0, 0, 0.34), 0 8px 20px rgba(0, 0, 0, 0.26)'
+      : '0 12px 32px rgba(15, 23, 42, 0.08), 0 8px 20px rgba(15, 23, 42, 0.06)',
+  );
+  setRootVar(
+    root,
+    '--el-box-shadow-lighter',
+    isDark ? '0 0 8px rgba(0, 0, 0, 0.28)' : '0 0 8px rgba(15, 23, 42, 0.08)',
+  );
+  setRootVar(
+    root,
+    '--el-box-shadow-dark',
+    isDark
+      ? '0 16px 48px rgba(0, 0, 0, 0.42), 0 12px 32px rgba(0, 0, 0, 0.34)'
+      : '0 16px 48px rgba(15, 23, 42, 0.12), 0 12px 32px rgba(15, 23, 42, 0.1)',
   );
 
   setRootVar(

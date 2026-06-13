@@ -63,7 +63,7 @@ p {
   --seal-border-color-light: #ebeef5;
   --seal-text-color: #2c3e50;
   --seal-text-regular: #606266;
-  --seal-text-secondary: #909399;
+  --seal-text-secondary: #74787f;
   --seal-text-muted: #a8abb2;
   --seal-code-bg: #ecf5ff;
   --seal-table-header-bg: #f3f5f7;
@@ -85,6 +85,20 @@ p {
   --seal-content-width: 100vw;
   --seal-content-height: 100vh;
   --seal-card-opacity: 1;
+  --el-text-color-secondary: var(--seal-text-secondary);
+  --el-border-color-hover: var(--seal-text-secondary);
+  --el-disabled-border-color: var(--seal-border-color-light);
+  --el-overlay-color: rgba(0, 0, 0, 0.72);
+  --el-overlay-color-light: rgba(0, 0, 0, 0.52);
+  --el-overlay-color-lighter: rgba(0, 0, 0, 0.32);
+  --el-popover-bg-color: var(--seal-surface-bg-base);
+  --el-popover-border-color: var(--seal-border-color-light);
+  --el-popover-title-text-color: var(--seal-text-color);
+  --el-table-header-bg-color: var(--seal-table-header-bg);
+  --el-table-header-text-color: var(--seal-text-color);
+  --el-table-row-hover-bg-color: var(--seal-surface-soft-base);
+  --el-table-border-color: var(--seal-border-color-light);
+  --el-table-text-color: var(--seal-text-regular);
 }
 
 body {
