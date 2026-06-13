@@ -890,10 +890,18 @@
       </el-tabs>
     </el-col>
   </el-row>
+  <teleport to="body">
+    <el-tooltip v-if="mode === 'list'" content="回到顶部" placement="left">
+      <button class="js-backtop" type="button" aria-label="回到顶部" @click="scrollJsListTop">
+        <el-icon><ArrowUp /></el-icon>
+      </button>
+    </el-tooltip>
+  </teleport>
 </template>
 
 <script lang="ts" setup>
 import {
+  ArrowUp,
   BrushFilled,
   CaretRight,
   CircleClose,
@@ -1301,6 +1309,44 @@ const filteredJsList = computed(() =>
     );
   }),
 );
+
+const getJsScrollContainer = () => {
+  const active = document.activeElement as HTMLElement | null;
+  const candidates = [
+    active?.closest<HTMLElement>('.seal-content'),
+    document.querySelector<HTMLElement>('.seal-content'),
+    document.querySelector<HTMLElement>('.main-container'),
+    document.querySelector<HTMLElement>('#root > .flex-grow'),
+    document.scrollingElement as HTMLElement | null,
+    document.documentElement,
+    document.body,
+  ].filter(Boolean) as HTMLElement[];
+  return (
+    candidates.find(item => item.scrollHeight > item.clientHeight + 1) || document.documentElement
+  );
+};
+
+const scrollJsListTop = () => {
+  const targets = new Set<HTMLElement>();
+  for (const target of [
+    getJsScrollContainer(),
+    document.querySelector<HTMLElement>('.seal-content'),
+    document.querySelector<HTMLElement>('.main-container'),
+    document.querySelector<HTMLElement>('#root > .flex-grow'),
+    document.scrollingElement as HTMLElement | null,
+    document.documentElement,
+    document.body,
+  ]) {
+    if (target) {
+      targets.add(target);
+    }
+  }
+  for (const target of targets) {
+    target.scrollTop = 0;
+    target.scrollTo?.({ top: 0, left: 0, behavior: 'smooth' });
+  }
+  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+};
 
 const formatDangerousApiUsageSummary = (js: JsScriptInfo) =>
   js.dangerousApiUsages
@@ -1775,5 +1821,39 @@ const jsUpdate = async () => {
   white-space: normal;
   word-break: break-word;
   line-height: 1.5;
+}
+
+.js-backtop {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 60;
+  width: 2.55rem;
+  height: 2.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--el-color-primary-light-5);
+  border-radius: 999px;
+  color: #fff;
+  background: color-mix(in srgb, var(--el-color-primary) 92%, var(--seal-panel-bg));
+  box-shadow: var(--el-box-shadow);
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.js-backtop:hover {
+  transform: translateY(-2px);
+  background: var(--el-color-primary);
+}
+
+@media screen and (max-width: 760px) {
+  .js-backtop {
+    right: 0.8rem;
+    bottom: 0.8rem;
+  }
 }
 </style>

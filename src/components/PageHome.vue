@@ -125,7 +125,7 @@
     <el-table
       :data="filteredLogs"
       :row-class-name="getLogRowClassName"
-      :header-cell-style="{ backgroundColor: '#f3f5f7' }">
+      :header-cell-style="{ backgroundColor: 'var(--seal-table-header-bg)' }">
       <el-table-column label="时间" width="90">
         <template #default="scope">
           <div style="display: flex; align-items: center">
@@ -204,7 +204,7 @@
     :data="filteredLogs"
     class="md:hidden w-full logs"
     :row-class-name="getLogRowClassName"
-    :header-cell-style="{ backgroundColor: '#f3f5f7' }">
+    :header-cell-style="{ backgroundColor: 'var(--seal-table-header-bg)' }">
     <el-table-column label="时间" width="60">
       <template #default="scope">
         <div style="display: flex; align-items: center">
@@ -557,7 +557,7 @@ onBeforeUnmount(() => {
   margin-top: 0;
   margin-bottom: 1rem;
   :deep(.el-divider__text) {
-    background: #f3f4f6;
+    background: var(--seal-panel-bg);
   }
 }
 
@@ -610,7 +610,7 @@ onBeforeUnmount(() => {
 }
 
 .el-table .normal-row {
-  --el-table-tr-bg-color: #f3f5f7;
+  --el-table-tr-bg-color: var(--seal-surface-soft);
   &:hover {
     --el-table-tr-bg-color: var(--el-color-primary-light-9);
   }

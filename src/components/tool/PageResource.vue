@@ -96,19 +96,11 @@ onBeforeMount(async () => {
 
 <template>
   <h2>资源管理</h2>
-  <div class="tip">
-    <el-collapse class="helptips">
-      <el-collapse-item name="1">
-        <template #title>
-          <el-text tag="strong">查看帮助</el-text>
-        </template>
-
-        <el-text tag="p">
-          <div>此处可以上传图片等资源，方便引用。</div>
-        </el-text>
-      </el-collapse-item>
-    </el-collapse>
-  </div>
+  <seal-help-card>
+    <el-text tag="p">
+      <div>此处可以上传图片等资源，方便引用。</div>
+    </el-text>
+  </seal-help-card>
 
   <main>
     <h3 class="flex items-center justify-between">
@@ -202,18 +194,6 @@ onBeforeMount(async () => {
 </template>
 
 <style scoped lang="css">
-.helptips {
-  background-color: #f3f5f7;
-
-  :deep(.el-collapse-item__header) {
-    background-color: #f3f5f7;
-  }
-
-  :deep(.el-collapse-item__wrap) {
-    background-color: #f3f5f7;
-  }
-}
-
 .el-loading-mask {
   z-index: 9;
 }

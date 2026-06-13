@@ -13,80 +13,67 @@
     </div>
   </el-affix>
 
-  <div class="tip">
-    <el-collapse class="helptips">
-      <el-collapse-item name="1">
-        <template #title>
-          <el-text tag="strong">查看帮助</el-text>
-        </template>
+  <seal-help-card>
+    <el-text tag="p">
+      <div>此处可以对骰子返回的文本进行修改。最终返回的文本将为多个条目中随机抽取的一个。</div>
+      <div>随机文本：默认一种显示结果，如果需要多种反馈结果，使用＋添加条目，使用 - 删除条目</div>
+      <!-- 权重选择：默认 1，权重—致则没有优先级。数字越小，优先级越高 -->
+      <!-- <div>文件备份：已修改的指令统一存在于路径/路径 1/路径 2/文件名，如有需要替换文件即可</div> -->
+      <div>
+        遇到有此标记 (<el-icon><brush-filled /></el-icon>)
+        的条目，说明和默认值不同，是一个自定义条目
+      </div>
+      <div style="margin-top: 1rem">
+        文本下方的
+        <el-tag size="small">标签</el-tag>
+        代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如 {$t判定值}
+      </div>
+      <div>
+        除此之外，这些变量可以在所有文本中使用：
+        <el-space size="small" wrap>
+          <el-tag
+            :key="i"
+            size="small"
+            disable-transitions
+            v-for="i in [
+              '$t玩家',
+              '$tQQ昵称',
+              '$t个人骰子面数',
+              '$tQQ',
+              '$t骰子帐号',
+              '$t骰子昵称',
+              '$t群号',
+              '$t群名',
+            ]"
+            >{{ i }}</el-tag
+          >
+        </el-space>
+      </div>
+      <div>
+        <span>以及，所有的自定义文本都可以嵌套使用，例如：</span>
+        <div>
+          <b>这里是{核心：骰子名字}，我是一个示例</b>
+        </div>
+        <div>默认会被解析为：</div>
+        <div>
+          <b>这里是余烬 bot，我是一个示例</b>
+        </div>
+        <div>注意！千万不要递归嵌套，会发生很糟糕的事情。</div>
+      </div>
 
-        <el-text tag="p">
-          <div>此处可以对骰子返回的文本进行修改。最终返回的文本将为多个条目中随机抽取的一个。</div>
-          <div>
-            随机文本：默认一种显示结果，如果需要多种反馈结果，使用＋添加条目，使用 - 删除条目
-          </div>
-          <!-- 权重选择：默认 1，权重—致则没有优先级。数字越小，优先级越高 -->
-          <!-- <div>文件备份：已修改的指令统一存在于路径/路径 1/路径 2/文件名，如有需要替换文件即可</div> -->
-          <div>
-            遇到有此标记 (<el-icon><brush-filled /></el-icon>)
-            的条目，说明和默认值不同，是一个自定义条目
-          </div>
-          <div style="margin-top: 1rem">
-            文本下方的
-            <el-tag size="small">标签</el-tag>
-            代表了被默认文本所使用的特殊变量，你可以使用 {变量名} 来插入他们，例如 {$t判定值}
-          </div>
-          <div>
-            除此之外，这些变量可以在所有文本中使用：
-            <el-space size="small" wrap>
-              <el-tag
-                :key="i"
-                size="small"
-                disable-transitions
-                v-for="i in [
-                  '$t玩家',
-                  '$tQQ昵称',
-                  '$t个人骰子面数',
-                  '$tQQ',
-                  '$t骰子帐号',
-                  '$t骰子昵称',
-                  '$t群号',
-                  '$t群名',
-                ]"
-                >{{ i }}</el-tag
-              >
-            </el-space>
-          </div>
-          <div>
-            <span>以及，所有的自定义文本都可以嵌套使用，例如：</span>
-            <div>
-              <b>这里是{核心：骰子名字}，我是一个示例</b>
-            </div>
-            <div>默认会被解析为：</div>
-            <div>
-              <b>这里是余烬 bot，我是一个示例</b>
-            </div>
-            <div>注意！千万不要递归嵌套，会发生很糟糕的事情。</div>
-          </div>
+      <div style="margin-top: 1rem">
+        <div>此外，支持插入图片，将图片放在骰子的适当目录，再写这样一句话即可：</div>
+        <div><b>[图:data/images/Scardice.png]</b></div>
+        <div>可以参考 核心：骰子进群 词条</div>
+        <div>同样的，可以使用 CQ 码插入图片和其他内容，关于 CQ 码，请参阅 onebot 项目文档</div>
+      </div>
 
-          <div style="margin-top: 1rem">
-            <div>此外，支持插入图片，将图片放在骰子的适当目录，再写这样一句话即可：</div>
-            <div><b>[图:data/images/Scardice.png]</b></div>
-            <div>可以参考 核心：骰子进群 词条</div>
-            <div>同样的，可以使用 CQ 码插入图片和其他内容，关于 CQ 码，请参阅 onebot 项目文档</div>
-          </div>
-
-          <div style="margin-top: 1rem">
-            <b
-              >COC 的“判定 - 常规”和“判定 - 简短”主要区别是，多重检定会默认使用简短版本 (.ra
-              3#射击)</b
-            >
-            <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
-          </div>
-        </el-text>
-      </el-collapse-item>
-    </el-collapse>
-  </div>
+      <div style="margin-top: 1rem">
+        <b>COC 的“判定 - 常规”和“判定 - 简短”主要区别是，多重检定会默认使用简短版本 (.ra 3#射击)</b>
+        <b>进行调整后，可以在左侧面板“指令测试”中进行测试！</b>
+      </div>
+    </el-text>
+  </seal-help-card>
 
   <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center">
     <div>
@@ -667,18 +654,6 @@ watch(props, () => {
 <style scoped>
 .import-edit > textarea {
   max-height: 65vh;
-}
-
-.helptips {
-  background-color: #f3f5f7;
-}
-
-.helptips :deep(.el-collapse-item__header) {
-  background-color: #f3f5f7;
-}
-
-.helptips :deep(.el-collapse-item__wrap) {
-  background-color: #f3f5f7;
 }
 
 .text-collapse {
