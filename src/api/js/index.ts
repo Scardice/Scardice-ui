@@ -19,12 +19,20 @@ export function getJsList() {
   return request<JsScriptInfo[]>('get', 'list');
 }
 
-export function getJsConfigs() {
-  return request<{ [key: string]: JsPluginConfig }>('get', 'get_configs');
+export function getJsConfigs(pluginName?: string) {
+  return request<{ [key: string]: JsPluginConfig }>(
+    'get',
+    'get_configs',
+    pluginName ? { pluginName } : undefined,
+  );
 }
 
 export function setJsConfigs(config: { [key: string]: JsPluginConfig }) {
   return request('post', 'set_configs', config);
+}
+
+export function setJsConfig(pluginName: string, key: string, value: any) {
+  return request('post', 'set_config', { pluginName, key, value });
 }
 
 export function resetJsConfig(pluginName: string, key: string) {

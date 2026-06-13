@@ -27,6 +27,7 @@
           type="primary"
           :icon="DocumentChecked"
           :disabled="!jsConfigEdited"
+          :loading="saveButtonLoading"
           @click="doJsConfigSave()"
           >点我保存</el-button
         >
@@ -313,7 +314,7 @@
         </el-tab-pane>
 
         <el-tab-pane label="插件设置" name="config">
-          <main>
+          <main v-loading="configLoading">
             <div v-if="size(jsConfig) === 0" style="display: flex; justify-content: center">
               <el-text size="large" tag="strong">暂无设置项</el-text>
             </div>
@@ -383,7 +384,12 @@
                         <el-input
                           v-model="(c as unknown as JsPluginConfigItem).value"
                           type="textarea"
-                          @change="doJsConfigChanged()"></el-input>
+                          @change="
+                            doJsConfigChanged(
+                              (config as unknown as JsPluginConfig).pluginName,
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          "></el-input>
                       </div>
                       <template
                         v-if="
@@ -435,7 +441,12 @@
                           <el-input-number
                             v-model="(c as unknown as JsPluginConfigItem).value"
                             type="number"
-                            @change="doJsConfigChanged()"></el-input-number>
+                            @change="
+                              doJsConfigChanged(
+                                (config as unknown as JsPluginConfig).pluginName,
+                                (c as unknown as JsPluginConfigItem).key,
+                              )
+                            "></el-input-number>
                         </div>
                       </el-form-item>
                       <template
@@ -488,7 +499,12 @@
                           <el-input-number
                             v-model="(c as unknown as JsPluginConfigItem).value"
                             type="number"
-                            @change="doJsConfigChanged()"></el-input-number>
+                            @change="
+                              doJsConfigChanged(
+                                (config as unknown as JsPluginConfig).pluginName,
+                                (c as unknown as JsPluginConfigItem).key,
+                              )
+                            "></el-input-number>
                         </div>
                       </el-form-item>
                       <template
@@ -540,7 +556,12 @@
                         <div style="margin-left: 1rem">
                           <el-switch
                             v-model="(c as unknown as JsPluginConfigItem).value"
-                            @change="doJsConfigChanged()"></el-switch>
+                            @change="
+                              doJsConfigChanged(
+                                (config as unknown as JsPluginConfig).pluginName,
+                                (c as unknown as JsPluginConfigItem).key,
+                              )
+                            "></el-switch>
                         </div>
                       </el-form-item>
                       <template
@@ -642,7 +663,12 @@
                                   v-model="(c as unknown as JsPluginConfigItem).value[index]"
                                   type="textarea"
                                   :autosize="true"
-                                  @change="doJsConfigChanged()"></el-input>
+                                  @change="
+                                    doJsConfigChanged(
+                                      (config as unknown as JsPluginConfig).pluginName,
+                                      (c as unknown as JsPluginConfigItem).key,
+                                    )
+                                  "></el-input>
                               </span>
                             </el-col>
                             <el-col :span="5">
@@ -665,6 +691,8 @@
                                       @click="
                                         doJsConfigAddItem(
                                           (c as unknown as JsPluginConfigItem).value,
+                                          (config as unknown as JsPluginConfig).pluginName,
+                                          (c as unknown as JsPluginConfigItem).key,
                                         )
                                       " />
                                     <circle-close
@@ -673,6 +701,8 @@
                                         doJsConfigRemoveItemAt(
                                           (c as unknown as JsPluginConfigItem).value,
                                           index,
+                                          (config as unknown as JsPluginConfig).pluginName,
+                                          (c as unknown as JsPluginConfigItem).key,
                                         )
                                       " />
                                   </el-icon>
@@ -731,7 +761,12 @@
                       <div style="width: 100%; margin-bottom: 0.5rem">
                         <el-select
                           v-model="(c as unknown as JsPluginConfigItem).value"
-                          @change="doJsConfigChanged()">
+                          @change="
+                            doJsConfigChanged(
+                              (config as unknown as JsPluginConfig).pluginName,
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
                           <el-option
                             v-for="s in (c as unknown as JsPluginConfigItem).option"
                             :key="s"
@@ -940,7 +975,9 @@ import {
   getJsStatus,
   reloadJS,
   resetJsConfig,
-  setJsConfigs,
+  setJsConfig,
+  // setJsConfigs,
+  // NOTE(lyjjl): 现在已经不使用全量提交，为了与后端既有端点对应保留对应函数，但是通常不应再调用
   shutDownJS,
   updateJs,
   uploadJs,
@@ -1003,8 +1040,11 @@ const doExecute = async () => {
 };
 
 const jsConfigEdited = ref(false);
-const doJsConfigChanged = () => {
+// key format: `${pluginName}/${key}`。使用 Record 而非 Set 以兼容 Vue 3 响应式追踪
+const changedConfigKeys = ref<Record<string, boolean>>({});
+const doJsConfigChanged = (pluginName: string, key: string) => {
   jsConfigEdited.value = true;
+  changedConfigKeys.value[`${pluginName}/${key}`] = true;
 };
 
 const jsConfigFormatErrKeys: Ref<string[]> = ref([]);
@@ -1016,6 +1056,7 @@ const doTaskCronFormatCheck = async (pluginName: string, key: string, expr: stri
       jsConfigFormatErrKeys.value.splice(index, 1);
     }
     jsConfigEdited.value = true;
+    changedConfigKeys.value[`${pluginName}/${key}`] = true;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_err) {
     if (index === -1) {
@@ -1033,6 +1074,7 @@ const doTaskDailyFormatCheck = (pluginName: string, key: string, expr: string) =
       jsConfigFormatErrKeys.value.splice(index, 1);
     }
     jsConfigEdited.value = true;
+    changedConfigKeys.value[`${pluginName}/${key}`] = true;
   } else {
     if (index === -1) {
       jsConfigFormatErrKeys.value.push(pluginName + '/' + key);
@@ -1058,6 +1100,9 @@ const doDeleteUnusedConfig = (pluginName: any, key: any, isTask: boolean) => {
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshConfig();
+      // 删除后本地编辑失效，清空变更登记避免脏提交
+      changedConfigKeys.value = {};
+      jsConfigEdited.value = false;
     }, 1000);
     ElMessage.success('配置项已删除');
   });
@@ -1147,6 +1192,8 @@ const doDeleteUnusedConfigs = (pluginName: string, keys: string[]) => {
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshConfig();
+      changedConfigKeys.value = {};
+      jsConfigEdited.value = false;
     }, 1000);
     ElMessage.success('配置项已删除');
   });
@@ -1167,27 +1214,89 @@ const doResetJsConfig = (plginName: string, key: string) => {
       refreshConfig();
       jsConfigEdited.value = false;
       jsConfigFormatErrKeys.value = [];
+      changedConfigKeys.value = {};
     }, 1000);
   });
 };
-const doJsConfigAddItem = (arr: any[]) => {
+const doJsConfigAddItem = (arr: any[], pluginName: string, key: string) => {
   arr.push('');
-  doJsConfigChanged();
+  doJsConfigChanged(pluginName, key);
   return arr;
 };
-const doJsConfigRemoveItemAt = <T,>(arr: T[], index: number) => {
+const doJsConfigRemoveItemAt = <T,>(arr: T[], index: number, pluginName: string, key: string) => {
   if (index < 0 || index >= arr.length) {
     return arr;
   }
   arr.splice(index, 1);
-  doJsConfigChanged();
+  doJsConfigChanged(pluginName, key);
   return arr;
 };
 
+const saveButtonLoading = ref(false);
+
 const doJsConfigSave = async () => {
-  await setJsConfigs(jsConfig.value);
-  jsConfigEdited.value = false;
-  ElMessage.success('已保存');
+  if (saveButtonLoading.value) return;
+  // 有格式错误时不允许保存（按钮也不应渲染，但作为二次保险）
+  if (jsConfigFormatErrKeys.value.length > 0) return;
+
+  // 收集所有变更项
+  const changedKeys = Object.keys(changedConfigKeys.value).filter(k => changedConfigKeys.value[k]);
+  if (changedKeys.length === 0) {
+    jsConfigEdited.value = false;
+    return;
+  }
+
+  // 解析 pluginName/key 并从 jsConfig 取出当前值
+  const tasks = changedKeys.map(k => {
+    const slashIdx = k.indexOf('/');
+    const pluginName = k.slice(0, slashIdx);
+    const key = k.slice(slashIdx + 1);
+    const plugin = jsConfig.value[pluginName];
+    const item = plugin?.configs.find(c => c.key === key);
+    return {
+      changedKey: k,
+      pluginName,
+      key,
+      value: item?.value,
+    };
+  });
+
+  saveButtonLoading.value = true;
+  try {
+    const results = await Promise.allSettled(
+      tasks.map(t => setJsConfig(t.pluginName, t.key, t.value)),
+    );
+
+    const failedKeys: string[] = [];
+    const succeededKeys: string[] = [];
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        failedKeys.push(tasks[i].changedKey);
+      } else {
+        succeededKeys.push(tasks[i].changedKey);
+      }
+    });
+
+    // 移除已成功项
+    succeededKeys.forEach(k => {
+      delete changedConfigKeys.value[k];
+    });
+
+    if (failedKeys.length > 0) {
+      ElMessage.error(`保存失败（${failedKeys.length} 项）: ${failedKeys.join(', ')}`);
+    } else {
+      ElMessage.success('已保存');
+      jsConfigEdited.value = false;
+      // 保存成功后刷新以同步服务端状态
+      try {
+        await refreshConfig();
+      } catch (err) {
+        console.error('refresh after save failed:', err);
+      }
+    }
+  } finally {
+    saveButtonLoading.value = false;
+  }
 };
 
 let timerId: number;
@@ -1578,13 +1687,25 @@ const refreshConfig = async () => {
 
 const refreshJsData = async () => {
   await refreshList();
-  try {
-    await refreshConfig();
-  } catch (err) {
-    console.error('refresh js config failed:', err);
-    ElMessage.warning('插件配置刷新失败，请手动刷新界面');
-  }
 };
+
+const isConfigLoaded = ref(false);
+const configLoading = ref(false);
+
+watch(mode, async newMode => {
+  if (newMode === 'config' && !isConfigLoaded.value) {
+    configLoading.value = true;
+    try {
+      await refreshConfig();
+      isConfigLoaded.value = true;
+    } catch (err) {
+      console.error('refresh js config failed:', err);
+      ElMessage.warning('插件配置刷新失败，请手动刷新界面');
+    } finally {
+      configLoading.value = false;
+    }
+  }
+});
 
 const jsReload = async () => {
   const ret = await reloadJS();
