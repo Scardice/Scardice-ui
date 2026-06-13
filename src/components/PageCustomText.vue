@@ -658,14 +658,14 @@ watch(props, () => {
 
 .text-collapse {
   width: 100%;
-  background-color: #f3f5f7;
+  background-color: var(--seal-surface-soft);
 
   :deep(.el-collapse-item__header) {
-    background-color: #f3f5f7;
+    background-color: var(--seal-surface-soft);
   }
 
   :deep(.el-collapse-item__wrap) {
-    background-color: #f3f5f7;
+    background-color: var(--seal-surface-soft);
   }
 }
 

@@ -461,7 +461,7 @@ onBeforeMount(async () => {
 <style scoped lang="css">
 .pagination {
   margin-top: 10px;
-  background-color: #f3f5f7;
+  background-color: var(--seal-surface-soft);
 }
 
 .story-log-message {

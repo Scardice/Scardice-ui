@@ -147,6 +147,6 @@ onMounted(async () => {
 }
 
 .pagination {
-  background-color: #f3f5f7;
+  background-color: var(--seal-surface-soft);
 }
 </style>

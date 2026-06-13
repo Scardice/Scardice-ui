@@ -231,13 +231,11 @@ const reloadHelpdoc = async () => {
 
 <style scoped lang="css">
 .about {
-  background-color: #fff;
+  background-color: var(--seal-panel-bg);
   padding: 2rem;
   line-height: 2rem;
   text-align: left;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 0 6px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .talk-item {
@@ -259,10 +257,10 @@ const reloadHelpdoc = async () => {
       font-size: smaller;
       line-height: 2rem;
       min-height: 2rem;
-      color: #707070;
+      color: var(--el-text-color-secondary);
     }
     & > .content {
-      background-color: #fff;
+      background-color: var(--seal-surface-bg);
       padding: 0.7rem;
       border-radius: 9px;
       white-space: pre-wrap;

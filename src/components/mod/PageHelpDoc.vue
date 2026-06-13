@@ -547,7 +547,7 @@ onBeforeMount(async () => {
 
 .file-tree-title {
   padding: 0 23px 6px 50px;
-  border-bottom: #dcdfe6 solid 1px;
+  border-bottom: 1px solid var(--el-border-color);
   margin-bottom: 10px;
 
   flex: 1;
@@ -556,7 +556,7 @@ onBeforeMount(async () => {
 }
 
 .file-tree {
-  background-color: #f3f5f7;
+  background-color: var(--seal-surface-soft);
 }
 
 .file-line {
@@ -581,7 +581,7 @@ onBeforeMount(async () => {
 }
 
 .item-list {
-  background-color: #f3f5f7;
+  background-color: var(--seal-surface-soft);
 }
 
 .el-table .cell {
@@ -590,7 +590,7 @@ onBeforeMount(async () => {
 
 .item-list-pagination {
   margin-top: 10px;
-  background-color: #f3f5f7;
+  background-color: var(--seal-surface-soft);
 }
 
 .del-line {

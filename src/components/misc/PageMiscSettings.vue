@@ -915,13 +915,11 @@ const mailTest = async () => {
 
 <style scoped lang="css">
 .about {
-  background-color: #fff;
+  background-color: var(--seal-panel-bg);
   padding: 2rem;
   line-height: 2rem;
   text-align: left;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.12),
-    0 0 6px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .top-item {
