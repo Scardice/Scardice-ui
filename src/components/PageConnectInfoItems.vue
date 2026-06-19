@@ -670,6 +670,43 @@
         <span>&nbsp;分钟</span>
       </el-form-item>
 
+      <el-form-item
+        v-if="form.endpoint.protocolType === 'pureonebot'"
+        :label-width="formLabelWidth">
+        <template #label>
+          <div style="display: flex; align-items: center">
+            <span>图片资源地址</span>
+            <el-tooltip
+              content="协议端访问本端图片资源的 base URL。默认自动推导，如无法访问请手动填写。留空使用自动值。">
+              <el-icon><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
+        </template>
+        <el-input
+          v-model="form.imageAssetBaseUrl"
+          :placeholder="form.imageAssetBaseUrlAuto || 'http://127.0.0.1:3211'"
+          clearable>
+          <template #append>
+            <el-tag
+              v-if="form.imageAssetBaseUrlAuto && !form.imageAssetBaseUrl"
+              type="success"
+              size="small"
+              >自动</el-tag
+            >
+            <el-tag v-else-if="form.imageAssetBaseUrl" type="warning" size="small">自定义</el-tag>
+          </template>
+        </el-input>
+        <div
+          v-if="form.imageAssetBaseUrlAuto && !form.imageAssetBaseUrl"
+          style="font-size: 12px; color: #909399; margin-top: 4px">
+          自动推导: {{ form.imageAssetBaseUrlAuto }}
+          <span
+            v-if="form.imageAssetBaseUrlCandidates && form.imageAssetBaseUrlCandidates.length > 1">
+            （候选: {{ form.imageAssetBaseUrlCandidates.join(', ') }}）
+          </span>
+        </div>
+      </el-form-item>
+
       <small>
         <div>提示：切换协议后，需要点击重新登录，或.master reboot 重启骰子以应用设置</div>
       </small>
@@ -1967,6 +2004,7 @@ import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { urlBase } from '~/api';
 import {
+  getAssetBaseUrl,
   getConnectQQVersion,
   getLagrangeSignInfo,
   postConnectionDel,
@@ -2247,10 +2285,23 @@ const askSetDataGocq = async (i: DiceConnection) => {
   form.ignoreFriendRequest = i.adapter?.ignoreFriendRequest;
   form.useSignServer = i.adapter?.useSignServer;
   form.signServerConfig = i.adapter?.signServerConfig;
+  form.imageAssetBaseUrl = i.adapter?.imageAssetBaseUrl || '';
+  form.imageAssetBaseUrlAuto = '';
+  form.imageAssetBaseUrlCandidates = [];
   dialogSetDataFormVisible.value = true;
   form.endpoint = i;
 
   signConfigType.value = i.adapter?.useSignServer === true ? 'simple' : 'none';
+
+  if (i.protocolType === 'pureonebot') {
+    try {
+      const res = await getAssetBaseUrl(i.id);
+      form.imageAssetBaseUrlAuto = res.imageAssetBaseUrl;
+      form.imageAssetBaseUrlCandidates = res.candidates || [];
+    } catch {
+      // 静默失败，placeholder 用兜底值
+    }
+  }
 };
 
 const doSetData = async () => {
@@ -2263,6 +2314,7 @@ const doSetData = async () => {
     ignoreFriendRequest: boolean;
     useSignServer?: boolean;
     signServerConfig?: any;
+    imageAssetBaseUrl?: string;
   };
   if (form.protocol === 1 || form.protocol === 6) {
     param = {
@@ -2272,9 +2324,15 @@ const doSetData = async () => {
       signServerConfig: form.signServerConfig,
     };
   }
+  if (form.endpoint.protocolType === 'pureonebot') {
+    param.imageAssetBaseUrl = form.imageAssetBaseUrl || '';
+  }
   await postConnectSetData(form.endpoint.id, param);
   if (form.endpoint.adapter) {
     form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
+    if (form.endpoint.protocolType === 'pureonebot') {
+      form.endpoint.adapter.imageAssetBaseUrl = form.imageAssetBaseUrl || '';
+    }
   }
   ElMessage.success('修改完成，请手动重新登录');
   dialogSetDataFormVisible.value = false;
@@ -2526,6 +2584,9 @@ const form = reactive({
   signServerName: '',
   signServerKey: '',
   signServerVersion: '',
+  imageAssetBaseUrl: '',
+  imageAssetBaseUrlAuto: '',
+  imageAssetBaseUrlCandidates: [] as string[],
 
   reverseAddr: ':4001',
   platform: 'QQ',

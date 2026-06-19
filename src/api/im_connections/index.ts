@@ -207,12 +207,14 @@ export function postConnectSetData(
     ignoreFriendRequest,
     useSignServer,
     signServerConfig,
+    imageAssetBaseUrl,
   }: {
     protocol: number;
     appVersion: string;
     ignoreFriendRequest: boolean;
     useSignServer?: boolean;
     signServerConfig?: SignServerConfig;
+    imageAssetBaseUrl?: string; // undefined=不改，""=清空回自动，"http://..."=显式配置
   },
 ) {
   return request<DiceConnection>('post', 'set_data', {
@@ -222,7 +224,16 @@ export function postConnectSetData(
     ignoreFriendRequest,
     useSignServer,
     signServerConfig,
+    imageAssetBaseUrl,
   });
+}
+
+export function getAssetBaseUrl(id: string) {
+  return request<{
+    imageAssetBaseUrl: string;
+    auto: boolean;
+    candidates?: string[];
+  }>('get', `asset_base_url?id=${encodeURIComponent(id)}`);
 }
 
 export interface DiceConnection {
@@ -269,6 +280,7 @@ interface AdapterQQ {
   built_in_mode: string; // Milky
   signServerVer: string;
   signServerName: string;
+  imageAssetBaseUrl: string; // OneBot: 协议端访问本端图片资源的 base URL，空=用自动推导
 }
 enum goCqHttpStateCode {
   Init = 0,

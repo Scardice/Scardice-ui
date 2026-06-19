@@ -91,6 +91,7 @@ export interface AdapterQQ {
   built_in_mode: string; // Milky 的字段，跟 ob 不太一样
   signServerVer: string;
   signServerName: string;
+  imageAssetBaseUrl: string;
 }
 
 interface TalkLogItem {
