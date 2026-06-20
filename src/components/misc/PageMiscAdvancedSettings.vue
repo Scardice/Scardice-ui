@@ -109,6 +109,35 @@
         @change="handleDangerousSealInstToggle" />
     </el-form-item>
 
+    <h3>文件系统访问</h3>
+    <el-alert type="error" :closable="false" style="margin-bottom: 16px">
+      <template #title>
+        开启后会允许 JS <code>fs</code> 模块访问插件私有目录之外的文件。
+      </template>
+      <template #default>
+        插件将可以读取、写入或删除扩展私有目录之外的文件。
+        不当使用或恶意脚本可能导致本机文件泄露、配置损坏或服务异常，请只在完全信任所有已加载插件时启用。
+      </template>
+    </el-alert>
+    <el-form-item label="无限制 fs 访问">
+      <template #label>
+        <span>无限制 fs 访问</span>
+        <el-tooltip
+          raw-content
+          content="危险开关。启用后 JS fs 模块可访问绝对路径和核心可执行文件相对路径，仅建议在确保信任加载的所有插件的前提下使用">
+          <el-icon>
+            <question-filled />
+          </el-icon>
+        </el-tooltip>
+      </template>
+      <el-switch
+        v-model="config.allowFilesystemUnrestrictedAccess"
+        inline-prompt
+        active-text="危险"
+        inactive-text="关闭"
+        @change="handleDangerousFilesystemToggle" />
+    </el-form-item>
+
     <h3>自定义回复</h3>
     <el-form-item label="开启回复调试日志">
       <template #label>
@@ -203,6 +232,33 @@
       </el-button>
     </template>
   </el-dialog>
+
+  <el-dialog
+    v-model="dangerousFilesystemDialogVisible"
+    title="确认启用无限制 fs 访问"
+    width="42rem"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :show-close="false">
+    <div class="dangerous-dialog-content">
+      <p>这是最后一次警告！</p>
+      <p>启用后，JS 插件可通过 fs 模块访问运行用户可以访问的所有路径。</p>
+      <p>请只在你完全信任当前所有 JS 插件时启用。</p>
+    </div>
+    <template #footer>
+      <el-button @click="cancelDangerousFilesystemEnable">取消</el-button>
+      <el-button
+        type="danger"
+        :disabled="dangerousFilesystemConfirmCountdown > 0"
+        @click="confirmDangerousFilesystemEnable">
+        {{
+          dangerousFilesystemConfirmCountdown > 0
+            ? `确认 (${dangerousFilesystemConfirmCountdown}s)`
+            : '确认启用'
+        }}
+      </el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -223,6 +279,7 @@ const config = ref<AdvancedConfig>({
   storyLogBackendToken: '',
   customReplyCooldown: 5,
   exposeDangerousSealInst: false,
+  allowFilesystemUnrestrictedAccess: false,
 });
 const replyDebugMode = ref(false);
 const visibleCredentialKeys = ref<Record<string, boolean>>({});
@@ -232,6 +289,14 @@ const savedReplyDebugMode = ref(false);
 const dangerousSealInstDialogVisible = ref(false);
 const dangerousSealInstConfirmCountdown = ref(0);
 let dangerousSealInstConfirmTimer: number | undefined;
+const dangerousFilesystemDialogVisible = ref(false);
+const dangerousFilesystemConfirmCountdown = ref(0);
+let dangerousFilesystemConfirmTimer: number | undefined;
+
+const normalizeAdvancedConfig = (value: AdvancedConfig): AdvancedConfig => ({
+  ...value,
+  allowFilesystemUnrestrictedAccess: value.allowFilesystemUnrestrictedAccess ?? false,
+});
 
 const credentialItems = computed(() => {
   let localToken = '';
@@ -282,6 +347,13 @@ const clearDangerousSealInstConfirmTimer = () => {
   }
 };
 
+const clearDangerousFilesystemConfirmTimer = () => {
+  if (dangerousFilesystemConfirmTimer !== undefined) {
+    window.clearInterval(dangerousFilesystemConfirmTimer);
+    dangerousFilesystemConfirmTimer = undefined;
+  }
+};
+
 const syncSavedState = () => {
   savedConfigSnapshot.value = JSON.stringify(config.value);
   savedReplyDebugMode.value = replyDebugMode.value;
@@ -300,6 +372,21 @@ const confirmDangerousSealInstEnable = () => {
   clearDangerousSealInstConfirmTimer();
   dangerousSealInstDialogVisible.value = false;
   dangerousSealInstConfirmCountdown.value = 0;
+  syncDirtyState();
+};
+
+const cancelDangerousFilesystemEnable = () => {
+  clearDangerousFilesystemConfirmTimer();
+  dangerousFilesystemDialogVisible.value = false;
+  dangerousFilesystemConfirmCountdown.value = 0;
+  config.value.allowFilesystemUnrestrictedAccess = false;
+  syncDirtyState();
+};
+
+const confirmDangerousFilesystemEnable = () => {
+  clearDangerousFilesystemConfirmTimer();
+  dangerousFilesystemDialogVisible.value = false;
+  dangerousFilesystemConfirmCountdown.value = 0;
   syncDirtyState();
 };
 
@@ -322,8 +409,27 @@ const handleDangerousSealInstToggle = (value: string | number | boolean) => {
   }, 1000);
 };
 
+const handleDangerousFilesystemToggle = (value: string | number | boolean) => {
+  if (value !== true) {
+    syncDirtyState();
+    return;
+  }
+
+  clearDangerousFilesystemConfirmTimer();
+  dangerousFilesystemConfirmCountdown.value = 5;
+  dangerousFilesystemDialogVisible.value = true;
+  dangerousFilesystemConfirmTimer = window.setInterval(() => {
+    if (dangerousFilesystemConfirmCountdown.value <= 1) {
+      dangerousFilesystemConfirmCountdown.value = 0;
+      clearDangerousFilesystemConfirmTimer();
+      return;
+    }
+    dangerousFilesystemConfirmCountdown.value -= 1;
+  }, 1000);
+};
+
 onBeforeMount(async () => {
-  config.value = await store.diceAdvancedConfigGet();
+  config.value = normalizeAdvancedConfig(await store.diceAdvancedConfigGet());
   replyDebugMode.value = (await getCustomReplyDebug()).value;
   resetCredentialVisibility();
   syncSavedState();
@@ -351,7 +457,7 @@ const submit = async () => {
     config.value.exposeDangerousSealInst;
   await store.diceAdvancedConfigSet(config.value);
   await postCustomReplyDebug(replyDebugMode.value);
-  config.value = await store.diceAdvancedConfigGet();
+  config.value = normalizeAdvancedConfig(await store.diceAdvancedConfigGet());
   resetCredentialVisibility();
   syncSavedState();
   emit('update:advanced-settings-show', config.value.show);
@@ -362,9 +468,12 @@ const submit = async () => {
 
 const submitGiveup = async () => {
   clearDangerousSealInstConfirmTimer();
+  clearDangerousFilesystemConfirmTimer();
   dangerousSealInstDialogVisible.value = false;
   dangerousSealInstConfirmCountdown.value = 0;
-  config.value = await store.diceAdvancedConfigGet();
+  dangerousFilesystemDialogVisible.value = false;
+  dangerousFilesystemConfirmCountdown.value = 0;
+  config.value = normalizeAdvancedConfig(await store.diceAdvancedConfigGet());
   replyDebugMode.value = (await getCustomReplyDebug()).value;
   resetCredentialVisibility();
   syncSavedState();
@@ -372,6 +481,7 @@ const submitGiveup = async () => {
 
 onBeforeUnmount(() => {
   clearDangerousSealInstConfirmTimer();
+  clearDangerousFilesystemConfirmTimer();
 });
 </script>
 

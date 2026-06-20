@@ -104,6 +104,7 @@ export interface AdvancedConfig {
   storyLogBackendToken: string;
   customReplyCooldown: number;
   exposeDangerousSealInst: boolean;
+  allowFilesystemUnrestrictedAccess: boolean;
 }
 
 export interface BanConfig {
