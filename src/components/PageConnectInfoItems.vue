@@ -758,7 +758,9 @@
         v-if="
           store.diceServers.length > 0 &&
           store.diceServers[0].baseInfo.containerMode &&
-          (form.accountType === 15 || form.accountType === 0)
+          (form.accountType === ImConnectionTypeLagrangeOnebot ||
+            form.accountType === ImConnectionTypeGocqLegacy ||
+            isInternalMilkyAccountType(form.accountType))
         "
         type="warning"
         :closable="false"
@@ -776,7 +778,24 @@
                 store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
               "></el-option>
             <el-option label="QQ(Milky)" :value="ImConnectionTypeMilkySeparate"></el-option>
-            <el-option label="QQ(内置Milky)" :value="ImConnectionTypeMilkyInternal"></el-option>
+            <el-option
+              label="QQ(内置Milky / Lagrange兼容)"
+              :value="ImConnectionTypeMilkyInternal"
+              :disabled="
+                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
+              "></el-option>
+            <el-option
+              label="QQ(内置Milky / Lagrange)"
+              :value="ImConnectionTypeMilkyInternalLagrange"
+              :disabled="
+                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
+              "></el-option>
+            <el-option
+              label="QQ(内置Milky / Yogurt)"
+              :value="ImConnectionTypeMilkyInternalYogurt"
+              :disabled="
+                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
+              "></el-option>
             <el-option
               label="QQ(onebot11正向WS)"
               :value="ImConnectionTypeOnebotSeparate"></el-option>
@@ -986,7 +1005,7 @@
         <el-form-item
           v-if="
             form.accountType === ImConnectionTypeGocqLegacy ||
-            form.accountType === ImConnectionTypeMilkyInternal
+            isInternalMilkyAccountType(form.accountType)
           "
           label="账号"
           :label-width="formLabelWidth"
@@ -1012,7 +1031,7 @@
         </el-form-item>
 
         <el-form-item
-          v-if="form.accountType === ImConnectionTypeMilkyInternal"
+          v-if="isInternalMilkyAccountType(form.accountType)"
           label=""
           :label-width="formLabelWidth">
           <small>
@@ -1966,7 +1985,7 @@
                   form.signServerName === '')) ||
               (form.accountType === ImConnectionTypeMilkySeparate &&
                 (form.wsGateway === '' || form.restGateway === '')) ||
-              (form.accountType === ImConnectionTypeMilkyInternal && form.account === '')
+              (isInternalMilkyAccountType(form.accountType) && form.account === '')
             "
             @click="goStepTwo">
             下一步</el-button
@@ -2041,6 +2060,8 @@ import {
   ImConnectionTypeLagrangeOnebot,
   ImConnectionTypeMilkySeparate,
   ImConnectionTypeMilkyInternal,
+  ImConnectionTypeMilkyInternalLagrange,
+  ImConnectionTypeMilkyInternalYogurt,
   ImConnectionTypeOfficialQQ,
   ImConnectionTypeSatori,
 } from '~/store';
@@ -2643,6 +2664,14 @@ const form = reactive({
 });
 
 export type addImConnectionForm = typeof form;
+
+const isInternalMilkyAccountType = (accountType: number) => {
+  return (
+    accountType === ImConnectionTypeMilkyInternal ||
+    accountType === ImConnectionTypeMilkyInternalLagrange ||
+    accountType === ImConnectionTypeMilkyInternalYogurt
+  );
+};
 
 // 添加一个新账号
 const addOne = () => {

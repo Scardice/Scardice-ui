@@ -63,6 +63,8 @@ export const ImConnectionTypeLagrangeOnebot = 15;
 // 16 is langrange gocq, deprecated
 export const ImConnectionTypeMilkySeparate = 17;
 export const ImConnectionTypeMilkyInternal = 18;
+export const ImConnectionTypeMilkyInternalLagrange = 19;
+export const ImConnectionTypeMilkyInternalYogurt = 20;
 
 export interface AdapterQQ {
   DiceServing: boolean;
@@ -87,7 +89,7 @@ export interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
-  builtinMode: 'gocq' | 'lagrange';
+  builtinMode: 'gocq' | 'lagrange' | 'yogurt';
   built_in_mode: string; // Milky 的字段，跟 ob 不太一样
   signServerVer: string;
   signServerName: string;
@@ -374,8 +376,14 @@ export const useStore = defineStore('main', {
           }
           break;
         case ImConnectionTypeMilkyInternal:
+        case ImConnectionTypeMilkyInternalLagrange:
           {
             info = await postAddMilkyInternal(Number(account), 'lagrangeV2');
+          }
+          break;
+        case ImConnectionTypeMilkyInternalYogurt:
+          {
+            info = await postAddMilkyInternal(Number(account), 'yogurt');
           }
           break;
       }

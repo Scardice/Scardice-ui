@@ -276,7 +276,7 @@ interface AdapterQQ {
   appID: number;
   isReverse: boolean;
   reverseAddr: string;
-  builtinMode: 'gocq' | 'lagrange';
+  builtinMode: 'gocq' | 'lagrange' | 'yogurt';
   built_in_mode: string; // Milky
   signServerVer: string;
   signServerName: string;
