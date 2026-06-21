@@ -5,7 +5,7 @@ on:
     paths:
       - '**.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}'
       - 'package.json'
-      - 'pnpm-lock.json'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/reviewdog.yml'
 
 jobs:

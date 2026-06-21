@@ -66,6 +66,11 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
+  esbuild: {
+    supported: {
+      destructuring: true,
+    },
+  },
   build: {
     sourcemap: false,
     reportCompressedSize: true,
