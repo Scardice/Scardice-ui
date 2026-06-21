@@ -95,6 +95,7 @@ type CustomReply = {
   interval: number;
   items: CustomReplyItem[];
   name: string;
+  packageId?: string;
   updateTimestamp: number;
   version: string;
 };
@@ -119,4 +120,5 @@ type ReplyResult = {
 type ReplyFileInfo = {
   enable: boolean;
   filename: string;
+  packageId?: string;
 };

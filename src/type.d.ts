@@ -35,6 +35,7 @@ export interface JsScriptInfo {
   official: boolean;
   builtin: boolean;
   builtinUpdated: boolean;
+  packageID?: string;
   hasDangerousApiUsage: boolean;
   dangerousApiUsages: JsDangerousAPIUsage[];
 }
@@ -72,6 +73,7 @@ export interface HelpDoc {
   isDir: boolean;
   loadStatus: 0 | 1 | 2;
   deleted: boolean;
+  packageId?: string;
 
   children: HelpDoc[] | null;
 }
@@ -93,6 +95,7 @@ export interface HelpTextItem {
   title: string;
   content: string;
   packageName: string;
+  packageId?: string;
   keyWords: string;
 }
 

@@ -64,4 +64,5 @@ type DeckConfig = {
   updateUrls: string[] | null; // 更新URL（可能为空）
   etag: string; // 文件标签（可能为空）
   cloud: boolean; // 是否为云端存储
+  packageId?: string; // 来源扩展包ID（可能为空）
 };
