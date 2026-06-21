@@ -45,6 +45,11 @@ const router = createRouter({
           name: 'mod-censor',
           component: () => import('~/components/mod/PageCensor.vue'),
         },
+        {
+          path: 'package',
+          name: 'mod-package',
+          component: () => import('~/components/mod/PagePackage.vue'),
+        },
       ],
     },
     {
