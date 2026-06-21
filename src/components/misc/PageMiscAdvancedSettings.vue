@@ -111,9 +111,7 @@
 
     <h3>文件系统访问</h3>
     <el-alert type="error" :closable="false" style="margin-bottom: 16px">
-      <template #title>
-        开启后会允许 JS <code>fs</code> 模块访问插件私有目录之外的文件。
-      </template>
+      <template #title> 开启后会允许 JS <code>fs</code> 模块访问插件私有目录之外的文件。 </template>
       <template #default>
         插件将可以读取、写入或删除扩展私有目录之外的文件。
         不当使用或恶意脚本可能导致本机文件泄露、配置损坏或服务异常，请只在完全信任所有已加载插件时启用。

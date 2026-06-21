@@ -912,8 +912,16 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
   setRootVar(root, '--el-disabled-text-color', colors.textMuted);
   setRootVar(root, '--el-disabled-border-color', colors.borderLight);
   setRootVar(root, '--el-overlay-color', isDark ? 'rgba(0, 0, 0, 0.82)' : 'rgba(0, 0, 0, 0.72)');
-  setRootVar(root, '--el-overlay-color-light', isDark ? 'rgba(0, 0, 0, 0.68)' : 'rgba(0, 0, 0, 0.52)');
-  setRootVar(root, '--el-overlay-color-lighter', isDark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(0, 0, 0, 0.32)');
+  setRootVar(
+    root,
+    '--el-overlay-color-light',
+    isDark ? 'rgba(0, 0, 0, 0.68)' : 'rgba(0, 0, 0, 0.52)',
+  );
+  setRootVar(
+    root,
+    '--el-overlay-color-lighter',
+    isDark ? 'rgba(0, 0, 0, 0.48)' : 'rgba(0, 0, 0, 0.32)',
+  );
   setRootVar(root, '--el-popper-border-radius', '4px');
   setRootVar(root, '--el-popover-bg-color', colors.surface);
   setRootVar(root, '--el-popover-border-color', colors.borderLight);

@@ -127,15 +127,12 @@ http.interceptors.request.use(config => {
   return config;
 });
 
-http.interceptors.response.use(
-  response => {
-    if (response.status >= 200 && response.status < 300) {
-      return response.data;
-    }
-    return Promise.reject(response);
-  },
-  handleResponseError,
-);
+http.interceptors.response.use(response => {
+  if (response.status >= 200 && response.status < 300) {
+    return response.data;
+  }
+  return Promise.reject(response);
+}, handleResponseError);
 
 export default function request<T = any>(
   method: HttpMethod,
