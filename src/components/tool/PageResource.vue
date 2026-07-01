@@ -65,8 +65,6 @@ const beforeUpload = async (file: any) => {
     ElMessage.error('上传的文件不是图片！');
     return false;
   }
-  const fd = new FormData();
-  fd.append('files', file);
   try {
     const resp = await createResource(file);
     if (resp.result) {
@@ -81,6 +79,7 @@ const beforeUpload = async (file: any) => {
       await refreshResources();
     });
   }
+  return false;
 };
 
 const copySealCode = async () => {

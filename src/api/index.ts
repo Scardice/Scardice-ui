@@ -46,6 +46,17 @@ function setHeader(config: AxiosRequestConfig, key: string, value: string) {
   (config.headers as Record<string, string>)[key] = value;
 }
 
+function deleteHeader(config: AxiosRequestConfig, key: string) {
+  if (!config.headers) {
+    return;
+  }
+  if (config.headers instanceof AxiosHeaders) {
+    config.headers.delete(key);
+    return;
+  }
+  delete (config.headers as Record<string, string>)[key];
+}
+
 function joinPath(baseUrl: string, url: string) {
   if (!baseUrl) {
     return url;
@@ -150,8 +161,12 @@ export default function request<T = any>(
   if (method === 'get' || method === 'delete') {
     reqParams.params = submitData;
   } else {
-    if (ContentType === 'formdata' && submitData && !(submitData instanceof FormData)) {
-      reqParams.data = toFormData(submitData as Record<string, unknown>);
+    if (ContentType === 'formdata') {
+      reqParams.data =
+        submitData instanceof FormData
+          ? submitData
+          : toFormData((submitData ?? {}) as Record<string, unknown>);
+      deleteHeader(reqParams, 'Content-Type');
     } else if (ContentType === 'form') {
       reqParams.data = submitData ? qs.stringify(submitData, { indices: false }) : submitData;
       setHeader(reqParams, 'Content-Type', 'application/x-www-form-urlencoded');

@@ -281,7 +281,7 @@ const replyEnable = computed({
 });
 
 watch(replyEnable, async (newStatus, oldStatus) => {
-  if (newStatus != oldStatus) {
+  if (newStatus !== oldStatus) {
   }
 });
 
@@ -405,6 +405,7 @@ const beforeUpload = async (file: any) => {
   } catch (e) {
     ElMessage.error('上传失败，可能有同名文件！');
   }
+  return false;
 };
 
 const addOneCondition = (lst: any) => {
@@ -487,7 +488,7 @@ function parseString(str: string): [string[], string[], string] {
       isEscaped = false;
       continue;
     }
-    if (char == '\n') {
+    if (char === '\n') {
       break;
     }
     if (char === '\\') {

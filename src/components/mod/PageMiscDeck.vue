@@ -269,10 +269,16 @@ const doDelete = async (data: any) => {
 
 const beforeUpload = async (file: UploadRawFile) => {
   // UploadRawFile
-  await uploadDeck(file);
-  ElMessage.success('上传完成，即将自动重载牌堆');
-  await reloadDeck();
-  await refreshList();
+  try {
+    await uploadDeck(file);
+    ElMessage.success('上传完成，即将自动重载牌堆');
+    await reloadDeck();
+    await refreshList();
+  } catch (err) {
+    console.error('upload deck failed:', err);
+    ElMessage.error('上传失败，请检查网络或服务器状态');
+  }
+  return false;
 };
 
 onBeforeMount(async () => {

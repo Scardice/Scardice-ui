@@ -1737,12 +1737,16 @@ const beforeUpload = async (file: UploadRawFile) => {
     ElMessage.error('仅支持上传 .js 或 .ts 格式的插件文件');
     return false;
   }
-  const fd = new FormData();
-  fd.append('file', file);
-  await uploadJs(file);
-  refreshList();
-  ElMessage.success('上传完成，请在全部操作完成后，手动重载插件');
-  needReload.value = true;
+  try {
+    await uploadJs(file);
+    await refreshList();
+    ElMessage.success('上传完成，请在全部操作完成后，手动重载插件');
+    needReload.value = true;
+  } catch (err) {
+    console.error('upload js plugin failed:', err);
+    ElMessage.error('上传失败，请检查网络或服务器状态');
+  }
+  return false;
 };
 
 const doDelete = async (data: JsScriptInfo) => {

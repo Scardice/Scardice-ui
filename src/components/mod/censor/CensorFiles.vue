@@ -113,17 +113,20 @@ const refreshFiles = async () => {
 };
 
 const beforeUpload = async (file: UploadUserFile) => {
-  const fd = new FormData();
-  fd.append('file', file as unknown as Blob);
-
-  const c = await uploadCensorFile(file as unknown as File);
-  if (c.result) {
-    await refreshFiles();
-    ElMessage.success('上传完成，请在全部操作完成后，手动重载拦截');
-    censorStore.markReload();
-  } else {
-    ElMessage.error('上传失败！' + c.err);
+  try {
+    const c = await uploadCensorFile(file as unknown as File);
+    if (c.result) {
+      await refreshFiles();
+      ElMessage.success('上传完成，请在全部操作完成后，手动重载拦截');
+      censorStore.markReload();
+    } else {
+      ElMessage.error('上传失败！' + c.err);
+    }
+  } catch (err) {
+    console.error('upload censor file failed:', err);
+    ElMessage.error('上传失败，请检查网络或服务器状态');
   }
+  return false;
 };
 
 const deleteFile = async (key: string) => {

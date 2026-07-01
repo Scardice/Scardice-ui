@@ -119,15 +119,21 @@ const deleteOne = async (i: any, index: number) => {
 };
 
 const beforeUpload = async (file: UploadUserFile) => {
-  const c = await importBanConfig(file);
-  if (c.result) {
-    ElMessage.success('导入黑白名单完成');
-    await nextTick(async () => {
-      await refreshList();
-    });
-  } else {
-    ElMessage.error('导入黑白名单失败！' + c.err);
+  try {
+    const c = await importBanConfig(file);
+    if (c.result) {
+      ElMessage.success('导入黑白名单完成');
+      await nextTick(async () => {
+        await refreshList();
+      });
+    } else {
+      ElMessage.error('导入黑白名单失败！' + c.err);
+    }
+  } catch (err) {
+    console.error('import ban config failed:', err);
+    ElMessage.error('导入黑白名单失败，请检查网络或服务器状态');
   }
+  return false;
 };
 
 onBeforeMount(async () => {

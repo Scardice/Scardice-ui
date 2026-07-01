@@ -766,8 +766,6 @@ const isUploadEnable = ref(false);
 
 const beforeUpload = async (file: any) => {
   // UploadRawFile
-  const fd = new FormData();
-  fd.append('files', file);
   try {
     // const resp =
     await postUploadToUpgrade(file);
@@ -776,6 +774,7 @@ const beforeUpload = async (file: any) => {
     ElMessage.error(e.toString());
     console.log(e);
   }
+  return false;
 };
 
 watch(
