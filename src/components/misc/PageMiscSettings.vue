@@ -562,21 +562,31 @@
         <el-text type="warning" size="small">容器模式下固件升级被禁用，请手动拉取最新镜像</el-text>
       </el-space>
       <el-upload
+        ref="firmwareUploadRef"
         v-else
         class="upload"
         action=""
-        multiple
+        accept=".zip,.tar.gz"
         :before-upload="beforeUpload"
+        :limit="1"
+        :on-exceed="handleFirmwareUploadExceed"
         :file-list="fileList"
-        :disabled="!isUploadEnable">
-        <el-button type="primary" :icon="Upload" :disabled="!isUploadEnable">上传压缩包</el-button>
+        :disabled="!isUploadEnable || firmwareUploadLoading"
+        :show-file-list="false">
+        <el-button
+          type="primary"
+          :icon="Upload"
+          :disabled="!isUploadEnable || firmwareUploadLoading"
+          :loading="firmwareUploadLoading"
+          >{{ firmwareUploadLoading ? '上传中…' : '上传压缩包' }}</el-button
+        >
       </el-upload>
     </el-form-item>
 
     <el-form-item>
       <div>使用指定的压缩包对当前余烬进行覆盖，上传完成后会自动重启余烬。</div>
       <div>请注意尽量不要从高版本降低到低版本，数据库有可能不兼容。</div>
-      <div>选择文件确定后请耐心等待反馈。</div>
+      <div>一次仅支持上传一个升级包，选择文件后会显示上传进度，请耐心等待反馈。</div>
     </el-form-item>
 
     <h2>其他</h2>
@@ -743,9 +753,11 @@
 </template>
 
 <script lang="ts" setup>
+import { isAxiosError } from 'axios';
+import { genFileId, type UploadInstance, type UploadProps, type UploadRawFile } from 'element-plus';
 import {
-  CirclePlusFilled,
   CircleClose,
+  CirclePlusFilled,
   DocumentChecked,
   QuestionFilled,
   Upload,
@@ -754,27 +766,134 @@ import { cloneDeep, toNumber } from 'lodash-es';
 import { postMailTest, postUploadToUpgrade } from '~/api/dice';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
+import { showProgressMessage } from '~/utils/progress-message';
+
+const minFirmwareProgressMessageDuration = 800;
 
 const store = useStore();
 
 const config = ref<any>({});
 const fileList = ref<any[]>([]);
+const firmwareUploadRef = ref<UploadInstance>();
 
 // const isShowUnlockCode = ref(false);
 const modified = ref(false);
 const isUploadEnable = ref(false);
+const firmwareUploadLoading = ref(false);
+
+function normalizeProgress(progressEvent: { loaded?: number; progress?: number; total?: number }) {
+  if (typeof progressEvent.progress === 'number' && Number.isFinite(progressEvent.progress)) {
+    return Math.max(0, Math.min(100, Math.round(progressEvent.progress * 100)));
+  }
+
+  if (
+    typeof progressEvent.loaded === 'number' &&
+    typeof progressEvent.total === 'number' &&
+    progressEvent.total > 0
+  ) {
+    return Math.max(
+      0,
+      Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)),
+    );
+  }
+
+  return undefined;
+}
+
+function getFirmwareUploadErrorMessage(error: unknown) {
+  if (isAxiosError<{ err?: string; message?: string }>(error)) {
+    const responseData = error.response?.data;
+    if (responseData?.err) {
+      return responseData.err;
+    }
+    if (responseData?.message) {
+      return responseData.message;
+    }
+    if (error.code === 'ECONNABORTED') {
+      return '上传超时，请检查网络后重试';
+    }
+    if (error.code === 'ERR_NETWORK' || !error.response) {
+      return '上传中断，连接不到服务器，请检查网络后重试';
+    }
+    if (error.message) {
+      return error.message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return '上传失败，请稍后重试';
+}
 
 const beforeUpload = async (file: any) => {
-  // UploadRawFile
-  try {
-    // const resp =
-    await postUploadToUpgrade(file);
-    ElMessage.success('上传完成，程序即将离线');
-  } catch (e: any) {
-    ElMessage.error(e.toString());
-    console.log(e);
+  if (firmwareUploadLoading.value) {
+    return false;
   }
+
+  firmwareUploadLoading.value = true;
+  const uploadStartedAt = Date.now();
+  const progressMessage = showProgressMessage({
+    title: '固件升级上传中',
+    message: `正在上传 ${file.name || '升级包'}，大文件在弱网下可能耗时较久，请勿关闭页面。`,
+    indeterminate: true,
+    type: 'info',
+  });
+
+  try {
+    await postUploadToUpgrade(file, progressEvent => {
+      const percentage = normalizeProgress(progressEvent);
+      progressMessage.update({
+        indeterminate: percentage === undefined,
+        message:
+          percentage === undefined
+            ? `正在上传 ${file.name || '升级包'}，大文件在弱网下可能耗时较久，请勿关闭页面。`
+            : `正在上传 ${file.name || '升级包'}，已完成 ${percentage}%。`,
+        percentage,
+      });
+    });
+
+    progressMessage.update({
+      indeterminate: false,
+      message: '上传完成，正在等待程序进入升级流程……',
+      percentage: 100,
+      status: 'success',
+    });
+
+    const visibleDuration = Date.now() - uploadStartedAt;
+    const remainingVisibleDuration = Math.max(
+      0,
+      minFirmwareProgressMessageDuration - visibleDuration,
+    );
+    if (remainingVisibleDuration > 0) {
+      await new Promise(resolve => window.setTimeout(resolve, remainingVisibleDuration));
+    }
+
+    progressMessage.close();
+    ElMessage.success('上传完成，程序即将离线');
+  } catch (error) {
+    progressMessage.close();
+    ElMessage.error(getFirmwareUploadErrorMessage(error));
+    console.log(error);
+  } finally {
+    firmwareUploadLoading.value = false;
+    fileList.value = [];
+  }
+
   return false;
+};
+
+const handleFirmwareUploadExceed: UploadProps['onExceed'] = files => {
+  const upload = firmwareUploadRef.value;
+  if (!upload || files.length === 0 || firmwareUploadLoading.value) {
+    return;
+  }
+
+  upload.clearFiles();
+  const file = files[0] as UploadRawFile;
+  file.uid = genFileId();
+  upload.handleStart(file);
 };
 
 watch(

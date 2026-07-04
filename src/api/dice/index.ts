@@ -1,8 +1,10 @@
+import type { AxiosProgressEvent, AxiosRequestConfig } from 'axios';
 import type { AdvancedConfig } from '~/type';
 import { createRequest } from '..';
 
 const baseUrl = '/dice/';
 const request = createRequest(baseUrl);
+const firmwareUploadTimeout = 10 * 60 * 1000;
 
 export function getDiceConfig() {
   return request<DiceConfig>('get', 'config/get');
@@ -63,8 +65,29 @@ export function postExec(
   return request('post', 'exec', payload);
 }
 
-export function postUploadToUpgrade(files: Blob) {
-  return request('post', 'upload_to_upgrade', { files }, 'formdata', { timeout: 60000 });
+function upgradeUploadRequestConfig(
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
+): AxiosRequestConfig {
+  return {
+    timeout: firmwareUploadTimeout,
+    onUploadProgress,
+    'axios-retry': {
+      retries: 0,
+    },
+  };
+}
+
+export function postUploadToUpgrade(
+  file: Blob,
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void,
+) {
+  return request(
+    'post',
+    'upload_to_upgrade',
+    { files: file },
+    'formdata',
+    upgradeUploadRequestConfig(onUploadProgress),
+  );
 }
 
 export function getRecentMessage() {
