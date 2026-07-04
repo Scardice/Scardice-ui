@@ -1,7 +1,13 @@
 <template>
   <header class="page-header">
     <el-switch v-model="jsEnable" active-text="启用" inactive-text="关闭" />
-    <el-button v-show="jsEnable" type="primary" :icon="Refresh" @click="jsReload"
+    <el-button
+      v-show="jsEnable"
+      type="primary"
+      :icon="Refresh"
+      :loading="jsReloading"
+      :disabled="jsReloading"
+      @click="jsReload"
       >重载 JS</el-button
     >
   </header>
@@ -973,7 +979,6 @@ import {
   getJsList,
   getJsRecord,
   getJsStatus,
-  reloadJS,
   resetJsConfig,
   setJsConfig,
   // setJsConfigs,
@@ -984,11 +989,13 @@ import {
 } from '~/api/js';
 import type { UploadRawFile } from 'element-plus';
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
+import { runJsReloadWithProgress } from '~/utils/js-reload-progress';
 
 const jsEnable = ref(false);
 const editorBox = ref(null);
 const mode = ref('console');
 const needReload = ref(false);
+const jsReloading = ref(false);
 let editor: EditorView;
 
 const jsLines = ref([] as string[]);
@@ -1709,15 +1716,23 @@ watch(mode, async newMode => {
 });
 
 const jsReload = async () => {
-  const ret = await reloadJS();
-  if (ret && ret.testMode) {
-    ElMessage.success('展示模式无法重载脚本');
-  } else {
-    ElMessage.success('已重载');
-    await refreshJsData();
-    needReload.value = false;
+  if (jsReloading.value) {
+    return;
   }
-  jsEnable.value = await jsStatus();
+  jsReloading.value = true;
+  try {
+    await runJsReloadWithProgress({
+      afterReload: async () => {
+        await refreshJsData();
+        needReload.value = false;
+      },
+      successMessage: '已重载',
+      testModeMessage: '展示模式无法重载脚本',
+    });
+  } finally {
+    jsEnable.value = await jsStatus();
+    jsReloading.value = false;
+  }
 };
 
 const jsShutdown = async () => {

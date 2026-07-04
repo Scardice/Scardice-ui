@@ -61,6 +61,24 @@ export function reloadJS() {
   return request('post', 'reload');
 }
 
+export interface JsReloadProgress {
+  running: boolean;
+  stage: string;
+  message: string;
+  current: number;
+  total: number;
+  percentage: number;
+  scriptName?: string;
+  startedAt?: number;
+  updatedAt?: number;
+  finishedAt?: number;
+  error?: string;
+}
+
+export function getJsReloadStatus() {
+  return request<JsReloadProgress>('get', 'reload/status');
+}
+
 export function shutDownJS() {
   return request('post', 'shutdown');
 }

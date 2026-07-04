@@ -168,7 +168,9 @@
                     active-text="启用"
                     inactive-text="停用"
                     inline-prompt
-                    @change="value => handleToggleBackend(row, value)" />
+                    @change="
+                      (value: string | number | boolean) => handleToggleBackend(row, value)
+                    " />
                 </template>
               </el-table-column>
               <el-table-column label="操作" width="120">

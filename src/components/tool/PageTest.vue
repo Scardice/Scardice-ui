@@ -79,8 +79,8 @@ import {
 } from '~/api/dice';
 import { reloadDeck as postReloadDeck } from '~/api/deck';
 import { reloadHelpDoc } from '~/api/helpdoc';
-import { reloadJS } from '~/api/js';
 import LogRichContent from '~/components/utils/log-rich-content.vue';
+import { runJsReloadWithProgress } from '~/utils/js-reload-progress';
 const store = useStore();
 
 const mode = ref<'private' | 'group'>('private');
@@ -258,13 +258,14 @@ const reloadDeck = async () => {
 const jsReloading = ref<boolean>(false);
 const reloadJs = async () => {
   jsReloading.value = true;
-  const ret = await reloadJS();
-  if (ret && ret?.testMode) {
-    ElMessage.success('展示模式无法重载 JS');
-  } else {
-    ElMessage.success('已重载 JS');
+  try {
+    await runJsReloadWithProgress({
+      successMessage: '已重载 JS',
+      testModeMessage: '展示模式无法重载 JS',
+    });
+  } finally {
+    jsReloading.value = false;
   }
-  jsReloading.value = false;
 };
 
 const helpdocReloading = ref<boolean>(false);
