@@ -192,6 +192,7 @@ import {
   uploadDeck,
 } from '~/api/deck';
 import type { UploadRawFile } from 'element-plus/es/components/upload/src/upload.mjs';
+import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
 
 const mode = ref<string>('list');
 
@@ -269,6 +270,10 @@ const doDelete = async (data: any) => {
 
 const beforeUpload = async (file: UploadRawFile) => {
   // UploadRawFile
+  if (!(await confirmUploadTargetMatch(file, 'deck')).proceed) {
+    return false;
+  }
+
   try {
     await uploadDeck(file);
     ElMessage.success('上传完成，即将自动重载牌堆');

@@ -111,7 +111,7 @@
           <el-upload
             action=""
             multiple
-            accept=".yaml"
+            accept=".yaml,.yml,.json,.jsonc,.hjson"
             :before-upload="beforeUpload"
             :file-list="uploadFileList">
             <el-button type="primary" plain :icon="Upload">上传</el-button>
@@ -264,6 +264,7 @@ import {
   uploadCustomReply,
 } from '~/api/configs';
 import type { DiceConfig } from '~/api/dice';
+import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
 
 const store = useStore();
 const dialogFormVisible = ref(false);
@@ -393,6 +394,10 @@ const customReplyFileDelete = () => {
 
 const beforeUpload = async (file: any) => {
   // UploadRawFile
+  if (!(await confirmUploadTargetMatch(file, 'customReply')).proceed) {
+    return false;
+  }
+
   try {
     await uploadCustomReply(file);
     ElMessage.success('上传完成');

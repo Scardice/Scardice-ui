@@ -983,6 +983,7 @@ import {
   uploadJs,
 } from '~/api/js';
 import type { UploadRawFile } from 'element-plus';
+import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
 
 const jsEnable = ref(false);
 const editorBox = ref(null);
@@ -1732,11 +1733,10 @@ const jsShutdown = async () => {
 };
 
 const beforeUpload = async (file: UploadRawFile) => {
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext !== 'js' && ext !== 'ts') {
-    ElMessage.error('仅支持上传 .js 或 .ts 格式的插件文件');
+  if (!(await confirmUploadTargetMatch(file, 'js')).proceed) {
     return false;
   }
+
   try {
     await uploadJs(file);
     await refreshList();

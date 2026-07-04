@@ -74,7 +74,7 @@
               :on-change="fileChange"
               :file-list="uploadForm.files"
               multiple
-              accept=".json, .xlsx"
+              accept=".json,.jsonc,.hjson,.xlsx"
               :auto-upload="false">
               <template #trigger>
                 <el-button type="primary" :icon="Upload">选择文件</el-button>
@@ -238,6 +238,7 @@
 import type { FormRules, FormInstance, ElTree } from 'element-plus';
 import { Delete, DocumentChecked, Refresh, Setting, Upload } from '@element-plus/icons-vue';
 import { trim } from 'lodash-es';
+import type { UploadUserFile } from 'element-plus';
 import type { HelpDoc, HelpTextItem, HelpTextItemQuery } from '~/type.d.ts';
 import {
   deleteHelpDoc,
@@ -248,6 +249,7 @@ import {
   reloadHelpDoc,
   uploadHelpDoc,
 } from '~/api/helpdoc';
+import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
 
 interface Group {
   key: string;
@@ -287,11 +289,38 @@ const fileChange = (_f: any, newFiles: any) => {
   uploadForm.files = newFiles;
 };
 
+async function confirmHelpdocFiles(files: UploadUserFile[]) {
+  let unknownWarned = false;
+
+  for (const file of files) {
+    if (!file.raw) {
+      continue;
+    }
+
+    const result = await confirmUploadTargetMatch(file.raw, 'helpdoc', {
+      warnUnknown: !unknownWarned,
+    });
+    if (result.detected.type === 'unknown') {
+      unknownWarned = true;
+    }
+
+    if (!result.proceed) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 const submitUpload = async (formData: FormInstance | undefined) => {
   if (!formData) return;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   await formData.validate(async (valid, _) => {
     if (valid) {
+      if (!(await confirmHelpdocFiles(uploadForm.files))) {
+        return;
+      }
+
       // const fd = new FormData();
       // fd.append("group", uploadForm.group)
       // uploadForm.files.forEach(f => {
