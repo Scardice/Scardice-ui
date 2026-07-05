@@ -102,7 +102,7 @@
     direction="ltr"
     :show-close="false"
     size="50%"
-    class="drawer-menu bg-gray-600">
+    class="drawer-menu">
     <template #header>
       <div class="text-white flex items-center justify-between">
         <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">

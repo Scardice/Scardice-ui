@@ -1883,6 +1883,17 @@ const jsUpdate = async () => {
     0 0 6px rgba(0, 0, 0, 0.04);
 }
 
+.cm-editor .cm-gutters {
+  background-color: var(--seal-surface-soft);
+  color: var(--seal-text-muted);
+  border-right-color: var(--seal-border-color);
+}
+
+.cm-editor .cm-activeLineGutter {
+  background-color: var(--seal-surface-muted);
+  color: var(--seal-text-color);
+}
+
 @media screen and (max-width: 700px) {
   .bak-item {
     flex-direction: column;

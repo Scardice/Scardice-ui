@@ -177,8 +177,8 @@ code {
   overflow: hidden;
 }
 
-.seal-root .nav,
-.seal-root .menu,
+.seal-root > .nav,
+.seal-root > .main-shell > .menu,
 .seal-root .drawer-menu {
   background: var(--seal-nav-bg);
 }
@@ -256,6 +256,16 @@ code {
   background-color: var(--seal-panel-bg);
   color: var(--el-text-color-primary);
   border-color: var(--el-border-color-lighter);
+}
+
+.el-drawer.drawer-menu,
+.el-drawer.drawer-menu .el-drawer__header,
+.el-drawer.drawer-menu .el-drawer__body {
+  background-color: var(--seal-nav-bg);
+}
+
+.el-drawer.drawer-menu {
+  color: #fff;
 }
 
 .seal-content .el-card,
