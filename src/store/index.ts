@@ -30,6 +30,15 @@ import { getSalt, signin } from '~/api/signin';
 
 import type { addImConnectionForm } from '~/components/PageConnectInfoItems.vue';
 import type { AdvancedConfig } from '~/type.d.ts';
+
+// 为了区分无法连接到后端和可以连接到但有密码
+function isNetworkError(e: unknown): boolean {
+  const err = e as { response?: unknown; code?: string } | null;
+  if (!err || !err.response) {
+    return true;
+  }
+  return err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK';
+}
 export enum goCqHttpStateCode {
   Init = 0,
   InLogin = 1,
@@ -189,6 +198,7 @@ export const useStore = defineStore('main', {
       token: '',
       index: 0,
       canAccess: false,
+      backendOffline: false,
       diceServers: [] as DiceServer[],
 
       talkLogs: [
@@ -441,15 +451,27 @@ export const useStore = defineStore('main', {
       }
     },
     async trySignIn(): Promise<boolean> {
-      this.salt = (await getSalt()).salt;
+      try {
+        this.salt = (await getSalt()).salt;
+        this.backendOffline = false;
+      } catch {
+        this.backendOffline = true;
+        this.canAccess = false;
+        return false;
+      }
+
       const token = localStorage.getItem('t');
       try {
         await getHello();
         this.token = token as string;
         this.canAccess = true;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         this.canAccess = false;
+        if (isNetworkError(e)) {
+          this.backendOffline = true;
+          return false;
+        }
+        this.backendOffline = false;
         // 试图做一次登录，以获取 token
         await this.signIn('defaultSignin');
       }

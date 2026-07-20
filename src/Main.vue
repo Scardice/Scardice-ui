@@ -229,12 +229,22 @@ const updateNews = async () => {
 };
 
 const showDialog = computed(() => {
-  return !store.canAccess;
+  return !store.canAccess && !store.backendOffline;
 });
 
 const dialogLostConnectionVisible = ref(false);
+watch(
+  () => store.backendOffline,
+  v => {
+    dialogLostConnectionVisible.value = v;
+  },
+);
 
 const doUnlock = async () => {
+  if (store.backendOffline) {
+    ElMessage.error('当前无法连接主程序，请稍后再试');
+    return;
+  }
   const hash = await passwordHash(store.salt, password.value);
   await store.signIn(hash);
   if (store.canAccess) {
@@ -267,20 +277,23 @@ onBeforeMount(async () => {
   }
 
   timerId = setInterval(async () => {
-    // 没输入密码，先不心跳
-    if (!store.canAccess) {
+    if (store.canAccess) {
+      try {
+        await store.getBaseInfo();
+        store.backendOffline = false;
+      } catch (e: any) {
+        if (!e.response || e.response.status === 403) {
+          store.backendOffline = true;
+        }
+      }
       return;
     }
-    try {
-      await store.getBaseInfo();
-      if (dialogLostConnectionVisible.value) {
-        dialogLostConnectionVisible.value = false;
-      }
-    } catch (e: any) {
-      if (!e.response || e.response.status === 403) {
-        // 此时是连接不上，404
-        // e.response.status 有可能为 403
-        dialogLostConnectionVisible.value = true;
+    // 未登录时，仅当判定为后端离线才轮询恢复
+    if (store.backendOffline) {
+      await store.trySignIn();
+      // 恢复成功后重载页面以重新初始化各组件
+      if (store.canAccess) {
+        window.location.reload();
       }
     }
   }, 5000) as any;
