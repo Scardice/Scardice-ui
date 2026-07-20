@@ -265,6 +265,7 @@ import {
 } from '~/api/configs';
 import type { DiceConfig } from '~/api/dice';
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 const store = useStore();
 const dialogFormVisible = ref(false);
@@ -406,9 +407,8 @@ const beforeUpload = async (file: any) => {
     curFilename.value = file.name;
     ElMessage.success(`已切换到新文件: ${file.name}`);
     await refreshCurrent();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
-    ElMessage.error('上传失败，可能有同名文件！');
+    ElMessage.error(formatUploadFailureMessage(e));
   }
   return false;
 };

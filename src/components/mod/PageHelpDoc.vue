@@ -250,6 +250,7 @@ import {
   uploadHelpDoc,
 } from '~/api/helpdoc';
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 interface Group {
   key: string;
@@ -331,7 +332,7 @@ const submitUpload = async (formData: FormInstance | undefined) => {
       if (res.result) {
         ElMessage.success('上传完成，请在全部操作完成后，手动重载帮助文件');
       } else {
-        ElMessage.error(res.err ?? '上传失败');
+        ElMessage.error(formatUploadFailureMessage(res.err));
       }
       formData.resetFields();
       needReload.value = true;

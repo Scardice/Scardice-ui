@@ -753,7 +753,6 @@
 </template>
 
 <script lang="ts" setup>
-import { isAxiosError } from 'axios';
 import { genFileId, type UploadInstance, type UploadProps, type UploadRawFile } from 'element-plus';
 import {
   CircleClose,
@@ -767,6 +766,7 @@ import { postMailTest, postUploadToUpgrade } from '~/api/dice';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
 import { showProgressMessage } from '~/utils/progress-message';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 const minFirmwareProgressMessageDuration = 800;
 
@@ -798,33 +798,6 @@ function normalizeProgress(progressEvent: { loaded?: number; progress?: number; 
   }
 
   return undefined;
-}
-
-function getFirmwareUploadErrorMessage(error: unknown) {
-  if (isAxiosError<{ err?: string; message?: string }>(error)) {
-    const responseData = error.response?.data;
-    if (responseData?.err) {
-      return responseData.err;
-    }
-    if (responseData?.message) {
-      return responseData.message;
-    }
-    if (error.code === 'ECONNABORTED') {
-      return '上传超时，请检查网络后重试';
-    }
-    if (error.code === 'ERR_NETWORK' || !error.response) {
-      return '上传中断，连接不到服务器，请检查网络后重试';
-    }
-    if (error.message) {
-      return error.message;
-    }
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  return '上传失败，请稍后重试';
 }
 
 const beforeUpload = async (file: any) => {
@@ -874,7 +847,7 @@ const beforeUpload = async (file: any) => {
     ElMessage.success('上传完成，程序即将离线');
   } catch (error) {
     progressMessage.close();
-    ElMessage.error(getFirmwareUploadErrorMessage(error));
+    ElMessage.error(formatUploadFailureMessage(error));
     console.log(error);
   } finally {
     firmwareUploadLoading.value = false;

@@ -5,6 +5,7 @@ import { urlBase } from '~/api';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { getBanConfigList, importBanConfig, postMapAddOne, postMapDelOne } from '~/api/banconfig';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 dayjs.extend(relativeTime);
 
@@ -127,11 +128,11 @@ const beforeUpload = async (file: UploadUserFile) => {
         await refreshList();
       });
     } else {
-      ElMessage.error('导入黑白名单失败！' + c.err);
+      ElMessage.error(formatUploadFailureMessage(c.err, '导入黑白名单失败'));
     }
   } catch (err) {
     console.error('import ban config failed:', err);
-    ElMessage.error('导入黑白名单失败，请检查网络或服务器状态');
+    ElMessage.error(formatUploadFailureMessage(err, '导入黑白名单失败'));
   }
   return false;
 };

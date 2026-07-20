@@ -1,4 +1,9 @@
-import axios, { AxiosHeaders, type AxiosError, type AxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosHeaders,
+  type AxiosError,
+  type AxiosHeaderValue,
+  type AxiosRequestConfig,
+} from 'axios';
 import axiosRetry from 'axios-retry';
 import qs from 'qs';
 
@@ -34,7 +39,7 @@ axiosRetry(http, {
   },
 });
 
-function setHeader(config: AxiosRequestConfig, key: string, value: string) {
+function setHeader(config: AxiosRequestConfig, key: string, value: AxiosHeaderValue) {
   if (!config.headers) {
     config.headers = { [key]: value };
     return;
@@ -43,18 +48,7 @@ function setHeader(config: AxiosRequestConfig, key: string, value: string) {
     config.headers.set(key, value);
     return;
   }
-  (config.headers as Record<string, string>)[key] = value;
-}
-
-function deleteHeader(config: AxiosRequestConfig, key: string) {
-  if (!config.headers) {
-    return;
-  }
-  if (config.headers instanceof AxiosHeaders) {
-    config.headers.delete(key);
-    return;
-  }
-  delete (config.headers as Record<string, string>)[key];
+  (config.headers as Record<string, AxiosHeaderValue>)[key] = value;
 }
 
 function joinPath(baseUrl: string, url: string) {
@@ -166,7 +160,7 @@ export default function request<T = any>(
         submitData instanceof FormData
           ? submitData
           : toFormData((submitData ?? {}) as Record<string, unknown>);
-      deleteHeader(reqParams, 'Content-Type');
+      setHeader(reqParams, 'Content-Type', false);
     } else if (ContentType === 'form') {
       reqParams.data = submitData ? qs.stringify(submitData, { indices: false }) : submitData;
       setHeader(reqParams, 'Content-Type', 'application/x-www-form-urlencoded');

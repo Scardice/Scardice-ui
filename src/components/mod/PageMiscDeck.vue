@@ -193,6 +193,7 @@ import {
 } from '~/api/deck';
 import type { UploadRawFile } from 'element-plus/es/components/upload/src/upload.mjs';
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 const mode = ref<string>('list');
 
@@ -281,7 +282,7 @@ const beforeUpload = async (file: UploadRawFile) => {
     await refreshList();
   } catch (err) {
     console.error('upload deck failed:', err);
-    ElMessage.error('上传失败，请检查网络或服务器状态');
+    ElMessage.error(formatUploadFailureMessage(err));
   }
   return false;
 };

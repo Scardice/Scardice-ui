@@ -989,6 +989,7 @@ import {
 } from '~/api/js';
 import type { UploadRawFile } from 'element-plus';
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 import { runJsReloadWithProgress } from '~/utils/js-reload-progress';
 
 const jsEnable = ref(false);
@@ -1759,7 +1760,7 @@ const beforeUpload = async (file: UploadRawFile) => {
     needReload.value = true;
   } catch (err) {
     console.error('upload js plugin failed:', err);
-    ElMessage.error('上传失败，请检查网络或服务器状态');
+    ElMessage.error(formatUploadFailureMessage(err));
   }
   return false;
 };

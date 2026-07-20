@@ -78,6 +78,7 @@ import { Delete, Download, Upload } from '@element-plus/icons-vue';
 import { urlBase } from '~/api';
 import { useCensorStore } from '~/components/mod/censor/censor';
 import { deleteCensorFiles, getCensorFiles, uploadCensorFile } from '~/api/censor';
+import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 onBeforeMount(() => {
   refreshFiles();
@@ -120,11 +121,11 @@ const beforeUpload = async (file: UploadUserFile) => {
       ElMessage.success('上传完成，请在全部操作完成后，手动重载拦截');
       censorStore.markReload();
     } else {
-      ElMessage.error('上传失败！' + c.err);
+      ElMessage.error(formatUploadFailureMessage(c.err));
     }
   } catch (err) {
     console.error('upload censor file failed:', err);
-    ElMessage.error('上传失败，请检查网络或服务器状态');
+    ElMessage.error(formatUploadFailureMessage(err));
   }
   return false;
 };
