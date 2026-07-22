@@ -37,12 +37,16 @@
         </template>
 
         <div
-          v-if="
-            i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode && store.curDice.qrcodes[i.id]
-          "
+          v-if="shouldShowMilkyQrcode(i.adapter?.loginState) && store.curDice.qrcodes[i.id]"
           class="login-state-panel login-state-panel--qr">
-          <div class="login-state-title">需要同账号的手机 QQ 扫码登录</div>
-          <div class="login-state-description">请在 2 分钟内完成扫描。</div>
+          <template v-if="i.adapter?.loginState === goCqHttpStateCode.MilkyLoginWaitingForConfirm">
+            <div class="login-state-title">已扫码，请在手机 QQ 上确认登录</div>
+            <div class="login-state-description">正在等待手机端确认，请不要关闭本页面。</div>
+          </template>
+          <template v-else>
+            <div class="login-state-title">需要同账号的手机 QQ 扫码登录</div>
+            <div class="login-state-description">请在 2 分钟内完成扫描。</div>
+          </template>
           <img
             class="login-state-qrcode"
             alt="QQ 扫码登录二维码"
@@ -1824,14 +1828,20 @@
             <div>展示版本未必是最新版，建议您下载体验。</div>
             <el-button style="margin-top: 1rem" @click="formClose">再会</el-button>
           </div>
-          <div
-            v-else-if="
-              index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginQrCode
-            ">
-            <div>登录需要扫码验证，请使用登录此账号的手机 QQ 扫描二维码以继续登录：</div>
+          <div v-else-if="index === 2 && shouldShowMilkyQrcode(curConn.adapter?.loginState)">
+            <div
+              v-if="curConn.adapter?.loginState === goCqHttpStateCode.MilkyLoginWaitingForConfirm">
+              已扫码，请在手机 QQ 上确认登录。二维码会保留显示以便核对账号。
+            </div>
+            <div v-else>登录需要扫码验证，请使用登录此账号的手机 QQ 扫描二维码以继续登录：</div>
             <img
               :src="store.curDice.qrcodes[curConn.id]"
               style="width: 20rem; height: 20rem; image-rendering: pixelated" />
+          </div>
+
+          <div v-else-if="index === 2 && getMilkyTerminalLoginText(curConn.adapter?.loginState)">
+            <div>{{ getMilkyTerminalLoginText(curConn.adapter?.loginState) }}</div>
+            <div>二维码登录已结束，此账号已自动禁用。需要重新尝试时，请再次启用账号。</div>
           </div>
 
           <div
@@ -2712,6 +2722,24 @@ const isInternalMilkyAccountType = (accountType: number) => {
   );
 };
 
+const shouldShowMilkyQrcode = (state: goCqHttpStateCode | undefined) => {
+  return (
+    state === goCqHttpStateCode.InLoginQrCode ||
+    state === goCqHttpStateCode.MilkyLoginWaitingForConfirm
+  );
+};
+
+const getMilkyTerminalLoginText = (state: goCqHttpStateCode | undefined) => {
+  switch (state) {
+    case goCqHttpStateCode.MilkyLoginCancelled:
+      return '用户已取消登录';
+    case goCqHttpStateCode.MilkyLoginCodeExpired:
+      return '二维码已过期';
+    default:
+      return '';
+  }
+};
+
 // 添加一个新账号
 const addOne = () => {
   dialogFormVisible.value = true;
@@ -2736,15 +2764,22 @@ const refreshLoginStates = async () => {
 
     for (const i of store.curDice.conns || []) {
       // 获取二维码
-      if (i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) {
+      if (shouldShowMilkyQrcode(i.adapter?.loginState)) {
         store.curDice.qrcodes[i.id] = (await postConnectionQrcode(i.id)).img;
+      }
+      if (getMilkyTerminalLoginText(i.adapter?.loginState)) {
+        delete store.curDice.qrcodes[i.id];
       }
 
       if (i.id === curConnId.value) {
         curConn.value = i;
 
         // 登录失败
-        if (i.state !== 1 && i.adapter?.loginState === goCqHttpStateCode.LoginFailed) {
+        if (
+          i.state !== 1 &&
+          (i.adapter?.loginState === goCqHttpStateCode.LoginFailed ||
+            getMilkyTerminalLoginText(i.adapter?.loginState))
+        ) {
           form.isEnd = true;
         }
 
