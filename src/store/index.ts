@@ -48,8 +48,11 @@ export enum goCqHttpStateCode {
   MilkyLoginFailed = 5,
   InLoginVerifyCode = 6,
   InLoginDeviceLock = 7,
+  MilkyLoginWaitingForConfirm = 8,
+  MilkyLoginCancelled = 9,
   LoginSuccessed = 10,
   LoginFailed = 11,
+  MilkyLoginCodeExpired = 12,
   Closed = 20,
 }
 

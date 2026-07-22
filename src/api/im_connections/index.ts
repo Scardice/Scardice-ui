@@ -184,7 +184,7 @@ export function postConnectionDel(id: string) {
 }
 
 export function postConnectionQrcode(id: string) {
-  return request<{ img: string }>('post', 'qrcode', { id });
+  return request<{ img: string; reason?: string }>('post', 'qrcode', { id });
 }
 
 export function postSmsCodeSet(id: string, code: string) {
@@ -291,8 +291,11 @@ enum goCqHttpStateCode {
   MilkyLoginFailed = 5,
   InLoginVerifyCode = 6,
   InLoginDeviceLock = 7,
+  MilkyLoginWaitingForConfirm = 8,
+  MilkyLoginCancelled = 9,
   LoginSuccessed = 10,
   LoginFailed = 11,
+  MilkyLoginCodeExpired = 12,
   Closed = 20,
 }
 //   type addImConnectionForm = {
