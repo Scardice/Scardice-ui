@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getResourceDataUrl } from '~/api/resource';
+
 interface TextPart {
   type: 'text';
   text: string;
@@ -69,6 +71,10 @@ const normalizeImageSource = (rawTarget: string): string | undefined => {
   }
   if (/^data:image\//i.test(target)) {
     return target;
+  }
+  const resourceImageUrl = getResourceDataUrl(target);
+  if (resourceImageUrl) {
+    return resourceImageUrl;
   }
   if (base64PrefixPattern.test(target)) {
     const base64Text = target.replace(base64PrefixPattern, '').trim();
