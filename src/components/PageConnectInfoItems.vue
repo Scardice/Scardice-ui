@@ -2273,6 +2273,49 @@ const openSocks = async () => {
   }
 };
 
+type AddConnectionErrorResponse = {
+  err?: string;
+  error?: string;
+  clientMode?: string;
+};
+
+type AddConnectionError = {
+  code?: string;
+  message?: string;
+  response?: {
+    status?: number;
+    data?: AddConnectionErrorResponse | string;
+  };
+};
+
+const getAddConnectionFailureMessage = (error: unknown) => {
+  const err = error as AddConnectionError;
+  const status = err.response?.status;
+  const data = err.response?.data;
+
+  if (status === 602) {
+    return '似乎已经添加了这个账号！';
+  }
+
+  if (typeof data === 'string' && data.trim() !== '') {
+    return `添加账号失败（HTTP ${status ?? '未知'}）：${data}`;
+  }
+
+  if (data && typeof data === 'object') {
+    const backendMessage = data.err || data.error;
+    if (backendMessage) {
+      const detail = data.clientMode ? `${backendMessage}: ${data.clientMode}` : backendMessage;
+      return `添加账号失败（HTTP ${status ?? '未知'}）：${detail}`;
+    }
+  }
+
+  if (!err.response || err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') {
+    return '添加账号失败：连接不到服务器';
+  }
+
+  return `添加账号失败（HTTP ${status ?? '未知'}）：${err.message || '请求失败'}`;
+};
+
 const goStepTwo = async () => {
   form.step = 2;
   curConnId.value = '';
@@ -2289,8 +2332,8 @@ const goStepTwo = async () => {
       }
     })
     .catch(e => {
-      console.log(e);
-      ElMessageBox.alert('似乎已经添加了这个账号！', '添加失败');
+      console.error(e);
+      ElMessageBox.alert(getAddConnectionFailureMessage(e), '添加失败');
       formClose();
     });
   if (form.accountType > 0) {
