@@ -10,10 +10,13 @@ import qs from 'qs';
 type HttpMethod = 'post' | 'get' | 'put' | 'delete';
 type RequestContentType = 'form' | 'json' | 'formdata';
 
-export const urlBase = import.meta.env.DEV
-  ? ''
-  : '//' + window.location.hostname + ':' + location.port;
+export function getApiBaseURL(): string {
+  const pathname = window.location.pathname;
+  const directory = pathname.slice(0, pathname.lastIndexOf('/') + 1) || '/';
+  return `${directory}sd-api`;
+}
 
+export const urlBase = import.meta.env.DEV ? '' : getApiBaseURL().slice(0, -'/sd-api'.length);
 export const apiBaseURL = `${urlBase}/sd-api`;
 export const requestTimeout = 35000;
 
