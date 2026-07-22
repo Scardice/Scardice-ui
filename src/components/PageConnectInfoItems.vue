@@ -40,17 +40,12 @@
           v-if="
             i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode && store.curDice.qrcodes[i.id]
           "
-          style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1">
-          <div style="margin-left: 2rem">需要同账号的手机 QQ 扫码登录 (限 2 分钟内完成):</div>
+          class="login-state-panel login-state-panel--qr">
+          <div class="login-state-title">需要同账号的手机 QQ 扫码登录</div>
+          <div class="login-state-description">请在 2 分钟内完成扫描。</div>
           <img
-            style="
-              margin-left: -3rem;
-              image-rendering: pixelated;
-              width: 10rem;
-              height: 10rem;
-              margin-left: 3.5rem;
-              margin-top: 2rem;
-            "
+            class="login-state-qrcode"
+            alt="QQ 扫码登录二维码"
             :src="store.curDice.qrcodes[i.id]" />
         </div>
 
@@ -59,36 +54,37 @@
             i.adapter?.loginState === goCqHttpStateCode.InLoginBar &&
             i.adapter?.goCqHttpLoginDeviceLockUrl
           "
-          style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1">
-          <!-- <div style="position: absolute; width: 17rem; height: 14rem; background: #fff; z-index: 1;"> -->
-
+          class="login-state-panel">
           <template v-if="i.id === curCaptchaIdSet">
-            <div>已提交 ticket，正在等待 gocqhttp 回应</div>
+            <div class="login-state-title">已提交 ticket</div>
+            <div class="login-state-description">正在等待协议端回应，请稍候。</div>
           </template>
           <template v-else>
-            <div style="margin-left: 2rem">滑条验证码流程</div>
-            <!-- <div><a style="line-break: anywhere;" :href="i.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a></div> -->
-            <div>
-              <a
-                style="line-break: anywhere"
+            <div class="login-state-title">滑条验证码流程</div>
+            <div class="login-state-description">请访问下方链接完成验证。</div>
+            <div class="login-state-link-wrap">
+              <el-link
+                class="login-state-link"
+                type="primary"
                 href="javascript:void(0)"
-                @click="captchaUrlSet(i, i.adapter?.goCqHttpLoginDeviceLockUrl)"
-                >{{ i.adapter?.goCqHttpLoginDeviceLockUrl }}</a
-              >
+                @click="captchaUrlSet(i, i.adapter?.goCqHttpLoginDeviceLockUrl)">
+                {{ i.adapter?.goCqHttpLoginDeviceLockUrl }}
+              </el-link>
             </div>
           </template>
         </div>
 
         <div
           v-if="i.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode"
-          style="position: absolute; width: 17rem; height: 18rem; background: #fff; z-index: 1">
-          <div style="margin-left: 2rem">短信验证码流程</div>
-          <div style="margin-top: 4rem">
-            <el-form label-width="5rem">
+          class="login-state-panel">
+          <div class="login-state-title">短信验证码流程</div>
+          <div class="login-state-description">输入协议端收到的验证码以继续登录。</div>
+          <div class="login-state-form">
+            <el-form label-position="top">
               <el-form-item label="验证码">
                 <el-input v-model="smsCode"></el-input>
               </el-form-item>
-              <el-form-item label="">
+              <el-form-item>
                 <el-button :disabled="smsCode == ''" type="primary" @click="submitSmsCode(i)"
                   >提交</el-button
                 >
@@ -2726,39 +2722,19 @@ const addOne = () => {
   getSignInfo();
 };
 
-let timerId: number;
+let timerId: ReturnType<typeof setInterval> | undefined;
+let loginStateRefreshRunning = false;
 
-onBeforeMount(async () => {
-  await store.getImConnections();
-  for (const i of store.curDice.conns || []) {
-    delete store.curDice.qrcodes[i.id];
+const refreshLoginStates = async () => {
+  if (loginStateRefreshRunning) {
+    return;
   }
 
-  const versionsRes = await getConnectQQVersion();
-  if (versionsRes.result) {
-    supportedQQVersions.value = ['', ...versionsRes.versions];
-  }
-
-  // form.accountType 默认账号类型为内置客户端
-  if (store.diceServers.length > 0) {
-    if (store.diceServers[0].baseInfo.containerMode) {
-      form.accountType = 6;
-    }
-  }
-
-  timerId = setInterval(async () => {
-    console.log('refresh');
+  loginStateRefreshRunning = true;
+  try {
     await store.getImConnections();
 
     for (const i of store.curDice.conns || []) {
-      // 下一轮登录检查，移除二维码
-      // if (!lastIndex[i.id]) lastIndex[i.id] = i.adapter?.curLoginIndex;
-      // else {
-      //   if (lastIndex[i.id] != i.adapter?.curLoginIndex) {
-      //     ;
-      //   }
-      // }
-
       // 获取二维码
       if (i.adapter?.loginState === goCqHttpStateCode.InLoginQrCode) {
         store.curDice.qrcodes[i.id] = (await postConnectionQrcode(i.id)).img;
@@ -2783,11 +2759,37 @@ onBeforeMount(async () => {
         break;
       }
     }
-  }, 3000) as any;
+  } finally {
+    loginStateRefreshRunning = false;
+  }
+};
+
+onBeforeMount(async () => {
+  await store.getImConnections();
+  for (const i of store.curDice.conns || []) {
+    delete store.curDice.qrcodes[i.id];
+  }
+
+  const versionsRes = await getConnectQQVersion();
+  if (versionsRes.result) {
+    supportedQQVersions.value = ['', ...versionsRes.versions];
+  }
+
+  // form.accountType 默认账号类型为内置客户端
+  if (store.diceServers.length > 0) {
+    if (store.diceServers[0].baseInfo.containerMode) {
+      form.accountType = 6;
+    }
+  }
+
+  await refreshLoginStates();
+  timerId = setInterval(refreshLoginStates, 3000);
 });
 
 onBeforeUnmount(() => {
-  clearInterval(timerId);
+  if (timerId) {
+    clearInterval(timerId);
+  }
 });
 
 const doRemove = async (i: DiceConnection) => {
@@ -2822,6 +2824,76 @@ const doRemove = async (i: DiceConnection) => {
   height: 3rem !important;
   font-size: 2rem;
   font-weight: bold;
+}
+
+:deep(.box-card > .el-card__body) {
+  position: relative;
+  min-height: 18rem;
+}
+
+.login-state-panel {
+  position: absolute;
+  inset: 0.75rem;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  padding: 1.25rem;
+  overflow: auto;
+  color: var(--seal-text-color);
+  text-align: center;
+  background: color-mix(in srgb, var(--seal-panel-bg) 94%, var(--el-color-primary-light-9));
+  border: 1px solid var(--seal-border-color-light);
+  border-radius: 12px;
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--seal-text-color) 16%, transparent);
+}
+
+.login-state-panel--qr {
+  justify-content: flex-start;
+}
+
+.login-state-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--seal-text-color);
+  text-wrap: balance;
+}
+
+.login-state-description {
+  max-width: 22rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--seal-text-secondary);
+}
+
+.login-state-qrcode {
+  width: clamp(9rem, 34vw, 12rem);
+  height: clamp(9rem, 34vw, 12rem);
+  image-rendering: crisp-edges;
+  background: var(--seal-surface-bg-base);
+  border-radius: 8px;
+  box-shadow: 0 0 0 0.5rem var(--seal-surface-bg-base);
+}
+
+.login-state-link-wrap {
+  width: 100%;
+  max-width: 24rem;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.login-state-link {
+  white-space: normal;
+}
+
+.login-state-form {
+  width: min(100%, 18rem);
+  margin-top: 0.25rem;
+  text-align: left;
 }
 </style>
 
