@@ -40,8 +40,12 @@ axiosRetry(http, {
 });
 
 function setHeader(config: AxiosRequestConfig, key: string, value: AxiosHeaderValue) {
-  config.headers = AxiosHeaders.from(config.headers);
-  config.headers.set(key, value);
+  const headers =
+    config.headers instanceof AxiosHeaders
+      ? config.headers
+      : AxiosHeaders.from(config.headers as Parameters<typeof AxiosHeaders.from>[0]);
+  headers.set(key, value);
+  config.headers = headers;
 }
 
 function joinPath(baseUrl: string, url: string) {
