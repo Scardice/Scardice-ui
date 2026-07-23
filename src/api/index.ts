@@ -40,15 +40,8 @@ axiosRetry(http, {
 });
 
 function setHeader(config: AxiosRequestConfig, key: string, value: AxiosHeaderValue) {
-  if (!config.headers) {
-    config.headers = { [key]: value };
-    return;
-  }
-  if (config.headers instanceof AxiosHeaders) {
-    config.headers.set(key, value);
-    return;
-  }
-  (config.headers as Record<string, AxiosHeaderValue>)[key] = value;
+  config.headers = AxiosHeaders.from(config.headers);
+  config.headers.set(key, value);
 }
 
 function joinPath(baseUrl: string, url: string) {
@@ -127,6 +120,11 @@ http.interceptors.request.use(config => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     // ignore storage errors
+  }
+
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    config.headers = AxiosHeaders.from(config.headers);
+    config.headers.setContentType(false);
   }
 
   return config;
