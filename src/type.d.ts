@@ -124,6 +124,7 @@ export interface BanConfig {
   scoreGroupKicked: number;
   scoreTooManyCommand: number;
   scoreReducePerMinute: number;
+  banNotifyIntervalMinutes: number;
   jointScorePercentOfGroup: number;
   jointScorePercentOfInviter: number;
 }
