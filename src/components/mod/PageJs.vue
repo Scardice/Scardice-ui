@@ -1308,7 +1308,7 @@ const doJsConfigSave = async () => {
   }
 };
 
-let timerId: number;
+let timerId: ReturnType<typeof setInterval> | undefined;
 
 onMounted(async () => {
   jsEnable.value = await jsStatus();
@@ -1355,7 +1355,10 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  clearInterval(timerId);
+  if (timerId !== undefined) {
+    clearInterval(timerId);
+    timerId = undefined;
+  }
 });
 
 const jsList = ref<JsScriptInfo[]>([]);

@@ -21,9 +21,9 @@ import { useStore } from '~/store';
 const loading = useStorage('router-view-loading', true);
 import router from '~/router';
 
-let routeLoadingTimer: ReturnType<typeof window.setTimeout> | undefined;
+let routeLoadingTimer: number | undefined;
 const clearRouteLoadingTimer = () => {
-  if (routeLoadingTimer) {
+  if (routeLoadingTimer !== undefined) {
     window.clearTimeout(routeLoadingTimer);
     routeLoadingTimer = undefined;
   }
