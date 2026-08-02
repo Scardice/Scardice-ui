@@ -429,7 +429,6 @@ import {
   type StoreBackendRecord,
   type StorePageQuery,
   type StorePackage,
-  type StorePackageListPayload,
 } from '~/api/store';
 
 const activeTab = ref('installed');
@@ -530,14 +529,22 @@ const getResponseError = (
   return response?.err || response?.message || fallback;
 };
 
-const unwrapStoreList = (data: StorePackageListPayload | undefined) => {
+type StorePackageListResponse =
+  | StorePackage[]
+  | {
+      data?: StorePackage[];
+      list?: StorePackage[];
+      items?: StorePackage[];
+    };
+
+const unwrapStoreList = (data: StorePackageListResponse | undefined) => {
   if (!data) {
     return [];
   }
   if (Array.isArray(data)) {
     return data;
   }
-  return data.list ?? data.items ?? [];
+  return data.data ?? data.list ?? data.items ?? [];
 };
 
 const buildStoreQuery = (): StorePageQuery => {
