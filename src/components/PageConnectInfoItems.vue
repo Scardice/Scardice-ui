@@ -770,39 +770,8 @@
 
       <el-form :model="form">
         <el-form-item label="账号类型" :label-width="formLabelWidth">
-          <el-select v-model="form.accountType">
-            <el-option
-              label="QQ(内置客户端)"
-              :value="ImConnectionTypeLagrangeOnebot"
-              :disabled="
-                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
-              "></el-option>
-            <el-option label="QQ(Milky)" :value="ImConnectionTypeMilkySeparate"></el-option>
-            <el-option
-              label="QQ(内置Milky / Lagrange兼容)"
-              :value="ImConnectionTypeMilkyInternal"
-              :disabled="
-                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
-              "></el-option>
-            <el-option
-              label="QQ(内置Milky / Lagrange)"
-              :value="ImConnectionTypeMilkyInternalLagrange"
-              :disabled="
-                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
-              "></el-option>
-            <el-option
-              label="QQ(内置Milky / Yogurt)"
-              :value="ImConnectionTypeMilkyInternalYogurt"
-              :disabled="
-                store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode
-              "></el-option>
-            <el-option
-              label="QQ(onebot11正向WS)"
-              :value="ImConnectionTypeOnebotSeparate"></el-option>
-            <el-option
-              label="QQ(onebot11反向WS)"
-              :value="ImConnectionTypeOnebotReverse"></el-option>
-            <el-option label="QQ(官方机器人)" :value="ImConnectionTypeOfficialQQ"></el-option>
+          <el-select v-model="selectedAccountPlatform">
+            <el-option label="QQ" value="QQ"></el-option>
             <el-option label="[WIP]Satori" :value="ImConnectionTypeSatori"></el-option>
             <el-option label="[WIP]SealChat" :value="ImConnectionTypeSealChat"></el-option>
             <el-option label="Discord" :value="ImConnectionTypeDiscord"></el-option>
@@ -812,7 +781,43 @@
             <el-option label="Dodo语音" :value="ImConnectionTypeDodo"></el-option>
             <el-option label="钉钉" :value="ImConnectionTypeDingTalk"></el-option>
             <el-option label="Slack" :value="ImConnectionTypeSlack"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item
+          v-if="selectedAccountPlatform === 'QQ'"
+          label="QQ 协议"
+          :label-width="formLabelWidth">
+          <el-select v-model="form.accountType">
+            <el-option
+              label="QQ(内置Milky / Yogurt)"
+              :value="ImConnectionTypeMilkyInternalYogurt"
+              :disabled="isContainerMode()"></el-option>
+            <el-option
+              label="QQ(内置Milky / Lagrange)"
+              :value="ImConnectionTypeMilkyInternalLagrange"
+              :disabled="isContainerMode()"></el-option>
+            <el-option
+              label="QQ(内置Milky / Lagrange兼容)"
+              :value="ImConnectionTypeMilkyInternal"
+              :disabled="isContainerMode()"></el-option>
+            <el-option
+              label="QQ(内置客户端)"
+              :value="ImConnectionTypeLagrangeOnebot"
+              :disabled="isContainerMode()"></el-option>
+            <el-option label="QQ(Milky)" :value="ImConnectionTypeMilkySeparate"></el-option>
+            <el-option
+              label="QQ(onebot11正向WS)"
+              :value="ImConnectionTypeOnebotSeparate"></el-option>
+            <el-option
+              label="QQ(onebot11反向WS)"
+              :value="ImConnectionTypeOnebotReverse"></el-option>
+            <el-option label="QQ(官方机器人)" :value="ImConnectionTypeOfficialQQ"></el-option>
             <el-option label="[已弃用]QQ(red协议)" :value="ImConnectionTypeRed"></el-option>
+            <el-option
+              label="[已弃用]QQ(gocq)"
+              :value="ImConnectionTypeGocqLegacy"
+              :disabled="isContainerMode()"></el-option>
           </el-select>
         </el-form-item>
 
@@ -1485,6 +1490,18 @@
 
         <el-form-item
           v-if="form.accountType === ImConnectionTypeOfficialQQ"
+          label="登录方式"
+          :label-width="formLabelWidth"
+          required>
+          <el-radio-group v-model="form.officialQQLoginMode">
+            <el-radio-button value="manual">手动填写</el-radio-button>
+            <el-radio-button value="qrcode">扫码登录</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="
+            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
+          "
           label="机器人ID"
           :label-width="formLabelWidth"
           required>
@@ -1495,7 +1512,9 @@
             type="number"></el-input>
         </el-form-item>
         <el-form-item
-          v-if="form.accountType === ImConnectionTypeOfficialQQ"
+          v-if="
+            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
+          "
           label="机器人令牌"
           :label-width="formLabelWidth"
           required>
@@ -1506,7 +1525,9 @@
             autocomplete="off"></el-input>
         </el-form-item>
         <el-form-item
-          v-if="form.accountType === ImConnectionTypeOfficialQQ"
+          v-if="
+            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
+          "
           label="机器人密钥"
           :label-width="formLabelWidth"
           required>
@@ -1515,6 +1536,42 @@
             placeholder="填写在开放平台获取的AppSecret"
             type="text"
             autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item
+          v-if="
+            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
+          "
+          :label-width="formLabelWidth">
+          <el-button
+            type="primary"
+            :disabled="!isOfficialQQManualFormValid || officialQQTestTesting"
+            :loading="officialQQTestTesting"
+            @click="testOfficialQQManual">
+            测试连接
+          </el-button>
+        </el-form-item>
+        <el-form-item
+          v-if="
+            form.accountType === ImConnectionTypeOfficialQQ &&
+            form.officialQQLoginMode === 'manual' &&
+            officialQQTestTested
+          "
+          :label-width="formLabelWidth">
+          <el-alert v-if="officialQQTestResult?.exists" type="warning" :closable="false" show-icon>
+            <template #title>
+              测试成功，但该账号与现有连接重复（UIN: {{ officialQQTestResult.uin }}，昵称:
+              {{ officialQQTestResult.nickname || '未设置' }}）
+            </template>
+          </el-alert>
+          <el-alert v-else-if="officialQQTestResult" type="success" :closable="false" show-icon>
+            <template #title>
+              测试成功！识别账号：{{ officialQQTestResult.nickname || '未设置' }} (UIN:
+              {{ officialQQTestResult.uin }})
+            </template>
+          </el-alert>
+          <el-alert v-else-if="officialQQTestError" type="error" :closable="false" show-icon>
+            <template #title> 测试失败：{{ officialQQTestError }} </template>
+          </el-alert>
         </el-form-item>
         <el-form-item
           v-if="form.accountType === ImConnectionTypeOfficialQQ"
@@ -1531,7 +1588,8 @@
             <div>提示：进入腾讯开放平台创建一个机器人</div>
             <div>https://q.qq.com/#/app/bot</div>
             <div>创建之后进入机器人管理后台，切换到「开发 - 开发设置」页</div>
-            <div>把机器人的相关信息复制并粘贴进来</div>
+            <div v-if="form.officialQQLoginMode === 'manual'">把机器人的相关信息复制并粘贴进来</div>
+            <div v-else>点击下一步生成二维码，使用手机 QQ 扫描完成绑定。</div>
           </small>
         </el-form-item>
 
@@ -1839,6 +1897,37 @@
               style="width: 20rem; height: 20rem; image-rendering: pixelated" />
           </div>
 
+          <div
+            v-else-if="index === 2 && isOfficialQQQrWaiting(curConn)"
+            class="official-qq-qr-login">
+            <div>请使用手机 QQ 扫描二维码完成官方机器人绑定：</div>
+            <img
+              v-if="officialQQQrImage"
+              class="official-qq-qr-image"
+              alt="QQ 官方机器人绑定二维码"
+              :src="officialQQQrImage" />
+            <template v-else-if="officialQQQrUrl">
+              <img
+                v-if="officialQQQrRendered"
+                class="official-qq-qr-image"
+                alt="QQ 官方机器人绑定二维码"
+                :src="officialQQQrRendered" />
+              <el-text v-else type="info">正在生成二维码，请稍候。</el-text>
+              <div class="official-qq-qr-url">
+                <el-text type="info" size="small">原始绑定链接：</el-text>
+                <el-link
+                  class="official-qq-qr-url-link"
+                  :href="officialQQQrUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  type="primary">
+                  {{ officialQQQrUrl }}
+                </el-link>
+              </div>
+            </template>
+            <el-text v-else type="info">正在获取二维码，请稍候。</el-text>
+          </div>
+
           <div v-else-if="index === 2 && getMilkyTerminalLoginText(curConn.adapter?.loginState)">
             <div>{{ getMilkyTerminalLoginText(curConn.adapter?.loginState) }}</div>
             <div>二维码登录已结束，此账号已自动禁用。需要重新尝试时，请再次启用账号。</div>
@@ -1961,7 +2050,7 @@
     <template #footer>
       <span class="dialog-footer">
         <template v-if="form.step === 1">
-          <el-button @click="dialogFormVisible = false">取消</el-button>
+          <el-button @click="formClose">取消</el-button>
           <el-button
             type="primary"
             :disabled="
@@ -1991,11 +2080,17 @@
                   form.signServerName === '')) ||
               (form.accountType === ImConnectionTypeMilkySeparate &&
                 (form.wsGateway === '' || form.restGateway === '')) ||
-              (isInternalMilkyAccountType(form.accountType) && form.account === '')
+              (isInternalMilkyAccountType(form.accountType) && form.account === '') ||
+              (form.accountType === ImConnectionTypeOfficialQQ &&
+                form.officialQQLoginMode === 'manual' &&
+                (!officialQQTestTested || !officialQQTestResult || officialQQTestResult.exists))
             "
             @click="goStepTwo">
             下一步</el-button
           >
+        </template>
+        <template v-else-if="!form.isEnd">
+          <el-button @click="formClose">关闭</el-button>
         </template>
         <template v-if="form.isEnd">
           <el-button @click="formClose">确定</el-button>
@@ -2047,7 +2142,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import {
   useStore,
   goCqHttpStateCode,
@@ -2070,6 +2165,7 @@ import {
   ImConnectionTypeMilkyInternalYogurt,
   ImConnectionTypeOfficialQQ,
   ImConnectionTypeSatori,
+  OfficialQQQRLoginState,
 } from '~/store';
 import type { DiceConnection } from '~/store';
 import { Plus, Edit, QuestionFilled, Delete } from '@element-plus/icons-vue';
@@ -2088,9 +2184,11 @@ import {
   postGoCqCaptchaSet,
   postGoCqHttpRelogin,
   postSmsCodeSet,
+  type OfficialQQTestResult,
   type SignInfo,
 } from '~/api/im_connections';
 import { postToolOnebot } from '~/api/others';
+import QRCode from 'qrcode';
 
 dayjs.extend(relativeTime);
 
@@ -2142,6 +2240,16 @@ const dialogSetDataFormVisible = ref(false);
 const dialogSlideVisible = ref(false);
 const formLabelWidth = '120px';
 const isTestMode = ref(false);
+const officialQQQrImage = ref('');
+const officialQQQrUrl = ref('');
+const officialQQQrRendered = ref('');
+const officialQQQrReason = ref('');
+const officialQQQrSession = ref(0);
+
+const officialQQTestTesting = ref(false);
+const officialQQTestTested = ref(false);
+const officialQQTestResult = ref<OfficialQQTestResult | null>(null);
+const officialQQTestError = ref('');
 
 const slideIframe = ref(null);
 const slideLink = ref('');
@@ -2243,6 +2351,108 @@ const setRecentLogin = () => {
   }, 3000);
 };
 
+const resetOfficialQQQrLogin = () => {
+  officialQQQrSession.value += 1;
+  officialQQQrImage.value = '';
+  officialQQQrUrl.value = '';
+  officialQQQrRendered.value = '';
+  officialQQQrReason.value = '';
+};
+
+const resetOfficialQQManualTestState = () => {
+  officialQQTestTesting.value = false;
+  officialQQTestTested.value = false;
+  officialQQTestResult.value = null;
+  officialQQTestError.value = '';
+};
+
+const isOfficialQQManualFormValid = computed(() => {
+  return (
+    form.accountType === ImConnectionTypeOfficialQQ &&
+    form.officialQQLoginMode === 'manual' &&
+    typeof form.appID === 'number' &&
+    Number.isInteger(form.appID) &&
+    form.appID > 0 &&
+    form.appSecret.trim() !== '' &&
+    form.token.trim() !== ''
+  );
+});
+
+const isOfficialQQTestResult = (value: unknown): value is OfficialQQTestResult => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return (
+    candidate.result === true && candidate.testOnly === true && typeof candidate.uin === 'string'
+  );
+};
+
+const testOfficialQQManual = async () => {
+  if (!isOfficialQQManualFormValid.value || officialQQTestTesting.value) {
+    return;
+  }
+  officialQQTestTesting.value = true;
+  officialQQTestTested.value = false;
+  officialQQTestResult.value = null;
+  officialQQTestError.value = '';
+  try {
+    const res = await store.addImConnection(form, true);
+    if (isOfficialQQTestResult(res)) {
+      officialQQTestResult.value = res;
+    } else {
+      officialQQTestError.value = '服务器返回了非预期格式的测试结果';
+    }
+  } catch (e: unknown) {
+    const errMessage = e instanceof Error ? e.message : String(e);
+    officialQQTestError.value = errMessage || '请求失败';
+  } finally {
+    officialQQTestTesting.value = false;
+    officialQQTestTested.value = true;
+  }
+};
+
+watch(
+  [
+    () => form.accountType,
+    () => form.officialQQLoginMode,
+    () => form.appID,
+    () => form.appSecret,
+    () => form.token,
+    () => form.onlyQQGuild,
+  ],
+  () => {
+    resetOfficialQQManualTestState();
+  },
+);
+
+/** Core 仅返回 url 时，在前端把绑定链接画成可扫二维码 */
+const renderOfficialQQQrFromUrl = async (url: string, session: number, connectionId: string) => {
+  try {
+    const dataUrl = await QRCode.toDataURL(url, {
+      width: 320,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+    });
+    if (session !== officialQQQrSession.value || connectionId !== curConnId.value) {
+      return;
+    }
+    officialQQQrRendered.value = dataUrl;
+  } catch {
+    if (session !== officialQQQrSession.value || connectionId !== curConnId.value) {
+      return;
+    }
+    officialQQQrRendered.value = '';
+  }
+};
+
+const isOfficialQQQrWaiting = (connection: DiceConnection) => {
+  return (
+    connection.protocolType === 'official' &&
+    connection.adapter?.qrLoginState === OfficialQQQRLoginState.WaitingForScan
+  );
+};
+
 const openSocks = async () => {
   const ret = await postToolOnebot();
   if (ret.ok) {
@@ -2323,14 +2533,26 @@ const getAddConnectionFailureMessage = (error: unknown) => {
 };
 
 const goStepTwo = async () => {
+  resetOfficialQQQrLogin();
   form.step = 2;
   curConnId.value = '';
   setRecentLogin();
   duringRelogin.value = false;
 
+  if (form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode') {
+    form.appID = 0;
+    form.appSecret = '';
+    form.token = '';
+  }
+
   store
     .addImConnection(form as any)
     .then(conn => {
+      if (isOfficialQQTestResult(conn)) {
+        ElMessageBox.alert('测试响应不可用于添加账号，请重新尝试', '添加失败');
+        formClose();
+        return;
+      }
       if ((conn as any).testMode) {
         isTestMode.value = true;
       } else {
@@ -2342,13 +2564,20 @@ const goStepTwo = async () => {
       ElMessageBox.alert(getAddConnectionFailureMessage(e), '添加失败');
       formClose();
     });
-  if (form.accountType > 0) {
+  if (
+    form.accountType > 0 &&
+    !(form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode')
+  ) {
     dialogFormVisible.value = false;
     form.account = '';
     form.step = 1;
     return;
   }
   activities.value = [];
+  if (form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode') {
+    activities.value.push(fullActivities[0], fullActivities[1], fullActivities[2]);
+    return;
+  }
   await sleep(500);
   activities.value.push(fullActivities[0]);
   await sleep(1000);
@@ -2359,9 +2588,15 @@ const goStepTwo = async () => {
 
 const formClose = async () => {
   curConnId.value = '';
+  curConn.value = {} as DiceConnection;
   dialogFormVisible.value = false;
   form.step = 1;
   form.isEnd = false;
+  form.officialQQLoginMode = 'manual';
+  isTestMode.value = false;
+  activities.value = [];
+  resetOfficialQQQrLogin();
+  resetOfficialQQManualTestState();
 };
 
 const setEnable = async (i: DiceConnection, val: boolean) => {
@@ -2647,8 +2882,16 @@ const handleSignServerDelete = (url: string) => {
 
 const supportedQQVersions = ref<string[]>([]);
 
+const isInternalMilkyAccountType = (accountType: number) => {
+  return (
+    accountType === ImConnectionTypeMilkyInternal ||
+    accountType === ImConnectionTypeMilkyInternalLagrange ||
+    accountType === ImConnectionTypeMilkyInternalYogurt
+  );
+};
+
 const form = reactive({
-  accountType: 15,
+  accountType: ImConnectionTypeMilkyInternalYogurt,
   step: 1,
   isEnd: false,
   account: '',
@@ -2678,9 +2921,10 @@ const form = reactive({
   host: '',
   port: '',
 
-  appID: undefined,
+  appID: undefined as number | undefined,
   appSecret: '',
   onlyQQGuild: true,
+  officialQQLoginMode: 'manual' as 'manual' | 'qrcode',
 
   useSignServer: false,
   signServerConfig: {
@@ -2714,13 +2958,36 @@ const form = reactive({
 
 export type addImConnectionForm = typeof form;
 
-const isInternalMilkyAccountType = (accountType: number) => {
-  return (
-    accountType === ImConnectionTypeMilkyInternal ||
-    accountType === ImConnectionTypeMilkyInternalLagrange ||
-    accountType === ImConnectionTypeMilkyInternalYogurt
-  );
+const isContainerMode = () => {
+  return store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode;
 };
+
+const isQQAccountType = (accountType: number) => {
+  return [
+    ImConnectionTypeGocqLegacy,
+    ImConnectionTypeOnebotSeparate,
+    ImConnectionTypeRed,
+    ImConnectionTypeOfficialQQ,
+    ImConnectionTypeOnebotReverse,
+    ImConnectionTypeLagrangeOnebot,
+    ImConnectionTypeMilkySeparate,
+    ImConnectionTypeMilkyInternal,
+    ImConnectionTypeMilkyInternalLagrange,
+    ImConnectionTypeMilkyInternalYogurt,
+  ].includes(accountType);
+};
+
+const selectedAccountPlatform = computed<number | 'QQ'>({
+  get: () => (isQQAccountType(form.accountType) ? 'QQ' : form.accountType),
+  set: accountType => {
+    form.accountType =
+      accountType === 'QQ'
+        ? isContainerMode()
+          ? ImConnectionTypeOnebotSeparate
+          : ImConnectionTypeMilkyInternalYogurt
+        : accountType;
+  },
+});
 
 const shouldShowMilkyQrcode = (state: goCqHttpStateCode | undefined) => {
   return (
@@ -2742,6 +3009,7 @@ const getMilkyTerminalLoginText = (state: goCqHttpStateCode | undefined) => {
 
 // 添加一个新账号
 const addOne = () => {
+  resetOfficialQQQrLogin();
   dialogFormVisible.value = true;
   form.protocol = 6;
   form.implementation = 'gocq';
@@ -2765,7 +3033,8 @@ const refreshLoginStates = async () => {
     for (const i of store.curDice.conns || []) {
       // 获取二维码
       if (shouldShowMilkyQrcode(i.adapter?.loginState)) {
-        store.curDice.qrcodes[i.id] = (await postConnectionQrcode(i.id)).img;
+        const response = await postConnectionQrcode(i.id);
+        store.curDice.qrcodes[i.id] = response.img || '';
       }
       if (getMilkyTerminalLoginText(i.adapter?.loginState)) {
         delete store.curDice.qrcodes[i.id];
@@ -2774,12 +3043,47 @@ const refreshLoginStates = async () => {
       if (i.id === curConnId.value) {
         curConn.value = i;
 
+        if (isOfficialQQQrWaiting(i)) {
+          const session = officialQQQrSession.value;
+          const response = await postConnectionQrcode(i.id);
+          if (session !== officialQQQrSession.value || i.id !== curConnId.value) {
+            return;
+          }
+          officialQQQrImage.value = response.img || '';
+          officialQQQrUrl.value = response.url || '';
+          officialQQQrReason.value = response.reason || '';
+          if (officialQQQrReason.value) {
+            ElMessage.error(`QQ 官方机器人扫码登录失败：${officialQQQrReason.value}`);
+            await formClose();
+            return;
+          }
+          // 有服务端图片时直接用；URL-only 时前端生成二维码，并保留原始 url
+          if (officialQQQrImage.value) {
+            officialQQQrRendered.value = '';
+          } else if (officialQQQrUrl.value) {
+            await renderOfficialQQQrFromUrl(officialQQQrUrl.value, session, i.id);
+          } else {
+            officialQQQrRendered.value = '';
+          }
+        }
+
         // 登录失败
         if (
           i.state !== 1 &&
           (i.adapter?.loginState === goCqHttpStateCode.LoginFailed ||
-            getMilkyTerminalLoginText(i.adapter?.loginState))
+            getMilkyTerminalLoginText(i.adapter?.loginState) ||
+            (i.protocolType === 'official' &&
+              i.adapter?.qrLoginState === OfficialQQQRLoginState.Failed))
         ) {
+          if (i.protocolType === 'official') {
+            const reason =
+              officialQQQrReason.value ||
+              i.adapter?.curLoginFailedReason ||
+              '请检查账号是否已重复添加';
+            ElMessage.error(`QQ 官方机器人扫码登录失败：${reason}`);
+            await formClose();
+            return;
+          }
           form.isEnd = true;
         }
 
@@ -2810,11 +3114,8 @@ onBeforeMount(async () => {
     supportedQQVersions.value = ['', ...versionsRes.versions];
   }
 
-  // form.accountType 默认账号类型为内置客户端
-  if (store.diceServers.length > 0) {
-    if (store.diceServers[0].baseInfo.containerMode) {
-      form.accountType = 6;
-    }
+  if (isContainerMode()) {
+    form.accountType = ImConnectionTypeOnebotSeparate;
   }
 
   await refreshLoginStates();
@@ -2929,6 +3230,35 @@ const doRemove = async (i: DiceConnection) => {
   width: min(100%, 18rem);
   margin-top: 0.25rem;
   text-align: left;
+}
+
+.official-qq-qr-login {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.official-qq-qr-image {
+  width: 20rem;
+  height: 20rem;
+  border: 0;
+  image-rendering: pixelated;
+}
+
+.official-qq-qr-url {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 24rem;
+  text-align: center;
+  word-break: break-all;
+}
+
+.official-qq-qr-url-link {
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 </style>
 

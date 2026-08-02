@@ -56,6 +56,12 @@ export enum goCqHttpStateCode {
   Closed = 20,
 }
 
+export enum OfficialQQQRLoginState {
+  Initial = 0,
+  WaitingForScan = 1,
+  Failed = 2,
+}
+
 export const ImConnectionTypeGocqLegacy = 0;
 export const ImConnectionTypeDiscord = 1;
 export const ImConnectionTypeKook = 2;
@@ -106,6 +112,7 @@ export interface AdapterQQ {
   signServerVer: string;
   signServerName: string;
   imageAssetBaseUrl: string;
+  qrLoginState?: OfficialQQQRLoginState;
 }
 
 interface TalkLogItem {
@@ -300,7 +307,7 @@ export const useStore = defineStore('main', {
       return info;
     },
 
-    async addImConnection(form: addImConnectionForm) {
+    async addImConnection(form: addImConnectionForm, officialQQTestOnly?: boolean) {
       const {
         accountType,
         nickname,
@@ -367,7 +374,13 @@ export const useStore = defineStore('main', {
           info = await postAddSlack(botToken, appToken);
           break;
         case ImConnectionTypeOfficialQQ:
-          info = await postAddOfficialQQ(Number(appID), appSecret, token, onlyQQGuild);
+          info = await postAddOfficialQQ(
+            Number(appID),
+            appSecret,
+            token,
+            onlyQQGuild,
+            officialQQTestOnly,
+          );
           break;
         case ImConnectionTypeOnebotReverse:
           info = await postAddOnebot11ReverseWs(account, reverseAddr?.trim());

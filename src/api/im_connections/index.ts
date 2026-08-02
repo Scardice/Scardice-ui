@@ -118,16 +118,47 @@ export function postAddSlack(botToken: string, appToken: string) {
   });
 }
 
+export interface OfficialQQTestResult {
+  result: true;
+  testOnly: true;
+  userId: string;
+  uin: string;
+  nickname: string;
+  exists: boolean;
+}
+
 export function postAddOfficialQQ(
   appID: number,
   appSecret: string,
   token: string,
   onlyQQGuild: boolean,
+  testOnly?: false,
+): Promise<DiceConnection>;
+export function postAddOfficialQQ(
+  appID: number,
+  appSecret: string,
+  token: string,
+  onlyQQGuild: boolean,
+  testOnly: true,
+): Promise<OfficialQQTestResult>;
+export function postAddOfficialQQ(
+  appID: number,
+  appSecret: string,
+  token: string,
+  onlyQQGuild: boolean,
+  testOnly?: boolean,
+): Promise<DiceConnection | OfficialQQTestResult>;
+export function postAddOfficialQQ(
+  appID: number,
+  appSecret: string,
+  token: string,
+  onlyQQGuild: boolean,
+  testOnly?: boolean,
 ) {
-  return request<DiceConnection>(
+  return request<DiceConnection | OfficialQQTestResult>(
     'post',
     'addOfficialQQ',
-    { appID, appSecret, token, onlyQQGuild },
+    { appID, appSecret, token, onlyQQGuild, testOnly },
     'json',
     {
       timeout: 65000,
@@ -184,7 +215,7 @@ export function postConnectionDel(id: string) {
 }
 
 export function postConnectionQrcode(id: string) {
-  return request<{ img: string; reason?: string }>('post', 'qrcode', { id });
+  return request<{ url: string; img?: string; reason?: string }>('post', 'qrcode', { id });
 }
 
 export function postSmsCodeSet(id: string, code: string) {
