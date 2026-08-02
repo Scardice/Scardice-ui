@@ -2,6 +2,8 @@ import type { AxiosProgressEvent, AxiosRequestConfig } from 'axios';
 import type { AdvancedConfig } from '~/type';
 import { createRequest } from '..';
 
+export * from './noticeCodec';
+
 const baseUrl = '/dice/';
 const request = createRequest(baseUrl);
 const firmwareUploadTimeout = 10 * 60 * 1000;
