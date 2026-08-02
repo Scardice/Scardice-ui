@@ -125,6 +125,10 @@
       <el-menu-item index="/tool/ui-beautify">
         <span>UI 美化</span>
       </el-menu-item>
+
+      <el-menu-item index="/tool/pprof">
+        <span>性能分析</span>
+      </el-menu-item>
     </el-sub-menu>
 
     <el-menu-item index="/about">

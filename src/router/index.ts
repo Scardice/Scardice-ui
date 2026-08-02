@@ -71,6 +71,11 @@ const router = createRouter({
           name: 'tool-ui-beautify',
           component: () => import('~/components/tool/PageUiBeautify.vue'),
         },
+        {
+          path: 'pprof',
+          name: 'tool-pprof',
+          component: () => import('~/components/tool/PagePprof.vue'),
+        },
       ],
     },
     {
