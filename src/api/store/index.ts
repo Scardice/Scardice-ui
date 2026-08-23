@@ -1,4 +1,4 @@
-import { createRequest } from '..';
+import { apiBaseURL, createRequest } from '..';
 import type { ContentKind, PackageUploadPreview } from '~/api/package';
 import type { ApiResponse } from '../types';
 
@@ -67,7 +67,9 @@ const getStoreApiUrl = (pkg: StorePackage, backendUrl = '') => {
   }
 };
 
-export function getStorePackageAssetUrl(pkg: StorePackage, path: string, backendUrl = '') {
+// 资源预览统一走本项目后端的 /store/file 代理：core 侧在该路由上补了
+// Cache-Control、X-Content-Type-Options 与 CSP 响应头，直连商店后端会丢掉这些防护。
+export function getStorePackageAssetUrl(pkg: StorePackage, path: string) {
   const asset = path.trim();
   if (!asset) {
     return '';
@@ -76,23 +78,14 @@ export function getStorePackageAssetUrl(pkg: StorePackage, path: string, backend
     return asset;
   }
 
-  const apiUrl = getStoreApiUrl(pkg, backendUrl);
-  if (!apiUrl) {
-    return '';
-  }
-  if (asset.startsWith('/') || asset.startsWith('//')) {
-    return new URL(asset, apiUrl).toString();
-  }
-
   const packageParts = getStorePackageParts(pkg.id);
   if (!packageParts) {
     return '';
   }
-  apiUrl.pathname = `${apiUrl.pathname.replace(/\/$/, '')}/file/${encodeURIComponent(
+  const previewPath = `${apiBaseURL}/store/file/${encodeURIComponent(
     packageParts.namespace,
   )}/${encodeURIComponent(packageParts.packageName)}/${encodeURIComponent(pkg.version)}`;
-  apiUrl.searchParams.set('path', asset);
-  return apiUrl.toString();
+  return `${previewPath}?${new URLSearchParams({ path: asset.replace(/^\/+/, '') }).toString()}`;
 }
 
 export function getStorePackageDetailUrl(pkg: StorePackage, backendUrl = '') {

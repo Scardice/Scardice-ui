@@ -74,7 +74,18 @@
           border
           class="drawer-descriptions">
           <el-descriptions-item v-for="item in storeAssetEntries" :key="item.key" :label="item.key">
-            <span class="break-text">{{ item.value }}</span>
+            <template v-if="item.links.length > 0">
+              <div v-for="link in item.links" :key="link.value">
+                <el-link
+                  :href="link.href"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :underline="false">
+                  <span class="break-text">{{ link.value }}</span>
+                </el-link>
+              </div>
+            </template>
+            <span v-else class="break-text">{{ item.value }}</span>
           </el-descriptions-item>
         </el-descriptions>
         <el-empty v-else description="无资源信息" />
@@ -107,7 +118,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ContentKind } from '~/api/package';
-import type { StorePackage } from '~/api/store';
+import { getStorePackageAssetUrl, type StorePackage } from '~/api/store';
 import { formatTime } from './time';
 
 const props = withDefaults(
@@ -143,12 +154,23 @@ const dependencyEntries = computed(() => {
 });
 
 const storeAssetEntries = computed(() => {
-  return Object.entries(props.data?.storeAssets ?? {}).flatMap(([key, rawValue]) => {
+  const pkg = props.data;
+  return Object.entries(pkg?.storeAssets ?? {}).flatMap(([key, rawValue]) => {
     if (rawValue === undefined || rawValue === null) {
       return [];
     }
-    const value = Array.isArray(rawValue) ? rawValue.join('\n') : String(rawValue);
-    return value ? [{ key, value }] : [];
+    const values = (Array.isArray(rawValue) ? rawValue : [String(rawValue)])
+      .map(item => String(item).trim())
+      .filter(Boolean);
+    if (values.length === 0) {
+      return [];
+    }
+    const links = pkg
+      ? values
+          .map(value => ({ value, href: getStorePackageAssetUrl(pkg, value) }))
+          .filter(link => link.href)
+      : [];
+    return [{ key, value: values.join('\n'), links }];
   });
 });
 
