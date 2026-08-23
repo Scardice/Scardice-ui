@@ -18,6 +18,8 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <el-button :icon="Download" @click="exportInstalledPackageList"> 导出清单 </el-button>
+      <el-button :icon="Upload" @click="openManifestInstallDialog"> 从清单安装 </el-button>
       <el-button type="primary" :icon="Refresh" :loading="loading" @click="loadPackageData">
         刷新
       </el-button>
@@ -375,9 +377,10 @@
         <el-checkbox v-model="storeInstallAutoEnable" class="auto-enable-checkbox">
           安装后尝试启用扩展包
         </el-checkbox>
-        <pre class="preview-file-list">{{
-          (storeInstallPreviewData.files ?? []).join('\n') || '无文件列表'
-        }}</pre>
+        <section class="preview-file-tree">
+          <header class="preview-file-tree-title">文件清单</header>
+          <PackageFileTree :files="storeInstallPreviewData.files ?? []" />
+        </section>
       </template>
     </div>
     <template #footer>
@@ -391,13 +394,104 @@
       </el-button>
     </template>
   </el-dialog>
+
+  <el-dialog
+    v-model="manifestInstallVisible"
+    title="从清单安装扩展包"
+    width="min(760px, 92vw)"
+    destroy-on-close>
+    <el-alert
+      class="package-alert"
+      type="info"
+      :closable="false"
+      show-icon
+      title="粘贴或选择 sealpack 依赖清单（TOML），将按清单中的确切版本从商店批量安装。" />
+    <el-space wrap class="manifest-install-actions">
+      <el-button :icon="Upload" @click="triggerManifestInstallFilePick">选择清单文件</el-button>
+      <el-text v-if="manifestInstallFileName" size="small" type="info">
+        {{ manifestInstallFileName }}
+      </el-text>
+    </el-space>
+    <input
+      ref="manifestInstallFileInput"
+      type="file"
+      accept=".toml,text/plain"
+      class="manifest-install-file-input"
+      @change="handleManifestInstallFileChange" />
+    <el-input
+      v-model="manifestInstallContent"
+      type="textarea"
+      :rows="8"
+      placeholder='[dependencies]&#10;"namespace/package" = "=1.0.0"'
+      @input="resetManifestInstallResults" />
+    <el-alert
+      v-if="manifestInstallPreview.error"
+      class="package-alert"
+      type="error"
+      :closable="false"
+      show-icon
+      :title="manifestInstallPreview.error" />
+    <el-table
+      v-else-if="manifestInstallPreview.items?.length"
+      v-loading="manifestInstallNamesLoading"
+      :data="manifestInstallPreview.items"
+      class="package-table"
+      size="small">
+      <el-table-column label="扩展包" min-width="220">
+        <template #default="scope">
+          <div>{{ manifestInstallPackageNames[scope.row.id] || '-' }}</div>
+          <el-text size="small" type="info">{{ scope.row.id }}</el-text>
+        </template>
+      </el-table-column>
+      <el-table-column label="版本" width="140" prop="version" />
+      <el-table-column label="状态" width="140">
+        <template #default="scope">
+          <el-tag size="small" :type="manifestInstallResultTagType(scope.row.id)">
+            {{ manifestInstallResultText(scope.row.id) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="说明" min-width="200">
+        <template #default="scope">
+          {{ manifestInstallResultMap.get(scope.row.id)?.message || '' }}
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-checkbox v-model="manifestInstallAutoEnable" class="auto-enable-checkbox">
+      安装后尝试启用扩展包
+    </el-checkbox>
+    <el-progress
+      v-if="manifestInstallProgressText"
+      :percentage="manifestInstallProgress"
+      :status="manifestInstallProgressStatus" />
+    <el-text v-if="manifestInstallProgressText" size="small" type="info">
+      {{ manifestInstallProgressText }}
+    </el-text>
+    <template #footer>
+      <el-button @click="manifestInstallVisible = false">关闭</el-button>
+      <el-button
+        type="primary"
+        :disabled="!manifestInstallPreview.items?.length"
+        :loading="manifestInstallLoading"
+        @click="handleManifestInstall">
+        开始安装
+      </el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeMount, reactive, ref, watch } from 'vue';
-import { Box, Refresh, Shop } from '@element-plus/icons-vue';
+import { Box, Download, Refresh, Shop, Upload } from '@element-plus/icons-vue';
+import PackageFileTree from './package/PackageFileTree.vue';
 import PackageInstalledDrawer from './package/PackageInstalledDrawer.vue';
 import PackageStoreDrawer from './package/PackageStoreDrawer.vue';
+import {
+  MAX_PACKAGE_INSTALL_LIST_ITEMS,
+  parsePackageInstallList,
+  serializePackageInstallList,
+  type PackageInstallListItem,
+} from './package/package-install-list';
 import { formatTime } from './package/time';
 import {
   disablePackage,
@@ -423,10 +517,13 @@ import {
   getStoreBackendList,
   getStorePage,
   getStoreRecommend,
+  getStorePackageInfoList,
+  installStorePackageList,
   previewStorePackageDownload,
   removeStoreBackend,
   setStoreBackendEnabled,
   type StoreBackendRecord,
+  type StoreInstallListItemResult,
   type StorePageQuery,
   type StorePackage,
 } from '~/api/store';
@@ -469,6 +566,19 @@ const storeQuery = reactive<StorePageQuery>({
   pageNum: 1,
   pageSize: 12,
 });
+const manifestInstallVisible = ref(false);
+const manifestInstallContent = ref('');
+const manifestInstallFileName = ref('');
+const manifestInstallFileInput = ref<HTMLInputElement | null>(null);
+const manifestInstallAutoEnable = ref(true);
+const manifestInstallLoading = ref(false);
+const manifestInstallNamesLoading = ref(false);
+const manifestInstallPackageNames = ref<Record<string, string>>({});
+const manifestInstallResults = ref<StoreInstallListItemResult[]>([]);
+const manifestInstallProgress = ref(0);
+const manifestInstallProgressStatus = ref<'success' | 'exception' | undefined>(undefined);
+const manifestInstallProgressText = ref('');
+let manifestInstallPackageInfoRequest = 0;
 
 const loading = computed(() => installedLoading.value || storeLoading.value);
 const enabledStoreBackends = computed(() => storeBackends.value.filter(isBackendEnabled));
@@ -755,6 +865,259 @@ const refreshCurrentStoreView = async () => {
 const loadPackageData = async () => {
   await Promise.all([loadInstalledPackages(), loadStorePackages()]);
 };
+
+const installedPackageListItems = computed<PackageInstallListItem[]>(() =>
+  installedPackages.value.map(item => ({
+    id: packageId(item),
+    version: item.manifest.package.version,
+  })),
+);
+
+const manifestInstallPreview = computed<{ items: PackageInstallListItem[] | null; error: string }>(
+  () => {
+    if (!manifestInstallContent.value.trim()) {
+      return { items: null, error: '' };
+    }
+    try {
+      return { items: parsePackageInstallList(manifestInstallContent.value), error: '' };
+    } catch (error) {
+      return { items: null, error: getErrorMessage(error) };
+    }
+  },
+);
+
+const manifestInstallResultMap = computed(
+  () => new Map(manifestInstallResults.value.map(item => [item.id, item])),
+);
+
+const manifestInstallResultText = (id: string) => {
+  switch (manifestInstallResultMap.value.get(id)?.status) {
+    case 'installed':
+      return '安装成功';
+    case 'skipped':
+      return '无需安装';
+    case 'failed':
+      return '安装失败';
+    default:
+      return '待安装';
+  }
+};
+
+const manifestInstallResultTagType = (id: string): 'success' | 'info' | 'danger' => {
+  switch (manifestInstallResultMap.value.get(id)?.status) {
+    case 'installed':
+      return 'success';
+    case 'failed':
+      return 'danger';
+    default:
+      return 'info';
+  }
+};
+
+const exportInstalledPackageList = () => {
+  if (installedPackageListItems.value.length === 0) {
+    ElMessage.warning('当前没有已安装的扩展包');
+    return;
+  }
+  const content = serializePackageInstallList(installedPackageListItems.value);
+  const blob = new Blob([content], { type: 'application/toml;charset=utf-8' });
+  const objectURL = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectURL;
+  anchor.download = 'sealpack-dependencies.toml';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectURL), 0);
+  ElMessage.success('扩展包清单已下载');
+};
+
+const resetManifestInstallResults = () => {
+  manifestInstallResults.value = [];
+  manifestInstallProgress.value = 0;
+  manifestInstallProgressStatus.value = undefined;
+  manifestInstallProgressText.value = '';
+};
+
+const refreshManifestInstallPackageNames = async (items: PackageInstallListItem[] | null) => {
+  const requestID = ++manifestInstallPackageInfoRequest;
+  manifestInstallNamesLoading.value = false;
+  if (!items) {
+    manifestInstallPackageNames.value = {};
+    return;
+  }
+
+  const names: Record<string, string> = {};
+  const unresolved = items.filter(item => {
+    const installed = installedPackages.value.find(pkg => packageId(pkg) === item.id);
+    const storePackage = storePackages.value.find(pkg => pkg.id === item.id);
+    const name = installed?.manifest.package.name || storePackage?.name;
+    if (name) {
+      names[item.id] = name;
+      return false;
+    }
+    return true;
+  });
+  manifestInstallPackageNames.value = names;
+  if (unresolved.length === 0) {
+    return;
+  }
+
+  manifestInstallNamesLoading.value = true;
+  try {
+    const response = await getStorePackageInfoList(unresolved);
+    if (requestID !== manifestInstallPackageInfoRequest) {
+      return;
+    }
+    if (response.result && response.data) {
+      response.data.forEach(item => {
+        if (item.name) {
+          names[item.id] = item.name;
+        }
+      });
+      manifestInstallPackageNames.value = { ...names };
+    }
+  } catch {
+    // 单个包的元数据获取失败时，表格中保留占位符即可。
+  } finally {
+    if (requestID === manifestInstallPackageInfoRequest) {
+      manifestInstallNamesLoading.value = false;
+    }
+  }
+};
+
+const openManifestInstallDialog = () => {
+  manifestInstallContent.value = '';
+  manifestInstallFileName.value = '';
+  manifestInstallAutoEnable.value = true;
+  resetManifestInstallResults();
+  void refreshManifestInstallPackageNames(null);
+  manifestInstallVisible.value = true;
+};
+
+const triggerManifestInstallFilePick = () => {
+  manifestInstallFileInput.value?.click();
+};
+
+const handleManifestInstallFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) {
+    return;
+  }
+  if (file.size > 1024 * 1024) {
+    ElMessage.error('清单文件不能超过 1 MB');
+    return;
+  }
+
+  try {
+    manifestInstallContent.value = await file.text();
+    manifestInstallFileName.value = file.name;
+    resetManifestInstallResults();
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error));
+  }
+};
+
+const handleManifestInstall = async () => {
+  const items = manifestInstallPreview.value.items;
+  if (!items?.length || manifestInstallLoading.value) {
+    return;
+  }
+  if (items.length > MAX_PACKAGE_INSTALL_LIST_ITEMS) {
+    ElMessage.error(`清单中的扩展包不能超过 ${MAX_PACKAGE_INSTALL_LIST_ITEMS} 个`);
+    return;
+  }
+
+  manifestInstallLoading.value = true;
+  manifestInstallResults.value = [];
+  manifestInstallProgress.value = 10;
+  manifestInstallProgressStatus.value = undefined;
+  manifestInstallProgressText.value = '正在从扩展商店下载并安装清单...';
+
+  try {
+    const response = await installStorePackageList(items);
+    if (!response.result || !response.data) {
+      manifestInstallProgressStatus.value = 'exception';
+      manifestInstallProgressText.value = '清单安装失败';
+      ElMessage.error(getResponseError(response, '清单安装失败'));
+      return;
+    }
+
+    manifestInstallResults.value = response.data.items.map(item => ({ ...item }));
+    manifestInstallProgress.value = 60;
+    manifestInstallProgressText.value = manifestInstallAutoEnable.value
+      ? '安装完成，正在启用扩展包...'
+      : '扩展包安装完成';
+    await loadInstalledPackages();
+
+    let enableFailedCount = 0;
+    if (manifestInstallAutoEnable.value) {
+      const candidates = manifestInstallResults.value.filter(item => item.status !== 'failed');
+      for (let index = 0; index < candidates.length; index += 1) {
+        const item = candidates[index];
+        const installedPackage = installedPackages.value.find(pkg => packageId(pkg) === item.id);
+        if (!installedPackage) {
+          item.status = 'failed';
+          item.message = '安装完成后未找到扩展包记录';
+          enableFailedCount += 1;
+        } else if (installedPackage.state !== 'enabled') {
+          try {
+            const enableResponse = await enablePackage(item.id);
+            if (!enableResponse.result) {
+              item.message = getResponseError(enableResponse, '自动启用扩展包失败');
+              enableFailedCount += 1;
+            } else {
+              item.message = '扩展包已启用';
+            }
+          } catch (error) {
+            item.message = getErrorMessage(error);
+            enableFailedCount += 1;
+          }
+        }
+        manifestInstallProgress.value = Math.min(
+          90,
+          60 + Math.round(((index + 1) / Math.max(candidates.length, 1)) * 30),
+        );
+      }
+      await loadInstalledPackages();
+    }
+
+    await refreshCurrentStoreView();
+    const failedCount = response.data.failed + enableFailedCount;
+    manifestInstallProgress.value = 100;
+    manifestInstallProgressStatus.value = failedCount > 0 ? 'exception' : 'success';
+    manifestInstallProgressText.value = [
+      `安装 ${response.data.installed} 个`,
+      `跳过 ${response.data.skipped} 个`,
+      `失败 ${response.data.failed} 个`,
+      enableFailedCount > 0 ? `启用失败 ${enableFailedCount} 个` : '',
+    ]
+      .filter(Boolean)
+      .join('，');
+
+    if (failedCount > 0) {
+      ElMessage.warning('清单已处理完成，部分扩展包需要手动检查');
+    } else {
+      ElMessage.success('清单中的扩展包已处理完成');
+    }
+  } catch (error) {
+    manifestInstallProgress.value = Math.max(manifestInstallProgress.value, 10);
+    manifestInstallProgressStatus.value = 'exception';
+    manifestInstallProgressText.value = '清单安装失败';
+    ElMessage.error(getErrorMessage(error));
+  } finally {
+    manifestInstallLoading.value = false;
+  }
+};
+
+watch(
+  () => manifestInstallPreview.value.items,
+  items => {
+    void refreshManifestInstallPackageNames(items);
+  },
+);
 
 const refreshCurrentPackageDetail = async () => {
   if (!currentPackageId.value) {
@@ -1153,5 +1516,22 @@ onBeforeMount(() => {
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.preview-file-tree {
+  margin-top: 0.75rem;
+}
+
+.preview-file-tree-title {
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.manifest-install-actions {
+  margin-bottom: 0.75rem;
+}
+
+.manifest-install-file-input {
+  display: none;
 }
 </style>
