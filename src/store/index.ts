@@ -303,8 +303,10 @@ export const useStore = defineStore('main', {
 
     async getImConnections() {
       const info = await getConnectionList();
-      this.diceServers[this.index].conns = info;
-      return info;
+      // core 的 /im_connections/list 直接序列化 EndPoints，空切片会返回 null。
+      const connections = info ?? [];
+      this.diceServers[this.index].conns = connections;
+      return connections;
     },
 
     async addImConnection(form: addImConnectionForm, officialQQTestOnly?: boolean) {
