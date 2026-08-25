@@ -486,6 +486,27 @@
       <el-input v-model="config.uiPassword" type="password" show-password style="width: auto" />
     </el-form-item>
 
+    <el-form-item label="托盘提示文本">
+      <template #label>
+        <div>
+          <span>托盘提示文本</span>
+          <el-tooltip
+            :content="`自定义前缀最长${trayTooltipMaxLength}个字符；留空时使用“余烬TRPG骰点核心”，版本号和端口会自动追加`">
+            <el-icon><question-filled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
+      <div>
+        <el-input
+          v-model="config.trayTooltip"
+          clearable
+          placeholder="余烬TRPG骰点核心"
+          show-word-limit
+          :maxlength="trayTooltipMaxLength"
+          style="width: 14rem" />
+      </div>
+    </el-form-item>
+
     <h2>QQ 频道设置</h2>
     <el-form-item>
       <template #label>
@@ -815,6 +836,8 @@ import { showProgressMessage } from '~/utils/progress-message';
 import { formatUploadFailureMessage } from '~/utils/upload-error';
 
 const minFirmwareProgressMessageDuration = 800;
+// 与 core 的 dice.MaxTrayTooltipPrefixLength 保持一致，超出会被后端拒绝保存。
+const trayTooltipMaxLength = 10;
 
 const store = useStore();
 
