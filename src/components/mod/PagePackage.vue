@@ -203,8 +203,18 @@
                 </el-tag>
               </el-space>
             </template>
+            <div class="store-view-tabs">
+              <el-radio-group v-model="storeViewMode" @change="handleStoreViewChange">
+                <el-radio-button value="search">全部</el-radio-button>
+                <el-radio-button value="recommend">推荐</el-radio-button>
+              </el-radio-group>
+            </div>
 
-            <el-form class="store-query-form" label-position="top" :model="storeQuery">
+            <el-form
+              v-if="storeViewMode === 'search'"
+              class="store-query-form"
+              label-position="top"
+              :model="storeQuery">
               <el-row :gutter="12">
                 <el-col :xs="24" :md="8">
                   <el-form-item label="后端">
@@ -267,7 +277,6 @@
                 <el-button type="primary" :loading="storeLoading" @click="searchStorePackages">
                   搜索
                 </el-button>
-                <el-button :loading="storeLoading" @click="loadStoreRecommend">推荐</el-button>
               </el-space>
             </el-form>
 
@@ -279,7 +288,15 @@
                 <el-card class="package-card" shadow="hover">
                   <template #header>
                     <el-space wrap>
-                      <el-text tag="strong">{{ item.name }}</el-text>
+                      <el-link
+                        v-if="storePackageDetailHref(item)"
+                        :href="storePackageDetailHref(item)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        :underline="false">
+                        {{ item.name }}
+                      </el-link>
+                      <el-text v-else tag="strong">{{ item.name }}</el-text>
                       <el-tag size="small">{{ item.version }}</el-tag>
                       <el-tag v-if="item.installed" size="small" type="success">已安装</el-tag>
                     </el-space>
@@ -314,11 +331,14 @@
                 </el-card>
               </el-col>
             </el-row>
-            <div v-if="storeViewMode === 'search'" class="store-pagination">
+            <div
+              v-if="storeViewMode === 'search' && storePackages.length > 0 && storeMaxPageCount > 1"
+              class="store-pagination">
               <el-pagination
                 v-model:current-page="storeQuery.pageNum"
                 v-model:page-size="storeQuery.pageSize"
                 :page-sizes="[12, 24, 48]"
+                :page-count="storeMaxPageCount"
                 layout="sizes, prev, pager, next"
                 background
                 @current-change="() => searchStorePackages()"
@@ -515,6 +535,7 @@ import {
   addStoreBackend,
   downloadStorePackage,
   getStoreBackendList,
+  getStorePackageDetailUrl,
   getStorePage,
   getStoreRecommend,
   getStorePackageInfoList,
@@ -550,6 +571,7 @@ const backendAddLoading = ref(false);
 const backendToggleLoadingMap = ref<Record<string, boolean>>({});
 const backendRemoveLoadingMap = ref<Record<string, boolean>>({});
 const storeViewMode = ref<'recommend' | 'search'>('recommend');
+const storeMaxPageCount = ref(1);
 const storeDetailVisible = ref(false);
 const currentStorePackage = ref<StorePackage | null>(null);
 const storeInstallPreviewVisible = ref(false);
@@ -588,6 +610,7 @@ const unsupportedText = computed(() => {
   }
   return '';
 });
+const storePackageDetailHref = (item: StorePackage) => getStorePackageDetailUrl(item);
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -776,9 +799,12 @@ const loadInstalledPackages = async () => {
   }
 };
 
+let storeListRequestId = 0;
+
 const loadStorePackages = async () => {
   storeLoading.value = true;
   storeError.value = '';
+  storeMaxPageCount.value = 1;
   try {
     const [backendResponse, recommendResponse] = await Promise.all([
       getStoreBackendList(),
@@ -810,10 +836,15 @@ const loadStorePackages = async () => {
 };
 
 const loadStoreRecommend = async () => {
+  const requestId = ++storeListRequestId;
   storeLoading.value = true;
   storeError.value = '';
+  storeMaxPageCount.value = 1;
   try {
     const response = await getStoreRecommend({ backend: storeQuery.backend || undefined });
+    if (requestId !== storeListRequestId) {
+      return;
+    }
     if (response.result && response.data) {
       storePackages.value = unwrapStoreList(response.data);
       storeViewMode.value = 'recommend';
@@ -822,35 +853,70 @@ const loadStoreRecommend = async () => {
     storePackages.value = [];
     storeError.value = getResponseError(response, '获取推荐扩展包失败');
   } catch (error) {
-    storePackages.value = [];
-    storeError.value = getErrorMessage(error);
+    if (requestId === storeListRequestId) {
+      storePackages.value = [];
+      storeError.value = getErrorMessage(error);
+    }
   } finally {
-    storeLoading.value = false;
+    if (requestId === storeListRequestId) {
+      storeLoading.value = false;
+    }
   }
 };
 
 const searchStorePackages = async () => {
+  const requestId = ++storeListRequestId;
+  const requestedPage = storeQuery.pageNum && storeQuery.pageNum > 0 ? storeQuery.pageNum : 1;
   storeLoading.value = true;
   storeError.value = '';
   try {
     const response = await getStorePage(buildStoreQuery());
+    if (requestId !== storeListRequestId) {
+      return;
+    }
     if (response.result && response.data) {
-      storePackages.value = unwrapStoreList(response.data);
+      const list = unwrapStoreList(response.data);
+      if (list.length === 0 && requestedPage > 1) {
+        storeQuery.pageNum = requestedPage - 1;
+        storeMaxPageCount.value = Math.max(1, requestedPage - 1);
+        await searchStorePackages();
+        return;
+      }
+      storePackages.value = list;
       storeViewMode.value = 'search';
+      storeMaxPageCount.value = response.next
+        ? Math.max(requestedPage + 1, storeMaxPageCount.value)
+        : Math.max(requestedPage, 1);
       return;
     }
     storePackages.value = [];
+    storeMaxPageCount.value = 1;
     storeError.value = getResponseError(response, '搜索商店扩展包失败');
   } catch (error) {
-    storePackages.value = [];
-    storeError.value = getErrorMessage(error);
+    if (requestId === storeListRequestId) {
+      storePackages.value = [];
+      storeError.value = getErrorMessage(error);
+    }
   } finally {
-    storeLoading.value = false;
+    if (requestId === storeListRequestId) {
+      storeLoading.value = false;
+    }
+  }
+};
+
+const handleStoreViewChange = async () => {
+  storeQuery.pageNum = 1;
+  storeMaxPageCount.value = 1;
+  if (storeViewMode.value === 'recommend') {
+    await loadStoreRecommend();
+  } else {
+    await searchStorePackages();
   }
 };
 
 const handleStorePageSizeChange = async () => {
   storeQuery.pageNum = 1;
+  storeMaxPageCount.value = 1;
   await searchStorePackages();
 };
 

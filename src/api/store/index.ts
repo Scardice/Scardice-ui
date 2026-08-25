@@ -26,7 +26,7 @@ export function getStoreRecommend(params?: StoreRecommendQuery) {
 }
 
 export function getStorePage(params: StorePageQuery) {
-  return request<ApiResponse<StorePackageListPayload>>('get', 'page', params);
+  return request<StorePageResponse>('get', 'page', params);
 }
 
 export function previewStorePackageDownload(payload: DownloadStorePackagePayload) {
@@ -218,6 +218,12 @@ export interface StorePageQuery {
   order?: string;
   pageNum?: number;
   pageSize?: number;
+}
+
+export interface StorePageResponse extends ApiResponse<StorePackageListPayload> {
+  pageNum?: number;
+  pageSize?: number;
+  next?: boolean;
 }
 
 export interface StoreRecommendQuery {
