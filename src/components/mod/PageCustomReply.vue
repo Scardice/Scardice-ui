@@ -7,7 +7,7 @@
       v-if="store.curDice.config.customReplyConfigEnable"
       :icon="DocumentChecked"
       type="primary"
-      @click="doSave"
+      @click="doSave()"
       >保存</el-button
     >
   </header>
@@ -20,7 +20,7 @@
         type="primary"
         :icon="DocumentChecked"
         :disabled="!modified"
-        @click="doSave"
+        @click="doSave()"
         >点我保存</el-button
       >
     </div>
@@ -66,6 +66,9 @@
               :label="item.filename"
               :value="item.filename" />
           </el-select>
+          <el-tag size="small" :type="currentReplyIsV2 ? 'success' : 'info'" effect="plain">
+            {{ currentReplyIsV2 ? 'V2' : '未声明 / 跟随全局' }}
+          </el-tag>
           <el-checkbox-button
             v-model="cr.enable"
             :class="cr.enable ? `reply-file-status-open` : `reply-file-status-close`"
@@ -73,7 +76,7 @@
             {{ cr.enable ? '已启用' : '未启用' }}
           </el-checkbox-button>
         </el-space>
-        <el-space style="margin-top: 0.5rem" warp>
+        <el-space style="margin-top: 0.5rem" wrap>
           <el-button type="danger" size="small" plain :icon="Delete" @click="customReplyFileDelete"
             >删除</el-button
           >
@@ -87,10 +90,26 @@
             :href="`${urlBase}/sd-api/configs/custom_reply/file_download?name=${encodeURIComponent(curFilename)}&token=${encodeURIComponent(store.token)}`"
             >下载
           </el-button>
+          <el-button
+            v-if="!currentReplyIsV2"
+            type="warning"
+            size="small"
+            plain
+            :icon="RefreshRight"
+            @click="convertCurrentReplyToV2">
+            转换为 V2
+          </el-button>
         </el-space>
         <el-text v-if="!cr.enable" class="mt-2" type="warning"
           >注意：启用后该文件中的自定义回复才会生效</el-text
         >
+        <el-alert
+          v-if="currentReplyUsesGlobalV2"
+          class="mt-2"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="该文件未声明 V2，但当前会按全局 V2 运行，旧语法可能不兼容。" />
       </el-space>
       <div class="mt-4 sm:mt-0 reply-operation">
         <div>
@@ -173,7 +192,7 @@
       <nested-draggable :tasks="list" :class="cr.enable ? '' : 'disabled'" />
       <div style="display: flex; justify-content: space-between">
         <el-button type="success" plain :icon="Plus" @click="addOne(list)">添加一项</el-button>
-        <el-button :icon="DocumentChecked" type="primary" @click="doSave">保存</el-button>
+        <el-button :icon="DocumentChecked" type="primary" @click="doSave()">保存</el-button>
       </div>
     </template>
   </main>
@@ -200,6 +219,40 @@
         <el-button type="primary" :disabled="configForImport === ''" @click="doImport"
           >下一步</el-button
         >
+      </span>
+    </template>
+  </el-dialog>
+
+  <el-dialog
+    v-model="createDialogVisible"
+    title="新建自定义回复"
+    :close-on-click-modal="false"
+    width="min(420px, calc(100vw - 32px))"
+    class="the-dialog">
+    <el-form label-position="top" @submit.prevent="submitCustomReplyFileNew">
+      <el-form-item label="文件名">
+        <el-input v-model="newReplyFilename" placeholder="reply2.yaml" autofocus />
+      </el-form-item>
+      <el-form-item label="VM 版本">
+        <el-radio-group v-model="newReplyVMVersion">
+          <el-radio-button value="v2">V2</el-radio-button>
+          <el-radio-button value="v1">V1 / 跟随全局</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+      <el-alert
+        v-if="newReplyVMVersion === 'v1'"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="不写入 V2 声明，将跟随全局 VMVersionForReply；按 V2 运行时可能不兼容。" />
+    </el-form>
+
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="creatingReply" @click="submitCustomReplyFileNew">
+          创建
+        </el-button>
       </span>
     </template>
   </el-dialog>
@@ -254,18 +307,24 @@ import {
   Tickets,
   Upload,
   Plus,
+  RefreshRight,
 } from '@element-plus/icons-vue';
 import {
   getCustomReply,
   getCustomReplyFileList,
   postCustomReplyDel,
   postCustomReplyNew,
+  type ReplyVMVersion,
   saveCustomReply,
   uploadCustomReply,
 } from '~/api/configs';
 import type { DiceConfig } from '~/api/dice';
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
 import { formatUploadFailureMessage } from '~/utils/upload-error';
+const createDialogVisible = ref(false);
+const newReplyFilename = ref('');
+const newReplyVMVersion = ref<ReplyVMVersion>('v2');
+const creatingReply = ref(false);
 
 const store = useStore();
 const dialogFormVisible = ref(false);
@@ -308,6 +367,10 @@ const fileItems = ref<any>([
 const uploadFileList = ref<any[]>([]);
 
 const cr = ref<any>({ enable: true });
+const currentReplyIsV2 = computed(() => cr.value.vmVersion === 'v2');
+const currentReplyUsesGlobalV2 = computed(
+  () => !currentReplyIsV2.value && store.curDice.config.VMVersionForReply === 'v2',
+);
 
 const switchClick = () => {
   if (!store.curDice.config.customReplyConfigEnable) {
@@ -349,26 +412,52 @@ watch(
 );
 
 const customReplyFileNew = () => {
-  ElMessageBox.prompt('创建一个新的回复文件', '', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'info',
-    inputPlaceholder: 'reply2.yaml',
-    inputValue: `reply${Math.ceil(Math.random() * 10000)}.yaml`,
-  }).then(async data => {
-    if (!data.value) {
-      data.value = `reply${Math.ceil(Math.random() * 10000)}.yaml`;
+  newReplyFilename.value = `reply${Math.ceil(Math.random() * 10000)}.yaml`;
+  newReplyVMVersion.value = 'v2';
+  createDialogVisible.value = true;
+};
+
+const submitCustomReplyFileNew = async () => {
+  const filename = newReplyFilename.value.trim() || `reply${Math.ceil(Math.random() * 10000)}.yaml`;
+  creatingReply.value = true;
+  try {
+    const ret = await postCustomReplyNew(filename, newReplyVMVersion.value);
+    if (!ret.success) {
+      ElMessage.error('创建失败，可能存在同名文件');
+      return;
     }
-    const ret = await postCustomReplyNew(data.value);
     const ret2 = await getCustomReplyFileList();
     fileItems.value = ret2.items;
-    curFilename.value = ret2.items[0].filename;
+    curFilename.value = filename;
+    createDialogVisible.value = false;
+    ElMessage.success('创建成功');
+  } catch {
+    ElMessage.error('创建失败');
+  } finally {
+    creatingReply.value = false;
+  }
+};
 
-    ElMessage({
-      type: 'success',
-      message: ret.success ? '成功!' : '失败',
-    });
-  });
+const convertCurrentReplyToV2 = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '转换只会为当前文件写入 V2 声明，不会自动改写已有表达式。V1 语法可能与 V2 不兼容，是否继续？',
+      '转换为 V2',
+      {
+        confirmButtonText: '转换并保存',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    );
+    const previousVMVersion = cr.value.vmVersion;
+    cr.value.vmVersion = 'v2';
+    const saved = await doSave('已转换为 V2');
+    if (!saved) {
+      cr.value.vmVersion = previousVMVersion;
+    }
+  } catch {
+    // 用户取消转换。
+  }
 };
 
 const customReplyFileDelete = () => {
@@ -434,7 +523,7 @@ const addOne = (lst: any) => {
 //   lst.splice(index, 1);
 // };
 
-const doSave = async () => {
+const doSave = async (successMessage = '已保存') => {
   try {
     for (const i of cr.value.items) {
       for (const j of i.conditions) {
@@ -461,11 +550,12 @@ const doSave = async () => {
       }
     }
     await saveCustomReply(cr.value);
-    ElMessage.success('已保存');
+    ElMessage.success(successMessage);
     modified.value = false;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
+    return true;
+  } catch {
     ElMessage.error('保存失败！！');
+    return false;
   }
 };
 
