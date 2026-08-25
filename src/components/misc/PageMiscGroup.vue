@@ -79,17 +79,23 @@
                   "
                   @click="item.data.changed = true" />
                 <el-space size="small" wrap>
-                  <el-text
-                    style="
-                      max-width: 23rem;
-                      overflow: hidden;
-                      white-space: nowrap;
-                      text-overflow: ellipsis;
-                    "
-                    size="large"
-                    tag="strong"
-                    >{{ item.data.groupId }}</el-text
-                  >
+                  <el-tooltip
+                    :content="item.data.groupId"
+                    placement="top"
+                    trigger="click"
+                    :show-after="100">
+                    <el-text
+                      style="
+                        max-width: 23rem;
+                        overflow: hidden;
+                        white-space: nowrap;
+                        text-overflow: ellipsis;
+                      "
+                      size="large"
+                      tag="strong"
+                      >{{ item.data.groupId }}</el-text
+                    >
+                  </el-tooltip>
                   <el-text>「{{ item.data.groupName || '未获取到' }}」</el-text>
                   <el-tag size="small" effect="plain">{{
                     getPlatformLabel(item.data.groupId)
@@ -266,7 +272,9 @@ const selectedGroupIds = ref<string[]>([]);
 
 const platformOptions = [
   { value: 'QQ-Group:', label: 'QQ 群' },
+  { value: 'OpenQQ-Group:', label: 'QQ 官方机器人群' },
   { value: 'QQ-CH-Group:', label: 'QQ 频道' },
+  { value: 'OpenQQCH-Channel:', label: 'QQ 官方机器人频道' },
   { value: 'DISCORD-CH-Group:', label: 'Discord 频道' },
   { value: 'DODO-Group:', label: 'Dodo 频道' },
   { value: 'KOOK-CH-Group:', label: 'KOOK 频道' },
