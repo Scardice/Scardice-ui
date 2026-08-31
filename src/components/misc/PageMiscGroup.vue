@@ -61,7 +61,7 @@
   </section>
 
   <div style="margin-top: 2rem">
-    <div v-bind="containerProps" style="height: calc(100vh - 22.5rem)">
+    <div v-bind="containerProps" style="height: calc(var(--seal-content-height) - 22.5rem)">
       <div v-bind="wrapperProps">
         <div v-for="item in list" :key="item.index" style="">
           <foldable-card class="group-card">

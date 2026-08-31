@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <el-container id="root" class="seal-root mx-auto my-0 h-screen flex flex-col">
+  <el-container id="root" class="seal-root mx-auto my-0 flex flex-col">
     <el-header class="nav flex-none text-white flex justify-between">
       <el-space alignment="center" :size="0" style="height: 60px">
         <div class="menu-button-wrapper mx-2">
