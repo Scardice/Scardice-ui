@@ -115,6 +115,7 @@ export interface DiceConnection {
   platform: string;
   workDir: string;
   enable: boolean;
+  ambiguous: boolean;
   protocolType: string;
   nickname: string;
   userId: number;
@@ -175,6 +176,8 @@ export function endpointViewToDiceConnection(endpoint: EndpointView): DiceConnec
     qrLoginState: numberValue(payload.qrLoginState) as OfficialQQQRLoginState,
   };
   const observedState = endpoint.observedState.toLowerCase();
+  const operationState = endpoint.operationState.toLowerCase();
+  const ambiguous = observedState === 'ambiguous' || operationState === 'ambiguous';
   const state =
     observedState === 'running' || observedState === 'connected'
       ? 1
@@ -193,6 +196,7 @@ export function endpointViewToDiceConnection(endpoint: EndpointView): DiceConnec
     ),
     workDir: stringValue(payload.workDir),
     enable: endpoint.desiredState.toLowerCase() !== 'disabled',
+    ambiguous,
     protocolType: stringValue(
       payload.protocolType,
       endpoint.adapterKey === 'pureonebot' ? 'onebot' : endpoint.adapterKey,
@@ -207,8 +211,9 @@ export function endpointViewToDiceConnection(endpoint: EndpointView): DiceConnec
     adapter,
   };
 }
-
 export const urlPrefix = 'sd-api';
+export const adminAuthModeKey = 'scardice-auth-mode';
+export const isAdminAuthMode = () => localStorage.getItem(adminAuthModeKey) === 'admin';
 
 interface DiceServer {
   config: any;
@@ -295,6 +300,42 @@ function sanitizeSignServerConfig(
     }),
   };
 }
+function compactEndpointPayload(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? undefined : trimmed;
+  }
+  if (Array.isArray(value)) {
+    const compacted = value
+      .map(item => compactEndpointPayload(item))
+      .filter(item => item !== undefined);
+    return compacted.length > 0 ? compacted : undefined;
+  }
+  if (value && typeof value === 'object') {
+    const compacted: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      const next = compactEndpointPayload(item);
+      if (next !== undefined) compacted[key] = next;
+    }
+    return Object.keys(compacted).length > 0 ? compacted : undefined;
+  }
+  return value;
+}
+
+function isMeaningfulSignServerConfig(config: Record<string, unknown> | undefined): boolean {
+  if (!config) return false;
+  const servers = Array.isArray(config.signServers) ? config.signServers : [];
+  return servers.some(server => {
+    if (!server || typeof server !== 'object') return false;
+    const entry = server as Record<string, unknown>;
+    return (
+      (typeof entry.url === 'string' && entry.url.trim() !== '') ||
+      entry.key !== undefined ||
+      entry.authorization !== undefined
+    );
+  });
+}
+
 function endpointRequestFromForm(form: addImConnectionForm): EndpointCreateRequest {
   const adapterKeys: Record<number, string> = {
     [ImConnectionTypeGocqLegacy]: 'gocq',
@@ -318,6 +359,7 @@ function endpointRequestFromForm(form: addImConnectionForm): EndpointCreateReque
     [ImConnectionTypeMilkyInternalYogurt]: 'milky',
   };
   let adapterKey = adapterKeys[form.accountType] || `legacy-${form.accountType}`;
+  const port = Number(form.port);
   const payload: Record<string, unknown> = {
     accountType: form.accountType,
     platform: form.platform,
@@ -335,7 +377,7 @@ function endpointRequestFromForm(form: addImConnectionForm): EndpointCreateReque
     relWorkDir: form.relWorkDir,
     connectUrl: form.connectUrl,
     host: form.host,
-    port: form.port,
+    port: Number.isInteger(port) && port >= 0 ? port : undefined,
     onlyQQGuild: form.onlyQQGuild,
     appID: form.appID,
     signServerName: form.signServerName,
@@ -359,7 +401,10 @@ function endpointRequestFromForm(form: addImConnectionForm): EndpointCreateReque
   for (const [name, value] of Object.entries(secretFields)) {
     if (value) secrets[name] = value;
   }
-  payload.signServerConfig = sanitizeSignServerConfig(form.signServerConfig, secrets);
+  const signServerConfig = sanitizeSignServerConfig(form.signServerConfig, secrets);
+  if (isMeaningfulSignServerConfig(signServerConfig)) {
+    payload.signServerConfig = signServerConfig;
+  }
   if (form.accountType === ImConnectionTypeOnebotSeparate) {
     adapterKey = 'pureonebot';
     for (const key of Object.keys(secrets)) delete secrets[key];
@@ -392,9 +437,16 @@ function endpointRequestFromForm(form: addImConnectionForm): EndpointCreateReque
     delete payload.reverseAddr;
     delete payload.account;
   }
+  const compacted = compactEndpointPayload(payload);
   return {
     adapterKey,
-    config: { version: 1, payload },
+    config: {
+      version: 1,
+      payload: (compacted && typeof compacted === 'object' ? compacted : {}) as Record<
+        string,
+        unknown
+      >,
+    },
     secrets,
   };
 }
@@ -564,18 +616,52 @@ export const useStore = defineStore('main', {
     //   }
     // },
 
+    async tryAdminToken(secret: string): Promise<boolean> {
+      const candidate = secret.trim();
+      if (!candidate) {
+        return false;
+      }
+      const previousToken = localStorage.getItem('t');
+      const previousMode = localStorage.getItem(adminAuthModeKey);
+      localStorage.setItem('t', candidate);
+      localStorage.setItem(adminAuthModeKey, 'admin');
+      try {
+        await listEndpoints();
+        this.token = candidate;
+        this.canAccess = true;
+        this.backendOffline = false;
+        return true;
+      } catch {
+        if (previousToken === null) {
+          localStorage.removeItem('t');
+        } else {
+          localStorage.setItem('t', previousToken);
+        }
+        if (previousMode === null) {
+          localStorage.removeItem(adminAuthModeKey);
+        } else {
+          localStorage.setItem(adminAuthModeKey, previousMode);
+        }
+        return false;
+      }
+    },
     async signIn(password: string) {
       try {
         const ret = await signin(password);
         const token = ret.token;
         this.token = token;
         localStorage.setItem('t', token);
+        localStorage.removeItem(adminAuthModeKey);
         this.canAccess = true;
       } catch {
         this.canAccess = false;
       }
     },
     async trySignIn(): Promise<boolean> {
+      const token = localStorage.getItem('t');
+      if (token && (await this.tryAdminToken(token))) {
+        return true;
+      }
       try {
         this.salt = (await getSalt()).salt;
         this.backendOffline = false;
@@ -585,11 +671,11 @@ export const useStore = defineStore('main', {
         return false;
       }
 
-      const token = localStorage.getItem('t');
       try {
         await getHello();
         this.token = token as string;
         this.canAccess = true;
+        localStorage.removeItem(adminAuthModeKey);
       } catch (e) {
         this.canAccess = false;
         if (isNetworkError(e)) {

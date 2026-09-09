@@ -118,16 +118,19 @@
 
           <el-form-item label="状态">
             <el-space>
-              <div v-if="i.state === 0">
+              <div v-if="i.ambiguous">
+                <el-tag type="warning" disable-transitions>状态不明确</el-tag>
+              </div>
+              <div v-else-if="i.state === 0">
                 <el-tag type="danger" disable-transitions>断开</el-tag>
               </div>
-              <div v-if="i.state === 2">
+              <div v-else-if="i.state === 2">
                 <el-tag type="warning" disable-transitions>连接中</el-tag>
               </div>
-              <div v-if="i.state === 1">
+              <div v-else-if="i.state === 1">
                 <el-tag type="success" disable-transitions>已连接</el-tag>
               </div>
-              <div v-if="i.state === 3">
+              <div v-else-if="i.state === 3">
                 <el-tag type="danger" disable-transitions>失败</el-tag>
               </div>
               <el-tooltip
@@ -305,7 +308,16 @@
 
           <!-- <el-form-item label=""> -->
           <div
-            v-if="
+            v-if="i.ambiguous"
+            style="display: flex; justify-content: center; margin-bottom: 1rem">
+            <el-tooltip
+              content="仅在已从外部确认协议端最终状态后操作，确认后会解除当前操作阻塞"
+              placement="bottom-start">
+              <el-button type="danger" @click="askResolveAmbiguous(i)">处理不明确</el-button>
+            </el-tooltip>
+          </div>
+          <div
+            v-else-if="
               ![goCqHttpStateCode.InLogin, goCqHttpStateCode.InLoginQrCode].includes(
                 i.adapter?.loginState,
               )
@@ -2179,10 +2191,12 @@ import {
   deleteEndpoint,
   disableEndpoint,
   enableEndpoint,
+  getOperation,
   getOperationArtifact,
   patchEndpointConfig,
   performEndpointAction,
   reloginEndpoint,
+  resolveOperation,
   waitForOperation,
   type EndpointActionRequest,
 } from '~/api/endpoints';
@@ -2767,6 +2781,44 @@ const doSetData = async () => {
   await store.getImConnections();
   ElMessage.success('修改完成，请手动重新登录');
   dialogSetDataFormVisible.value = false;
+};
+
+const resolveAmbiguous = async (i: DiceConnection) => {
+  const operationId = i.endpointView.operationId;
+  if (!operationId) {
+    throw new Error('当前端点没有可解析的操作');
+  }
+  const operation = await getOperation(operationId);
+  const desiredState = i.endpointView.desiredState.toLowerCase();
+  const observedState = i.endpointView.observedState.toLowerCase();
+  const resolution =
+    desiredState === 'removing' && observedState === 'stopped'
+      ? 'confirm-delete'
+      : 'confirmed-success';
+  const response = await resolveOperation(operationId, {
+    resolution,
+    expectedOperationVersion: operation.version,
+    expectedAggregateVersion: i.endpointView.version,
+    confirm: true,
+  });
+  const resolved = await waitForOperation(response.operationId);
+  if (resolved.status !== 'succeeded') {
+    throw new Error('操作解析失败，请刷新后确认');
+  }
+  await store.getImConnections();
+  ElMessage.success('不明确操作已解析');
+};
+
+const askResolveAmbiguous = (i: DiceConnection) => {
+  ElMessageBox.confirm(
+    '仅当你已从协议端或服务器确认最终状态后继续。确认后将解除操作阻塞。',
+    '处理状态不明确',
+    {
+      confirmButtonText: '确认继续',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  ).then(() => resolveAmbiguous(i));
 };
 
 const askSetEnable = async (i: DiceConnection, val: boolean) => {

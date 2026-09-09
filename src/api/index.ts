@@ -103,7 +103,9 @@ function handleResponseError(error: AxiosError) {
 
   if (status === 401 || status === 403) {
     try {
-      localStorage.removeItem('t');
+      if (localStorage.getItem('scardice-auth-mode') !== 'admin') {
+        localStorage.removeItem('t');
+      }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       // ignore storage errors

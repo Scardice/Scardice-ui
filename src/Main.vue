@@ -134,7 +134,7 @@
     :close-on-press-escape="false"
     :show-close="false"
     class="the-dialog">
-    <h3>输入密码解锁</h3>
+    <h3>输入 UI 密码或管理员令牌</h3>
     <el-input v-model="password" type="password"></el-input>
     <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem" @click="doUnlock"
       >确认</el-button
@@ -170,7 +170,7 @@
 </template>
 
 <script setup lang="ts">
-import { useStore } from './store';
+import { isAdminAuthMode, useStore } from './store';
 import imgNews from '~/assets/news.png';
 
 import { Check, Menu as IconMenu } from '@element-plus/icons-vue';
@@ -245,15 +245,18 @@ const doUnlock = async () => {
     ElMessage.error('当前无法连接主程序，请稍后再试');
     return;
   }
-  const hash = await passwordHash(store.salt, password.value);
-  await store.signIn(hash);
+  const adminAuthenticated = await store.tryAdminToken(password.value);
+  if (!adminAuthenticated) {
+    const hash = await passwordHash(store.salt, password.value);
+    await store.signIn(hash);
+  }
   if (store.canAccess) {
     ElMessageBox.alert('欢迎回来，请开始使用。', '登录成功');
     password.value = '';
     checkPassword();
     window.location.reload();
   } else {
-    ElMessageBox.alert('错误的密码', '登录失败');
+    ElMessageBox.alert('密码或管理员令牌无效，请重试', '登录失败');
     password.value = '';
   }
 };
@@ -269,15 +272,21 @@ const checkPassword = async () => {
 };
 
 onBeforeMount(async () => {
-  store.getBaseInfo();
-  store.getCustomText();
+  const adminMode = isAdminAuthMode();
+  if (!adminMode) {
+    void store.getBaseInfo();
+    void store.getCustomText();
+  }
 
-  if (store.canAccess) {
-    checkPassword();
+  if (store.canAccess && !adminMode) {
+    void checkPassword();
   }
 
   timerId = setInterval(async () => {
     if (store.canAccess) {
+      if (isAdminAuthMode()) {
+        return;
+      }
       try {
         await store.getBaseInfo();
         store.backendOffline = false;
@@ -297,6 +306,10 @@ onBeforeMount(async () => {
       }
     }
   }, 5000) as any;
+
+  if (adminMode) {
+    return;
+  }
 
   await updateNews();
 
