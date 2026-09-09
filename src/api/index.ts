@@ -7,7 +7,7 @@ import axios, {
 import axiosRetry from 'axios-retry';
 import qs from 'qs';
 
-type HttpMethod = 'post' | 'get' | 'put' | 'delete';
+type HttpMethod = 'post' | 'get' | 'put' | 'patch' | 'delete';
 type RequestContentType = 'form' | 'json' | 'formdata';
 
 export function getApiBaseURL(): string {
@@ -121,7 +121,8 @@ http.interceptors.request.use(config => {
   try {
     const token = localStorage.getItem('t');
     if (token) {
-      setHeader(config, 'Authorization', token);
+      const authorization = /^Bearer\s+/i.test(token) ? token : `Bearer ${token}`;
+      setHeader(config, 'Authorization', authorization);
       setHeader(config, 'token', token);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

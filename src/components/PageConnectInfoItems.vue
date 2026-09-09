@@ -2176,21 +2176,40 @@ import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { urlBase } from '~/api';
 import {
-  getAssetBaseUrl,
-  getConnectQQVersion,
-  getLagrangeSignInfo,
-  postConnectionDel,
-  postConnectionQrcode,
-  postConnectSetData,
-  postConnectSetEnable,
-  postGoCqCaptchaSet,
-  postGoCqHttpRelogin,
-  postSmsCodeSet,
-  type OfficialQQTestResult,
-  type SignInfo,
-} from '~/api/im_connections';
-import { postToolOnebot } from '~/api/others';
+  deleteEndpoint,
+  disableEndpoint,
+  enableEndpoint,
+  getOperationArtifact,
+  patchEndpointConfig,
+  performEndpointAction,
+  reloginEndpoint,
+  waitForOperation,
+  type EndpointActionRequest,
+} from '~/api/endpoints';
 import QRCode from 'qrcode';
+import { postToolOnebot } from '~/api/others';
+interface OfficialQQTestResult {
+  result: true;
+  testOnly: true;
+  userId: string;
+  uin: string;
+  nickname: string;
+  exists: boolean;
+}
+
+interface SignInfo {
+  version: string;
+  selected?: boolean;
+  ignored?: boolean;
+  note?: string;
+  servers: Array<{
+    name: string;
+    selected?: boolean;
+    ignored?: boolean;
+    latency: number;
+    note?: string;
+  }>;
+}
 
 dayjs.extend(relativeTime);
 
@@ -2270,6 +2289,7 @@ const signVerWarningText = ref('');
 const signServerWarningText = ref('');
 
 let captchaTimer = null as any;
+let captchaAbortController: AbortController | null = null;
 const captchaUrlSet = (i: DiceConnection, url: string) => {
   if (slideIframe.value) {
     dialogSlideVisible.value = true;
@@ -2280,21 +2300,29 @@ const captchaUrlSet = (i: DiceConnection, url: string) => {
     const x = new URL(url);
     const key = x.searchParams.get('cap_cd');
     clearTimeout(captchaTimer);
+    captchaAbortController?.abort();
+    captchaAbortController = new AbortController();
 
     // window.addEventListener("message", (e) => {
     //   const key = e.data.code;
     const requestURL = `${urlBase}/sd-api/utils/get_token?key=${key}`;
-    console.log('code', key);
     document.cookie = 'b=' + key + '; path=/;';
 
     const ticketCheck = async () => {
-      const resp = await fetch(requestURL, {
-        method: 'GET',
-        timeout: 240000,
-      } as any);
+      let resp: Response;
+      try {
+        resp = await fetch(requestURL, {
+          method: 'GET',
+          signal: captchaAbortController?.signal,
+        });
+      } catch {
+        if (!captchaAbortController?.signal.aborted) {
+          captchaTimer = setTimeout(ticketCheck, 2000);
+        }
+        return;
+      }
       const text = await resp.text();
       if (text) {
-        console.log('ticket', text);
         if (text === 'FAIL') {
           captchaTimer = setTimeout(ticketCheck, 2000);
           return;
@@ -2331,19 +2359,87 @@ onMounted(() => {});
 
 const closeCaptchaFrame = () => {
   clearTimeout(captchaTimer);
+  captchaAbortController?.abort();
+  captchaAbortController = null;
   dialogSlideVisible.value = false;
 };
+const operationControllers = new Map<string, AbortController>();
+const objectUrls = new Map<string, string>();
 
+const runEndpointAction = async (
+  connection: DiceConnection,
+  action:
+    | 'request-qr'
+    | 'submit-sms-code'
+    | 'submit-captcha'
+    | 'validate-credentials'
+    | 'generate-config-artifact',
+  payload: Omit<EndpointActionRequest, 'expectedAggregateVersion'> = {},
+) => {
+  const previous = operationControllers.get(connection.id);
+  previous?.abort();
+  const controller = new AbortController();
+  operationControllers.set(connection.id, controller);
+  try {
+    const response = await performEndpointAction(connection.id, action, {
+      expectedAggregateVersion: connection.endpointView.version,
+      ...payload,
+    });
+    const operation =
+      response.operation.status === 'succeeded' ||
+      response.operation.status === 'failed' ||
+      response.operation.status === 'expired' ||
+      response.operation.status === 'ambiguous'
+        ? response.operation
+        : await waitForOperation(response.operationId, { signal: controller.signal });
+    if (operation.status !== 'succeeded') {
+      throw new Error(
+        operation.status === 'ambiguous' ? '操作状态不明确，请刷新后确认' : '操作失败',
+      );
+    }
+    return { response, operation };
+  } finally {
+    if (operationControllers.get(connection.id) === controller) {
+      operationControllers.delete(connection.id);
+    }
+  }
+};
+
+const revokeObjectUrl = (connectionId: string) => {
+  const oldUrl = objectUrls.get(connectionId);
+  if (oldUrl) {
+    URL.revokeObjectURL(oldUrl);
+    objectUrls.delete(connectionId);
+  }
+};
+
+const loadEndpointQr = async (connection: DiceConnection) => {
+  const { operation } = await runEndpointAction(connection, 'request-qr');
+  const artifact = await getOperationArtifact(operation.operationId);
+  if (
+    connection.endpointView.adapterKey === 'official_qq' &&
+    artifact.blob.type.startsWith('text/')
+  ) {
+    const url = (await artifact.blob.text()).trim();
+    if (/^https?:\/\//i.test(url)) {
+      await renderOfficialQQQrFromUrl(url, officialQQQrSession.value, connection.id);
+      return;
+    }
+  }
+  revokeObjectUrl(connection.id);
+  const objectUrl = URL.createObjectURL(artifact.blob);
+  objectUrls.set(connection.id, objectUrl);
+  store.curDice.qrcodes[connection.id] = objectUrl;
+};
 const submitCaptchaCode = async (i: DiceConnection, code: string) => {
-  postGoCqCaptchaSet(i.id, code);
+  await runEndpointAction(i, 'submit-captcha', { captcha: code });
 };
 
 const submitSmsCode = async (i: DiceConnection) => {
-  console.log(smsCode.value);
   if (!smsCode.value) return;
   const code = smsCode.value;
   smsCode.value = '';
-  postSmsCodeSet(i.id, code);
+  await runEndpointAction(i, 'submit-sms-code', { smsCode: code });
 };
 
 const setRecentLogin = () => {
@@ -2402,12 +2498,13 @@ const testOfficialQQManual = async () => {
   officialQQTestResult.value = null;
   officialQQTestError.value = '';
   try {
-    const res = await store.addImConnection(form, true);
-    if (isOfficialQQTestResult(res)) {
-      officialQQTestResult.value = res;
-    } else {
-      officialQQTestError.value = '服务器返回了非预期格式的测试结果';
-    }
+    const connection = await store.addImConnection(form, true);
+    const { operation } = await runEndpointAction(connection, 'validate-credentials', {
+      confirm: true,
+    });
+    officialQQTestError.value = operation.resultCode
+      ? `凭据验证完成：${operation.resultCode}`
+      : '凭据验证完成';
   } catch (e: unknown) {
     const errMessage = e instanceof Error ? e.message : String(e);
     officialQQTestError.value = errMessage || '请求失败';
@@ -2565,7 +2662,6 @@ const goStepTwo = async () => {
       }
     })
     .catch(e => {
-      console.error(e);
       ElMessageBox.alert(getAddConnectionFailureMessage(e), '添加失败');
       formClose();
     });
@@ -2605,9 +2701,12 @@ const formClose = async () => {
 };
 
 const setEnable = async (i: DiceConnection, val: boolean) => {
-  const ret = await postConnectSetEnable(i.id, val);
-  i.enable = ret.enable;
+  const input = { expectedAggregateVersion: i.endpointView.version, confirm: false };
+  const response = val ? await enableEndpoint(i.id, input) : await disableEndpoint(i.id, input);
+  await waitForOperation(response.operationId);
+  i.enable = val;
   curCaptchaIdSet.value = '';
+  await store.getImConnections();
   ElMessage.success('状态修改完成');
   if (val) {
     setRecentLogin();
@@ -2647,50 +2746,25 @@ const askSetDataGocq = async (i: DiceConnection) => {
   form.imageAssetBaseUrlCandidates = [];
   dialogSetDataFormVisible.value = true;
   form.endpoint = i;
-
-  signConfigType.value = i.adapter?.useSignServer === true ? 'simple' : 'none';
-
-  if (i.protocolType === 'pureonebot') {
-    try {
-      const res = await getAssetBaseUrl(i.id);
-      form.imageAssetBaseUrlAuto = res.imageAssetBaseUrl;
-      form.imageAssetBaseUrlCandidates = res.candidates || [];
-    } catch {
-      // 静默失败，placeholder 用兜底值
-    }
-  }
 };
 
 const doSetData = async () => {
-  let param = {
-    protocol: form.protocol,
-    ignoreFriendRequest: form.ignoreFriendRequest,
-  } as {
-    protocol: number;
-    appVersion: string;
-    ignoreFriendRequest: boolean;
-    useSignServer?: boolean;
-    signServerConfig?: any;
-    imageAssetBaseUrl?: string;
-  };
-  if (form.protocol === 1 || form.protocol === 6) {
-    param = {
-      ...param,
-      appVersion: form.appVersion,
-      useSignServer: form.useSignServer,
-      signServerConfig: form.signServerConfig,
-    };
-  }
+  const current = form.endpoint.endpointView;
+  const payload = { ...current.config.payload };
+  payload.protocol = form.protocol;
+  payload.appVersion = form.appVersion;
+  payload.friendRequestPolicy = form.ignoreFriendRequest ? 'ignore' : 'accept';
+  payload.useSignServer = form.useSignServer;
+  payload.signServerConfig = form.signServerConfig;
   if (form.endpoint.protocolType === 'pureonebot') {
-    param.imageAssetBaseUrl = form.imageAssetBaseUrl || '';
+    payload.imageAssetBaseUrl = form.imageAssetBaseUrl || '';
   }
-  await postConnectSetData(form.endpoint.id, param);
-  if (form.endpoint.adapter) {
-    form.endpoint.adapter.inPackGoCqHttpProtocol = form.protocol;
-    if (form.endpoint.protocolType === 'pureonebot') {
-      form.endpoint.adapter.imageAssetBaseUrl = form.imageAssetBaseUrl || '';
-    }
-  }
+  const response = await patchEndpointConfig(form.endpoint.id, {
+    config: { version: current.config.version, payload },
+    expectedAggregateVersion: current.version,
+  });
+  await waitForOperation(response.operationId);
+  await store.getImConnections();
   ElMessage.success('修改完成，请手动重新登录');
   dialogSetDataFormVisible.value = false;
 };
@@ -2723,36 +2797,41 @@ const doGocqExport = async (i: DiceConnection) => {
     cancelButtonText: '取消',
     type: 'warning',
   }).then(async () => {
-    // http://localhost:3211/sd-api/im_connections/gocq_config_download.zip?id=10f576a4-5237-43f6-9086-269a9f9aace5&token=J4JAofWluYsc0YTgUtDuw3eBnVbZyW%232gTG0agA%40aAVRRIFmrTT0w4tEMbVxGdXn%3A0000000063a8664f
-    location.href = `${urlBase}/sd-api/im_connections/gocq_config_download.zip?token=${encodeURIComponent(store.token)}&id=${encodeURIComponent(i.id)}`;
+    const { operation } = await runEndpointAction(i, 'generate-config-artifact', {
+      confirm: true,
+      ttlSeconds: 300,
+    });
+    const artifact = await getOperationArtifact(operation.operationId);
+    const objectUrl = URL.createObjectURL(artifact.blob);
+    try {
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = 'endpoint-config.zip';
+      link.click();
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   });
 };
-
 const gocqhttpReLogin = async (i: DiceConnection) => {
   curCaptchaIdSet.value = '';
   setRecentLogin();
   duringRelogin.value = true;
-  curConnId.value = ''; // 先改掉这个，以免和当前连接一致，导致被瞬间重置
-  if (curConn.value && curConn.value.adapter) {
+  curConnId.value = '';
+  if (curConn.value.adapter) {
     curConn.value.adapter.loginState = goCqHttpStateCode.Init;
   }
-  postGoCqHttpRelogin(i.id)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    .then(theConn => {
-      curConnId.value = i.id;
-    })
-    .finally(() => {
-      form.isEnd = true;
-    });
-  // 重复登录时，也打开这个窗口
+  const response = await reloginEndpoint(i.id, {
+    expectedAggregateVersion: i.endpointView.version,
+  });
+  await waitForOperation(response.operationId);
+  curConnId.value = i.id;
+  form.isEnd = true;
   activities.value = [];
   dialogFormVisible.value = true;
-
   if (i.adapter.useInPackGoCqhttp) {
     form.step = 2;
-    activities.value.push(fullActivities[4]);
-    activities.value.push(fullActivities[5]);
-    activities.value.push(fullActivities[2]);
+    activities.value.push(fullActivities[4], fullActivities[5], fullActivities[2]);
   } else {
     form.step = 4;
   }
@@ -2842,11 +2921,11 @@ const signServerVersionChange = () => {
 const signServerServerChange = () => {
   signInfos.value.forEach(info => {
     if (info.version === form.signServerVersion) {
-      signVerWarningText.value = info.note;
+      signVerWarningText.value = info.note ?? '';
     }
     info.servers.forEach(server => {
       if (server.name === form.signServerName) {
-        signServerWarningText.value = server.note;
+        signServerWarningText.value = server.note ?? '';
       }
     });
   });
@@ -2856,17 +2935,8 @@ const getSignInfo = async () => {
   form.account = '';
   form.signServerVersion = '';
   form.signServerName = '';
-  try {
-    const res = await getLagrangeSignInfo();
-    signInfoLoaded.value = res.result;
-    // 理论上不会有false出现所以前端不进行通知，若出现则为后端代码问题
-    if (res.result !== false) {
-      signInfos.value = res.data;
-      signServerVersionChange();
-    }
-  } catch {
-    signInfoLoaded.value = false;
-  }
+  signInfos.value = [];
+  signInfoLoaded.value = false;
 };
 
 const handleSignServerAdd = () => {
@@ -3038,12 +3108,11 @@ const refreshLoginStates = async () => {
     connectionsLoadFailed.value = false;
 
     for (const i of store.curDice.conns || []) {
-      // 获取二维码
-      if (shouldShowMilkyQrcode(i.adapter?.loginState)) {
-        const response = await postConnectionQrcode(i.id);
-        store.curDice.qrcodes[i.id] = response.img || '';
+      if (shouldShowMilkyQrcode(i.adapter?.loginState) && !store.curDice.qrcodes[i.id]) {
+        await loadEndpointQr(i);
       }
       if (getMilkyTerminalLoginText(i.adapter?.loginState)) {
+        revokeObjectUrl(i.id);
         delete store.curDice.qrcodes[i.id];
       }
 
@@ -3052,26 +3121,16 @@ const refreshLoginStates = async () => {
 
         if (isOfficialQQQrWaiting(i)) {
           const session = officialQQQrSession.value;
-          const response = await postConnectionQrcode(i.id);
+          if (!store.curDice.qrcodes[i.id]) {
+            await loadEndpointQr(i);
+          }
           if (session !== officialQQQrSession.value || i.id !== curConnId.value) {
             return;
           }
-          officialQQQrImage.value = response.img || '';
-          officialQQQrUrl.value = response.url || '';
-          officialQQQrReason.value = response.reason || '';
-          if (officialQQQrReason.value) {
-            ElMessage.error(`QQ 官方机器人扫码登录失败：${officialQQQrReason.value}`);
-            await formClose();
-            return;
-          }
-          // 有服务端图片时直接用；URL-only 时前端生成二维码，并保留原始 url
-          if (officialQQQrImage.value) {
-            officialQQQrRendered.value = '';
-          } else if (officialQQQrUrl.value) {
-            await renderOfficialQQQrFromUrl(officialQQQrUrl.value, session, i.id);
-          } else {
-            officialQQQrRendered.value = '';
-          }
+          officialQQQrImage.value = store.curDice.qrcodes[i.id] || '';
+          officialQQQrUrl.value = '';
+          officialQQQrReason.value = '';
+          officialQQQrRendered.value = '';
         }
 
         // 登录失败
@@ -3128,11 +3187,6 @@ onBeforeMount(async () => {
     delete store.curDice.qrcodes[i.id];
   }
 
-  const versionsRes = await getConnectQQVersion();
-  if (versionsRes.result) {
-    supportedQQVersions.value = ['', ...versionsRes.versions];
-  }
-
   if (isContainerMode()) {
     form.accountType = ImConnectionTypeOnebotSeparate;
   }
@@ -3147,6 +3201,12 @@ onBeforeUnmount(() => {
   if (timerId) {
     clearInterval(timerId);
   }
+  for (const controller of operationControllers.values()) {
+    controller.abort();
+  }
+  for (const connectionId of objectUrls.keys()) {
+    revokeObjectUrl(connectionId);
+  }
 });
 
 const doRemove = async (i: DiceConnection) => {
@@ -3159,7 +3219,13 @@ const doRemove = async (i: DiceConnection) => {
       type: 'warning',
     },
   ).then(async () => {
-    await postConnectionDel(i.id);
+    const response = await deleteEndpoint(i.id, {
+      expectedAggregateVersion: i.endpointView.version,
+      confirm: true,
+    });
+    await waitForOperation(response.operationId);
+    revokeObjectUrl(i.id);
+    delete store.curDice.qrcodes[i.id];
     await store.getImConnections();
     ElMessage({
       type: 'success',
