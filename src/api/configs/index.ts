@@ -11,6 +11,10 @@ export function getCustomText() {
   return request<CustomTexts>('get', 'customText');
 }
 
+export function refreshCustomTextPreview(category: string) {
+  return request('post', 'customText/preview-refresh', { category });
+}
+
 export function saveCustomReply(data: CustomReply) {
   return request('post', 'custom_reply/save', data);
 }

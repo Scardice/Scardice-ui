@@ -3,6 +3,8 @@ import request from '..';
 export function getPreInfo() {
   return request<{
     testMode: boolean;
+    testWebUIAuthBypass: boolean;
+    testWebUIOriginRateLimitBypass: boolean;
   }>('get', 'preInfo', null, 'form', { timeout: 5000 });
 }
 

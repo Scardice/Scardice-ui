@@ -1,12 +1,14 @@
 <template>
-  <header>
-    <el-button type="primary" :icon="DocumentChecked" @click="submit">保存设置</el-button>
-    <el-text v-if="modified" style="margin-left: 1rem" type="danger" size="large" tag="strong">
-      内容已修改，不要忘记保存！
-    </el-text>
-  </header>
+  <div class="censor-savebar">
+    <span class="censor-save-status" :class="{ 'is-dirty': modified }" role="status">
+      {{ modified ? '有未保存的更改' : '设置已保存' }}
+    </span>
+    <el-button type="primary" :icon="DocumentChecked" :disabled="!modified" @click="submit"
+      >保存设置</el-button
+    >
+  </div>
   <el-form label-width="130px">
-    <h4>匹配选项</h4>
+    <h3>匹配选项</h3>
     <el-form-item>
       <template #label>
         <el-text>拦截范围</el-text>
@@ -71,20 +73,11 @@
     </el-form-item>
   </el-form>
   <div>
-    <h4 style="display: inline">响应设置</h4>
-    <el-text style="display: block; margin: 1rem 0" type="warning" size="small"></el-text>
-    <el-text style="display: block; margin: 1rem 0" type="warning" size="small">
-      <span>提示：</span>
-      <ul>
-        <li><p>超过阈值时，对应用户该等级的计数会被清空重新计算。</p></li>
-        <li>
-          <p>
-            增加怒气值时，会计算群组和邀请人的连带责任。连带责任比例在
-            <strong>综合设置 > 黑白名单 > 设置选项</strong> 中调整。
-          </p>
-        </li>
-      </ul>
-    </el-text>
+    <h3>响应设置</h3>
+    <ul class="censor-notes">
+      <li>用户命中次数超过阈值后，该级别的计数会清零重新累计。</li>
+      <li>增加怒气值时会按比例连带群组与邀请人，比例在“黑白名单 → 自动拉黑规则”中调整。</li>
+    </ul>
   </div>
   <el-form>
     <el-form-item>
@@ -402,5 +395,32 @@ const submit = async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.censor-savebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.censor-save-status {
+  font-size: 13px;
+  color: var(--seal-text-secondary);
+}
+
+.censor-save-status.is-dirty {
+  color: var(--el-color-warning);
+  font-weight: 600;
+}
+
+.censor-notes {
+  margin: 0 0 16px;
+  padding-inline-start: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--seal-text-secondary);
 }
 </style>

@@ -49,8 +49,22 @@ export function getJsRecord() {
   }>('get', 'get_record');
 }
 
+export interface JsUploadResult {
+  result: boolean;
+  /** 全新的插件已被局部加载，不需要重载 */
+  incremental: boolean;
+  /** 是否仍需要手动重载插件 */
+  needReload: boolean;
+  /** 无法局部加载的原因 */
+  reason?: string;
+  loaded?: string[];
+  disabled?: boolean;
+  rejected?: { name: string; reason: string }[];
+  warnings?: string[];
+}
+
 export function uploadJs(file: UploadRawFile | Blob) {
-  return request('post', 'upload', { file }, 'formdata');
+  return request<JsUploadResult | { testMode: true }>('post', 'upload', { file }, 'formdata');
 }
 
 export function deleteJs(filename: string) {

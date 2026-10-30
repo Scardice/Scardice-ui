@@ -4,6 +4,7 @@ const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/home', name: 'home', component: () => import('~/components/PageHome.vue') },
+    { path: '/logs', name: 'logs', component: () => import('~/components/PageLogs.vue') },
     {
       path: '/connect',
       name: 'connect',
@@ -20,6 +21,11 @@ const router = createRouter({
       name: 'mod',
       children: [
         { path: 'js', name: 'mod-js', component: () => import('~/components/mod/PageJs.vue') },
+        {
+          path: 'runtime',
+          name: 'mod-runtime',
+          component: () => import('~/components/mod/PageRuntime.vue'),
+        },
         {
           path: 'reply',
           name: 'mod-reply',

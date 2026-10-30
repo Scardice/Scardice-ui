@@ -16,7 +16,13 @@ export function setBackupConfig(data: BackupConfig) {
 }
 
 export function postDoBackup(selection: number) {
-  return request('post', 'do_backup', { selection });
+  return request<BackupResult>('post', 'do_backup', { selection }, 'json', {
+    'axios-retry': { retries: 0 },
+  });
+}
+
+export function getBackupStatus() {
+  return request<{ job: BackupJob | null }>('get', 'status');
 }
 
 export function postBackupDel(name: string) {
@@ -49,3 +55,16 @@ type BackupInfo = {
   fileSize: number;
   selection: number;
 };
+export interface BackupJob {
+  id: string;
+  status: 'running' | 'succeeded' | 'failed';
+  stage: 'preparing' | 'snapshot' | 'collecting' | 'archiving' | 'finalizing';
+  completedFiles: number;
+  totalFiles: number;
+  filename?: string;
+  error?: string;
+  startedAt: number;
+  finishedAt?: number;
+}
+
+type BackupResult = { success: true; job: BackupJob } | { testMode: true };

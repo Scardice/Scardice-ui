@@ -8,7 +8,10 @@ import {
 } from '~/api/dice';
 import {
   createEndpoint,
+  enableEndpoint,
+  getEndpoint,
   listEndpoints,
+  waitForOperation,
   type EndpointCreateRequest,
   type EndpointView,
 } from '~/api/endpoints';
@@ -102,11 +105,16 @@ export interface AdapterQQ {
   qrLoginState?: OfficialQQQRLoginState;
 }
 
-interface TalkLogItem {
-  name?: string;
+export interface TalkLogItem {
+  id: number;
+  /** 会话键：private:UI:1001 或 group:UI-Group:2001 */
+  conversation: string;
+  /** bot 为骰子回复，user 为测试用户发言，system 为界面提示 */
+  kind: 'bot' | 'user' | 'system';
+  /** 测试用户 ID（UI:xxx），仅 kind=user */
+  senderId?: string;
   content: string;
-  isSeal?: boolean;
-  mode: 'private' | 'group';
+  at: number;
 }
 
 export interface DiceConnection {
@@ -132,31 +140,101 @@ function recordPayload(endpoint: EndpointView): Record<string, unknown> {
 }
 
 function numberValue(value: unknown, fallback = 0): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+function endpointUserId(endpoint: EndpointView, payload: Record<string, unknown>): number {
+  for (const value of [endpoint.providerId, payload.userId, payload.account, payload.accountHint]) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value !== 'string') continue;
+    const separator = value.lastIndexOf(':');
+    const candidate = separator >= 0 ? value.slice(separator + 1) : value;
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
 }
 
 function stringValue(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
+function endpointPlatform(endpoint: EndpointView, payload: Record<string, unknown>): string {
+  const platform = stringValue(payload.platform);
+  if (platform.toLowerCase() === 'qq') return 'QQ';
+  if (
+    ['gocq', 'lagrange', 'milky', 'official_qq', 'pureonebot', 'red'].includes(endpoint.adapterKey)
+  ) {
+    return 'QQ';
+  }
+  return platform || endpoint.adapterKey;
+}
+
+function endpointProtocolType(endpoint: EndpointView): string {
+  switch (endpoint.adapterKey) {
+    case 'gocq':
+    case 'lagrange':
+    case 'pureonebot':
+      return 'onebot';
+    case 'official_qq':
+      return 'official';
+    default:
+      return endpoint.adapterKey;
+  }
+}
+
 export function endpointViewToDiceConnection(endpoint: EndpointView): DiceConnection {
   const payload = recordPayload(endpoint);
   const mode = stringValue(payload.mode);
+  const observedState = endpoint.observedState.toLowerCase();
+  const operationState = endpoint.operationState.toLowerCase();
+  const hasBuiltinRuntime =
+    mode === 'builtin' ||
+    Boolean(payload.useInPackGoCqhttp) ||
+    Boolean(payload.builtinMode) ||
+    (endpoint.adapterKey === 'milky' && Boolean(payload.built_in_mode));
+  let loginState = numberValue(payload.loginState);
+  if (
+    payload.loginState === undefined &&
+    (hasBuiltinRuntime || endpoint.adapterKey === 'official_qq')
+  ) {
+    loginState =
+      observedState === 'starting'
+        ? endpoint.adapterKey === 'official_qq'
+          ? goCqHttpStateCode.Init
+          : goCqHttpStateCode.InLoginQrCode
+        : observedState === 'connected'
+          ? endpoint.adapterKey === 'milky'
+            ? goCqHttpStateCode.MilkyLoginConnected
+            : goCqHttpStateCode.LoginSuccessed
+          : observedState === 'failed'
+            ? goCqHttpStateCode.LoginFailed
+            : goCqHttpStateCode.Init;
+  }
   const adapter: AdapterQQ = {
     DiceServing: true,
-    connectUrl: stringValue(payload.url || payload.clientUrl || payload.connectUrl),
+    connectUrl: stringValue(
+      payload.url || payload.clientUrl || payload.connectUrl || payload.ws_gateway,
+    ),
     curLoginFailedReason: stringValue(payload.loginFailedReason),
     curLoginIndex: numberValue(payload.curLoginIndex),
-    loginState: numberValue(payload.loginState) as goCqHttpStateCode,
+    loginState: loginState as goCqHttpStateCode,
     inPackGoCqHttpLastRestricted: numberValue(payload.lastRestricted),
     inPackGoCqHttpProtocol: numberValue(payload.protocol),
     inPackGoCqHttpAppVersion: stringValue(payload.appVersion),
     implementation: stringValue(payload.implementation),
-    useInPackGoCqhttp: mode === 'builtin' || Boolean(payload.useInPackGoCqhttp),
+    useInPackGoCqhttp: hasBuiltinRuntime,
     goCqHttpLoginVerifyCode: stringValue(payload.loginVerifyCode),
     goCqHttpLoginDeviceLockUrl: stringValue(payload.loginDeviceLockUrl),
     ignoreFriendRequest:
-      payload.friendRequestPolicy === 'ignore' || payload.ignoreFriendRequest === true,
+      payload.friendRequestPolicy === 'ignore' ||
+      payload.ignoreFriendRequest === true ||
+      payload.ignore_friend_request === true,
     goCqHttpSmsNumberTip: stringValue(payload.smsNumberTip),
     useSignServer: payload.useSignServer === true,
     signServerConfig: payload.signServerConfig || {
@@ -165,7 +243,7 @@ export function endpointViewToDiceConnection(endpoint: EndpointView): DiceConnec
     redVersion: stringValue(payload.redVersion),
     host: stringValue(payload.host),
     port: numberValue(payload.port),
-    appID: numberValue(payload.appID),
+    appID: numberValue(payload.appID ?? payload.appId),
     isReverse: mode === 'server' || Boolean(payload.isReverse),
     reverseAddr: stringValue(payload.listenAddress || payload.reverseUrl),
     builtinMode: stringValue(payload.builtinMode) as AdapterQQ['builtinMode'],
@@ -175,37 +253,29 @@ export function endpointViewToDiceConnection(endpoint: EndpointView): DiceConnec
     imageAssetBaseUrl: stringValue(payload.imageAssetBaseUrl),
     qrLoginState: numberValue(payload.qrLoginState) as OfficialQQQRLoginState,
   };
-  const observedState = endpoint.observedState.toLowerCase();
-  const operationState = endpoint.operationState.toLowerCase();
   const ambiguous = observedState === 'ambiguous' || operationState === 'ambiguous';
   const state =
-    observedState === 'running' || observedState === 'connected'
+    observedState === 'connected'
       ? 1
       : observedState === 'starting'
         ? 2
         : observedState === 'failed'
           ? 3
           : 0;
-  const userId = numberValue(payload.userId || payload.account || payload.accountHint);
+  const userId = endpointUserId(endpoint, payload);
   return {
     id: endpoint.endpointId,
     state,
-    platform: stringValue(
-      payload.platform,
-      endpoint.adapterKey === 'pureonebot' ? 'QQ' : endpoint.adapterKey,
-    ),
+    platform: endpointPlatform(endpoint, payload),
     workDir: stringValue(payload.workDir),
     enable: endpoint.desiredState.toLowerCase() !== 'disabled',
     ambiguous,
-    protocolType: stringValue(
-      payload.protocolType,
-      endpoint.adapterKey === 'pureonebot' ? 'onebot' : endpoint.adapterKey,
-    ),
-    nickname: stringValue(payload.nickname, endpoint.endpointId),
+    protocolType: endpointProtocolType(endpoint),
+    nickname: stringValue(endpoint.displayName || payload.nickname, endpoint.endpointId),
     userId,
-    groupNum: numberValue(payload.groupNum),
-    cmdExecutedNum: numberValue(payload.cmdExecutedNum),
-    cmdExecutedLastTime: numberValue(payload.cmdExecutedLastTime),
+    groupNum: numberValue(endpoint.groupNum ?? payload.groupNum),
+    cmdExecutedNum: numberValue(endpoint.cmdExecutedNum ?? payload.cmdExecutedNum),
+    cmdExecutedLastTime: numberValue(endpoint.cmdExecutedLastTime ?? payload.cmdExecutedLastTime),
     isPublic: Boolean(payload.isPublic),
     endpointView: endpoint,
     adapter,
@@ -275,30 +345,45 @@ export interface Resource {
   path: string;
   size: number;
 }
-function sanitizeSignServerConfig(
-  config: unknown,
+type EndpointSecretReference = {
+  secretRef: string;
+  version: number;
+};
+
+function requireEndpointText(value: unknown, label: string): string {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) {
+    throw new Error(`${label}不能为空`);
+  }
+  return text;
+}
+
+function requireEndpointPort(value: unknown, label: string): number {
+  const port = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`${label}必须是 1 到 65535 之间的整数`);
+  }
+  return port;
+}
+
+function setEndpointSecret(
+  payload: Record<string, unknown>,
   secrets: Record<string, string>,
-): Record<string, unknown> | undefined {
-  if (!config || typeof config !== 'object') return undefined;
-  const source = config as Record<string, unknown>;
-  const servers = Array.isArray(source.signServers) ? source.signServers : [];
-  return {
-    ...source,
-    signServers: servers.map((value, index) => {
-      if (!value || typeof value !== 'object') return {};
-      const server = value as Record<string, unknown>;
-      const sanitized: Record<string, unknown> = { url: stringValue(server.url) };
-      for (const field of ['key', 'authorization']) {
-        const secret = stringValue(server[field]);
-        if (secret) {
-          const ref = `signServer.${index}.${field}`;
-          secrets[ref] = secret;
-          sanitized[field] = { secretRef: ref, version: 1 };
-        }
-      }
-      return sanitized;
-    }),
-  };
+  field: string,
+  secretRef: string,
+  value: unknown,
+  required = true,
+) {
+  const secret = typeof value === 'string' ? value.trim() : '';
+  if (!secret) {
+    if (required) {
+      throw new Error(`${field}不能为空`);
+    }
+    return;
+  }
+  const reference: EndpointSecretReference = { secretRef, version: 1 };
+  payload[field] = reference;
+  secrets[secretRef] = secret;
 }
 function compactEndpointPayload(value: unknown): unknown {
   if (typeof value === 'string') {
@@ -322,130 +407,183 @@ function compactEndpointPayload(value: unknown): unknown {
   return value;
 }
 
-function isMeaningfulSignServerConfig(config: Record<string, unknown> | undefined): boolean {
-  if (!config) return false;
-  const servers = Array.isArray(config.signServers) ? config.signServers : [];
-  return servers.some(server => {
-    if (!server || typeof server !== 'object') return false;
-    const entry = server as Record<string, unknown>;
-    return (
-      (typeof entry.url === 'string' && entry.url.trim() !== '') ||
-      entry.key !== undefined ||
-      entry.authorization !== undefined
-    );
-  });
-}
-
 function endpointRequestFromForm(form: addImConnectionForm): EndpointCreateRequest {
-  const adapterKeys: Record<number, string> = {
-    [ImConnectionTypeGocqLegacy]: 'gocq',
-    [ImConnectionTypeDiscord]: 'discord',
-    [ImConnectionTypeKook]: 'kook',
-    [ImConnectionTypeTelegram]: 'telegram',
-    [ImConnectionTypeMinecraft]: 'minecraft',
-    [ImConnectionTypeDodo]: 'dodo',
-    [ImConnectionTypeOnebotSeparate]: 'pureonebot',
-    [ImConnectionTypeRed]: 'red',
-    [ImConnectionTypeDingTalk]: 'dingtalk',
-    [ImConnectionTypeSlack]: 'slack',
-    [ImConnectionTypeOfficialQQ]: 'official_qq',
-    [ImConnectionTypeOnebotReverse]: 'pureonebot',
-    [ImConnectionTypeSealChat]: 'sealchat',
-    [ImConnectionTypeSatori]: 'satori',
-    [ImConnectionTypeLagrangeOnebot]: 'lagrange',
-    [ImConnectionTypeMilkySeparate]: 'milky',
-    [ImConnectionTypeMilkyInternal]: 'milky',
-    [ImConnectionTypeMilkyInternalLagrange]: 'milky',
-    [ImConnectionTypeMilkyInternalYogurt]: 'milky',
-  };
-  let adapterKey = adapterKeys[form.accountType] || `legacy-${form.accountType}`;
-  const port = Number(form.port);
-  const payload: Record<string, unknown> = {
-    accountType: form.accountType,
-    platform: form.platform,
-    nickname: form.nickname,
-    account: form.account,
-    protocol: form.protocol,
-    appVersion: form.appVersion,
-    implementation: form.implementation,
-    proxyURL: form.proxyURL,
-    reverseProxyUrl: form.reverseProxyUrl,
-    reverseProxyCDNUrl: form.reverseProxyCDNUrl,
-    url: form.url,
-    clientID: form.clientID,
-    robotCode: form.robotCode,
-    relWorkDir: form.relWorkDir,
-    connectUrl: form.connectUrl,
-    host: form.host,
-    port: Number.isInteger(port) && port >= 0 ? port : undefined,
-    onlyQQGuild: form.onlyQQGuild,
-    appID: form.appID,
-    signServerName: form.signServerName,
-    signServerVersion: form.signServerVersion,
-    reverseAddr: form.reverseAddr,
-    wsGateway: form.wsGateway,
-    restGateway: form.restGateway,
-    friendRequestPolicy: form.ignoreFriendRequest ? 'ignore' : 'accept',
-    useSignServer: form.useSignServer,
-    imageAssetBaseUrl: form.imageAssetBaseUrl,
-  };
+  const payload: Record<string, unknown> = {};
   const secrets: Record<string, string> = {};
-  const secretFields: Record<string, string> = {
-    token: form.token,
-    botToken: form.botToken,
-    appToken: form.appToken,
-    accessToken: form.accessToken,
-    appSecret: form.appSecret,
-    password: form.password,
-  };
-  for (const [name, value] of Object.entries(secretFields)) {
-    if (value) secrets[name] = value;
-  }
-  const signServerConfig = sanitizeSignServerConfig(form.signServerConfig, secrets);
-  if (isMeaningfulSignServerConfig(signServerConfig)) {
-    payload.signServerConfig = signServerConfig;
-  }
-  if (form.accountType === ImConnectionTypeOnebotSeparate) {
-    adapterKey = 'pureonebot';
-    for (const key of Object.keys(secrets)) delete secrets[key];
-    for (const key of Object.keys(payload)) delete payload[key];
-    payload.mode = 'client';
-    payload.url = form.connectUrl.trim();
-    payload.friendRequestPolicy = form.ignoreFriendRequest ? 'ignore' : 'accept';
-    payload.imageAssetBaseUrl = form.imageAssetBaseUrl;
-    payload.accountHint = form.account;
-    if (form.accessToken) {
-      payload.token = { secretRef: 'accessToken', version: 1 };
-      secrets.accessToken = form.accessToken;
+  let adapterKey: string;
+
+  switch (form.accountType) {
+    case ImConnectionTypeDiscord:
+      adapterKey = 'discord';
+      payload.version = '1';
+      payload.guild = '';
+      payload.channel = '';
+      payload.proxyURL = form.proxyURL;
+      payload.reverseProxyUrl = form.reverseProxyUrl;
+      payload.reverseProxyCDNUrl = form.reverseProxyCDNUrl;
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeKook:
+      adapterKey = 'kook';
+      payload.version = '1';
+      payload.guild = '';
+      payload.channel = '';
+      payload.apiBaseURL = '';
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeTelegram:
+      adapterKey = 'telegram';
+      payload.chatId = '';
+      payload.webhookUrl = '';
+      payload.proxyURL = form.proxyURL;
+      payload.apiBaseURL = '';
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeMinecraft:
+      adapterKey = 'minecraft';
+      payload.serverAddress = form.host;
+      payload.username = form.account;
+      payload.authMode = 'none';
+      payload.connectUrl = requireEndpointText(form.url, 'Minecraft 连接地址');
+      break;
+    case ImConnectionTypeDodo:
+      adapterKey = 'dodo';
+      payload.islandId = '';
+      payload.botId = '';
+      payload.clientID = requireEndpointText(form.clientID, 'Dodo ClientID');
+      payload.apiBaseURL = '';
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeOnebotSeparate:
+      adapterKey = 'pureonebot';
+      payload.mode = 'client';
+      payload.url = requireEndpointText(form.connectUrl, 'OneBot 连接地址');
+      payload.reverseSuffix = '/ws';
+      payload.accountHint = form.account;
+      payload.friendRequestPolicy = form.ignoreFriendRequest ? 'ignore' : 'accept';
+      payload.imageAssetBaseUrl = form.imageAssetBaseUrl;
+      setEndpointSecret(payload, secrets, 'token', 'accessToken', form.accessToken, false);
+      break;
+    case ImConnectionTypeOnebotReverse:
+      adapterKey = 'pureonebot';
+      payload.mode = 'server';
+      payload.listenAddress = requireEndpointText(form.reverseAddr, 'OneBot 监听地址');
+      payload.reverseSuffix = '/ws';
+      payload.accountHint = form.account;
+      payload.friendRequestPolicy = form.ignoreFriendRequest ? 'ignore' : 'accept';
+      payload.imageAssetBaseUrl = form.imageAssetBaseUrl;
+      setEndpointSecret(payload, secrets, 'token', 'accessToken', form.accessToken);
+      break;
+    case ImConnectionTypeRed:
+      adapterKey = 'red';
+      payload.version = '1';
+      payload.device = '';
+      payload.protocol = String(form.protocol);
+      payload.appId = '';
+      payload.host = requireEndpointText(form.host, 'Red 主机');
+      payload.port = requireEndpointPort(form.port, 'Red 端口');
+      payload.redVersion = '';
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeDingTalk:
+      adapterKey = 'dingtalk';
+      payload.clientId = requireEndpointText(form.clientID, '钉钉 ClientID');
+      payload.robotCode = requireEndpointText(form.robotCode, '钉钉 RobotCode');
+      payload.coolAppCode = '';
+      payload.stream = true;
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeSlack:
+      adapterKey = 'slack';
+      payload.version = '1';
+      payload.channel = '';
+      payload.apiBaseURL = '';
+      setEndpointSecret(payload, secrets, 'appToken', 'appToken', form.appToken);
+      setEndpointSecret(payload, secrets, 'botToken', 'botToken', form.botToken);
+      break;
+    case ImConnectionTypeOfficialQQ: {
+      adapterKey = 'official_qq';
+      const appID = form.appID;
+      if (typeof appID !== 'number' || !Number.isInteger(appID) || appID <= 0) {
+        throw new Error('官方 QQ AppID 必须是正整数');
+      }
+      payload.appId = appID;
+      payload.onlyQQGuild = form.onlyQQGuild;
+      payload.accountHint = form.account;
+      setEndpointSecret(payload, secrets, 'appSecret', 'appSecret', form.appSecret);
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
     }
-    payload.reverseSuffix = '/ws';
-    delete payload.connectUrl;
-  } else if (form.accountType === ImConnectionTypeOnebotReverse) {
-    adapterKey = 'pureonebot';
-    for (const key of Object.keys(secrets)) delete secrets[key];
-    for (const key of Object.keys(payload)) delete payload[key];
-    payload.mode = 'server';
-    payload.listenAddress = form.reverseAddr.trim();
-    payload.friendRequestPolicy = form.ignoreFriendRequest ? 'ignore' : 'accept';
-    payload.imageAssetBaseUrl = form.imageAssetBaseUrl;
-    payload.accountHint = form.account;
-    if (form.accessToken) {
-      payload.token = { secretRef: 'accessToken', version: 1 };
-      secrets.accessToken = form.accessToken;
-    }
-    payload.reverseSuffix = '/ws';
-    delete payload.reverseAddr;
-    delete payload.account;
+    case ImConnectionTypeSealChat:
+      adapterKey = 'sealchat';
+      payload.appId = '';
+      payload.tenant = '';
+      payload.connectUrl = requireEndpointText(form.url, 'SealChat 连接地址');
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeSatori:
+      adapterKey = 'satori';
+      payload.version = '1';
+      payload.platform = requireEndpointText(form.platform, 'Satori 平台').toLowerCase();
+      payload.host = requireEndpointText(form.host, 'Satori 主机');
+      payload.port = requireEndpointPort(form.port, 'Satori 端口');
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeMilkySeparate:
+      adapterKey = 'milky';
+      payload.version = '1';
+      payload.ws_gateway = requireEndpointText(form.wsGateway, 'Milky WebSocket Gateway');
+      payload.rest_gateway = requireEndpointText(form.restGateway, 'Milky REST Gateway');
+      payload.built_in_mode = '';
+      payload.ignore_friend_request = form.ignoreFriendRequest;
+      setEndpointSecret(payload, secrets, 'token', 'token', form.token);
+      break;
+    case ImConnectionTypeGocqLegacy:
+      adapterKey = 'gocq';
+      payload.useInPackGoCqhttp = true;
+      payload.builtinMode = 'gocq';
+      payload.account = requireEndpointText(form.account, 'QQ账号');
+      payload.protocol = form.protocol;
+      payload.appVersion = form.appVersion;
+      payload.ignoreFriendRequest = form.ignoreFriendRequest;
+      setEndpointSecret(payload, secrets, 'password', 'password', form.password, false);
+      break;
+    case ImConnectionTypeLagrangeOnebot:
+      adapterKey = 'lagrange';
+      payload.useInPackGoCqhttp = true;
+      payload.builtinMode = 'lagrange';
+      payload.account = requireEndpointText(form.account, 'QQ账号');
+      payload.protocol = form.protocol;
+      payload.appVersion = form.appVersion;
+      payload.signServerName = form.signServerName;
+      payload.signServerVersion = form.signServerVersion;
+      payload.ignoreFriendRequest = form.ignoreFriendRequest;
+      payload.imageAssetBaseUrl = form.imageAssetBaseUrl;
+      break;
+    case ImConnectionTypeMilkyInternal:
+    case ImConnectionTypeMilkyInternalLagrange:
+    case ImConnectionTypeMilkyInternalYogurt:
+      adapterKey = 'milky';
+      payload.version = '1';
+      payload.built_in_mode =
+        form.accountType === ImConnectionTypeMilkyInternalYogurt ? 'yogurt' : 'lagrangeV2';
+      payload.account = requireEndpointText(form.account, 'QQ账号');
+      payload.ignore_friend_request = form.ignoreFriendRequest;
+      break;
+    default:
+      throw new Error('当前核心不支持该连接类型');
   }
+
   const compacted = compactEndpointPayload(payload);
+  if (!compacted || typeof compacted !== 'object' || Array.isArray(compacted)) {
+    throw new Error('连接配置不能为空');
+  }
   return {
+    displayName: form.nickname.trim() || undefined,
     adapterKey,
     config: {
       version: 1,
-      payload: (compacted && typeof compacted === 'object' ? compacted : {}) as Record<
-        string,
-        unknown
-      >,
+      payload: compacted as Record<string, unknown>,
     },
     secrets,
   };
@@ -461,30 +599,7 @@ export const useStore = defineStore('main', {
       backendOffline: false,
       diceServers: [] as DiceServer[],
 
-      talkLogs: [
-        {
-          content:
-            '余烬已就绪。此界面可视为私聊窗口。\n设置中添加 Master 名为 UI:1001\n即可在此界面使用 master 命令！',
-          isSeal: true,
-          mode: 'private',
-        },
-        {
-          content:
-            '余烬已就绪。此界面可视为群聊窗口。\n设置中添加 Master 名为 UI:1002\n即可在此界面使用 master 命令！',
-          isSeal: true,
-          mode: 'group',
-        },
-        {
-          content: '（请注意，当前会话记录在刷新页面后会消失）',
-          isSeal: true,
-          mode: 'private',
-        },
-        {
-          content: '（请注意，当前会话记录在刷新页面后会消失）',
-          isSeal: true,
-          mode: 'group',
-        },
-      ] as TalkLogItem[],
+      talkLogs: [] as TalkLogItem[],
     };
   },
   getters: {
@@ -566,11 +681,24 @@ export const useStore = defineStore('main', {
       if (!response.endpoint) {
         throw new Error(`创建账号操作未返回端点（operationId=${response.operationId}）`);
       }
-      const connection = endpointViewToDiceConnection(response.endpoint);
+      const enableResponse = await enableEndpoint(response.endpoint.endpointId, {
+        expectedAggregateVersion: response.endpoint.version,
+        confirm: false,
+      });
+      const enableOperation = await waitForOperation(enableResponse.operationId);
+      if (enableOperation.status !== 'succeeded') {
+        throw new Error(
+          enableOperation.status === 'ambiguous'
+            ? '账号启用状态不明确，请刷新后确认'
+            : '账号启用失败',
+        );
+      }
+      const endpoint = await getEndpoint(response.endpoint.endpointId);
+      const connection = endpointViewToDiceConnection(endpoint);
       const current = this.diceServers[this.index].endpointViews.filter(
-        endpoint => endpoint.endpointId !== response.endpoint?.endpointId,
+        item => item.endpointId !== endpoint.endpointId,
       );
-      this.diceServers[this.index].endpointViews = [...current, response.endpoint];
+      this.diceServers[this.index].endpointViews = [...current, endpoint];
       this.diceServers[this.index].conns = this.diceServers[this.index].endpointViews.map(
         endpointViewToDiceConnection,
       );
@@ -617,7 +745,10 @@ export const useStore = defineStore('main', {
     // },
 
     async tryAdminToken(secret: string): Promise<boolean> {
-      const candidate = secret.trim();
+      const candidate = secret
+        .trim()
+        .replace(/^Bearer\s+/i, '')
+        .trim();
       if (!candidate) {
         return false;
       }
@@ -659,7 +790,7 @@ export const useStore = defineStore('main', {
     },
     async trySignIn(): Promise<boolean> {
       const token = localStorage.getItem('t');
-      if (token && (await this.tryAdminToken(token))) {
+      if (token && isAdminAuthMode() && (await this.tryAdminToken(token))) {
         return true;
       }
       try {

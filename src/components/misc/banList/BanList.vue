@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { UploadUserFile } from 'element-plus';
-import { Download, Delete, Plus, Upload } from '@element-plus/icons-vue';
+import { Download, Delete, Plus, Search, Upload } from '@element-plus/icons-vue';
 import { urlBase } from '~/api';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -107,15 +107,15 @@ const refreshList = async () => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const deleteOne = async (i: any, index: number) => {
-  const res = await ElMessageBox.confirm('是否删除此记录？', '删除', {
-    confirmButtonText: '确定',
+  const res = await ElMessageBox.confirm(`确定删除 ${i.ID} 的名单记录吗？`, '删除记录', {
+    confirmButtonText: '删除',
     cancelButtonText: '取消',
     type: 'warning',
   });
   if (res) {
     await postMapDelOne(i);
     await refreshList();
-    ElMessage.success('已保存');
+    ElMessage.success('记录已删除');
   }
 };
 
@@ -143,103 +143,99 @@ onBeforeMount(async () => {
 </script>
 
 <template>
-  <header class="flex flex-wrap-reverse gap-y-4 justify-between">
-    <el-space>
-      <el-text size="large">搜索：</el-text>
-      <el-input v-model="searchBy" class="w-64" placeholder="请输入帐号或名字的一部分"></el-input>
-    </el-space>
-
-    <el-space>
-      <el-button type="success" :icon="Plus" @click="dialogAddShow = true">添加</el-button>
+  <div class="ban-toolbar">
+    <el-input
+      v-model="searchBy"
+      class="ban-search"
+      clearable
+      :prefix-icon="Search"
+      aria-label="搜索名单"
+      placeholder="账号 ID 或名称" />
+    <div class="ban-filters" role="group" aria-label="按级别筛选">
+      <el-checkbox v-model="showBanned">拉黑</el-checkbox>
+      <el-checkbox v-model="showWarn">警告</el-checkbox>
+      <el-checkbox v-model="showTrusted">信任</el-checkbox>
+      <el-checkbox v-model="showOthers">常规</el-checkbox>
+    </div>
+    <div class="workspace-actions ban-actions">
       <el-upload
         action=""
         multiple
         accept="application/json,.json"
         :show-file-list="false"
-        :before-upload="beforeUpload"
-        style="display: flex; align-items: center">
-        <el-button type="success" :icon="Upload" plain>导入</el-button>
+        :before-upload="beforeUpload">
+        <el-button :icon="Upload">导入</el-button>
       </el-upload>
       <el-button
-        type="primary"
         :icon="Download"
-        plain
         tag="a"
         target="_blank"
-        :href="`${urlBase}/sd-api/banconfig/export`"
-        style="text-decoration: none">
+        class="ban-export"
+        :href="`${urlBase}/sd-api/banconfig/export`">
         导出
       </el-button>
-    </el-space>
-  </header>
+      <el-button type="primary" :icon="Plus" @click="dialogAddShow = true">添加记录</el-button>
+    </div>
+  </div>
 
-  <el-space class="my-2">
-    <el-text size="large">级别：</el-text>
-    <el-checkbox v-model="showBanned">拉黑</el-checkbox>
-    <el-checkbox v-model="showWarn">警告</el-checkbox>
-    <el-checkbox v-model="showTrusted">信任</el-checkbox>
-    <el-checkbox v-model="showOthers">其它</el-checkbox>
-  </el-space>
+  <div v-if="groupItems.length === 0" class="workspace-panel workspace-empty">
+    <strong>{{ recordList.length ? '没有符合条件的记录' : '名单为空' }}</strong>
+    <p>
+      {{
+        recordList.length
+          ? '调整搜索词或级别筛选后再试。'
+          : '用户或群组达到警告/拉黑阈值时会自动加入；也可以手动添加。'
+      }}
+    </p>
+  </div>
 
-  <main class="mt-4">
-    <el-space :fill="true" class="w-full">
-      <el-card v-for="(i, index) in groupItems" :key="i.ID" shadow="hover" class="w-full">
-        <template #header>
-          <div class="flex flex-wrap gap-4 justify-between">
-            <el-space alignment="center">
-              <el-tag v-if="i.rankText === '禁止'" type="danger" disable-transitions>{{
-                i.rankText
-              }}</el-tag>
-              <el-tag v-else-if="i.rankText === '警告'" type="warning" disable-transitions>{{
-                i.rankText
-              }}</el-tag>
-              <el-tag v-else-if="i.rankText === '信任'" type="success" disable-transitions>{{
-                i.rankText
-              }}</el-tag>
-              <el-tag v-else disable-transitions>{{ i.rankText }}</el-tag>
-              <el-space size="small" alignment="center" wrap>
-                <el-text size="large" tag="strong">{{ i.ID }}</el-text>
-                <el-text>「{{ i.name }}」</el-text>
-                <el-text size="small" tag="em">怒气值：{{ i.score }}</el-text>
-              </el-space>
-            </el-space>
-            <el-space>
-              <el-button
-                :icon="Delete"
-                type="danger"
-                size="small"
-                plain
-                @click="deleteOne(i, index)"
-                >删除</el-button
-              >
-            </el-space>
-          </div>
-        </template>
-        <el-space style="display: block" direction="vertical">
-          <div v-for="(j, index) in i.reasons" :key="index">
-            <el-space size="small" wrap>
-              <el-tooltip
-                raw-content
-                :content="dayjs.unix(i.times[index]).format('YYYY-MM-DD HH:mm:ssZ[Z]')">
-                <el-tag size="small" type="info" disable-transitions>{{
-                  dayjs.unix(i.times[index]).fromNow()
-                }}</el-tag>
-              </el-tooltip>
-              <el-text>在&lt;{{ i.places[index] }}>，原因：「{{ j }}」</el-text>
-            </el-space>
-          </div>
-        </el-space>
-      </el-card>
-    </el-space>
-  </main>
+  <ul v-else class="ban-list">
+    <li v-for="(i, index) in groupItems" :key="i.ID" class="workspace-panel ban-item">
+      <div class="ban-item-header">
+        <el-tag
+          :type="
+            i.rankText === '禁止'
+              ? 'danger'
+              : i.rankText === '警告'
+                ? 'warning'
+                : i.rankText === '信任'
+                  ? 'success'
+                  : 'info'
+          "
+          disable-transitions>
+          {{ i.rankText === '禁止' ? '拉黑' : i.rankText }}
+        </el-tag>
+        <div class="ban-identity">
+          <strong>{{ i.name || '未知名称' }}</strong>
+          <span>{{ i.ID }}</span>
+        </div>
+        <span class="ban-score" title="怒气值越高越接近拉黑阈值">怒气值 {{ i.score }}</span>
+        <el-button
+          class="ban-delete"
+          :icon="Delete"
+          type="danger"
+          size="small"
+          plain
+          @click="deleteOne(i, index)"
+          >删除</el-button
+        >
+      </div>
+      <ul v-if="i.reasons?.length" class="ban-reasons">
+        <li v-for="(j, index) in i.reasons" :key="index">
+          <el-tooltip :content="dayjs.unix(i.times[index]).format('YYYY-MM-DD HH:mm:ss')">
+            <time class="ban-time">{{ dayjs.unix(i.times[index]).fromNow() }}</time>
+          </el-tooltip>
+          <span>在 {{ i.places[index] }}：{{ j }}</span>
+        </li>
+      </ul>
+    </li>
+  </ul>
 
-  <footer class="mt-4 flex justify-center">
+  <footer class="ban-pagination">
     <el-pagination
       v-model:current-page="recordPage.no"
       v-model:page-size="recordPage.pageSize"
-      class="bg-[#f3f5f7]"
-      type="small"
-      :pager-count="3"
+      :pager-count="5"
       layout="prev, pager, next, total"
       background
       hide-on-single-page
@@ -248,29 +244,28 @@ onBeforeMount(async () => {
 
   <el-dialog
     v-model="dialogAddShow"
-    title="添加用户/群组"
+    title="添加名单记录"
+    width="min(480px, calc(100vw - 32px))"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     :show-close="false"
     class="the-dialog">
-    <el-form label-width="6rem">
-      <el-form-item label="用户ID" required>
-        <el-input
-          v-model="addData.id"
-          placeholder="必须为 QQ:12345 或 QQ-Group:12345 格式"></el-input>
+    <el-form label-width="auto">
+      <el-form-item label="账号 ID" required>
+        <el-input v-model="addData.id" placeholder="例如 QQ:12345 或 QQ-Group:12345"></el-input>
       </el-form-item>
       <el-form-item label="名称">
-        <el-input v-model="addData.name" placeholder="自动"></el-input>
+        <el-input v-model="addData.name" placeholder="留空则自动获取"></el-input>
       </el-form-item>
       <el-form-item label="原因">
-        <el-input v-model="addData.reason" placeholder="骰主后台设置"></el-input>
+        <el-input v-model="addData.reason" placeholder="默认为“骰主后台设置”"></el-input>
       </el-form-item>
-      <el-form-item label="身份">
+      <el-form-item label="加入">
         <el-radio-group v-model="addData.rank">
           <el-radio
             v-for="item in [
-              { label: '禁用', value: -30 },
-              { label: '信任', value: 30 },
+              { label: '黑名单（拉黑）', value: -30 },
+              { label: '白名单（信任）', value: 30 },
             ]"
             :key="item.value"
             :label="item.label"
@@ -281,10 +276,109 @@ onBeforeMount(async () => {
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="dialogAddShow = false">取消</el-button>
-        <el-button type="success" @click="doAdd">添加</el-button>
+        <el-button type="primary" :disabled="!addData.id" @click="doAdd">添加</el-button>
       </span>
     </template>
   </el-dialog>
 </template>
 
-<style scoped lang="css"></style>
+<style scoped lang="css">
+.ban-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.ban-search {
+  width: min(280px, 100%);
+}
+
+.ban-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.ban-filters .el-checkbox {
+  margin-inline-end: 0;
+}
+
+.ban-actions {
+  margin-inline-start: auto;
+}
+
+.ban-export {
+  text-decoration: none;
+}
+
+.ban-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ban-item-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.ban-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ban-identity span {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.ban-score {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+
+.ban-delete {
+  margin-inline-start: auto;
+}
+
+.ban-reasons {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--seal-border-color-light);
+  font-size: 13px;
+}
+
+.ban-reasons li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.ban-time {
+  min-width: 6em;
+  color: var(--seal-text-secondary);
+}
+
+.ban-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+@media (max-width: 767px) {
+  .ban-actions {
+    margin-inline-start: 0;
+  }
+}
+</style>

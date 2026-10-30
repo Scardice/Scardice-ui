@@ -1,3 +1,4 @@
+import { testWebUIBypass } from '~/utils/test-webui-bypass';
 import type { Resource, ResourceType } from '~/store';
 import { apiBaseURL, createRequest } from '..';
 import type { UploadRawFile } from 'element-plus';
@@ -17,9 +18,11 @@ export function getResourceDataUrl(path: string, thumbnail: boolean = false) {
     thumbnail: String(thumbnail),
   });
 
-  const token = localStorage.getItem('t');
-  if (token) {
-    params.set('token', token);
+  if (!testWebUIBypass.skipStoredToken) {
+    const token = localStorage.getItem('t');
+    if (token) {
+      params.set('token', token);
+    }
   }
 
   return `${apiBaseURL}/resource/data?${params.toString()}`;

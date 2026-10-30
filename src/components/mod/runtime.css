@@ -1,0 +1,410 @@
+.runtime-section-heading,
+.runtime-card-heading,
+.runtime-upload-footer,
+.runtime-save-bar,
+.runtime-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.runtime-tabs h2,
+.runtime-tabs h3,
+.runtime-tabs p {
+  margin: 0;
+}
+
+.runtime-tabs h2,
+.runtime-tabs h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.runtime-muted {
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.runtime-page :deep(.el-tag) {
+  color: var(--el-text-color-regular);
+}
+
+.runtime-tabs :deep(.el-tabs__header) {
+  margin-bottom: 16px;
+}
+
+.runtime-tabs :deep(.el-tabs__item) {
+  font-weight: 500;
+}
+
+.runtime-overview,
+.runtime-install-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.runtime-overview > *,
+.runtime-install-layout > * {
+  min-width: 0;
+}
+
+.runtime-section-heading {
+  margin-bottom: 12px;
+  min-height: 24px;
+  flex-wrap: wrap;
+}
+
+.runtime-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+
+.runtime-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--seal-border-color-light);
+  border-radius: 8px;
+  background: var(--seal-panel-bg);
+}
+
+.runtime-card-heading {
+  align-items: flex-start;
+}
+
+.runtime-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.runtime-identity h3 {
+  font-size: 17px;
+  margin-bottom: 4px;
+}
+
+.runtime-status {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  line-height: 24px;
+}
+
+.runtime-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.runtime-status.is-loaded i {
+  background: var(--el-color-success);
+}
+
+.runtime-status.is-error i {
+  background: var(--el-color-danger);
+}
+
+.runtime-card-facts,
+.runtime-details {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.runtime-card-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.runtime-card-facts dt,
+.runtime-details dt {
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+}
+
+.runtime-card-facts dd,
+.runtime-details dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.runtime-card-context:empty {
+  display: none;
+}
+
+.runtime-card-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.runtime-technical,
+.runtime-routing-help {
+  border-top: 1px solid var(--el-border-color-lighter);
+  padding-top: 12px;
+  font-size: 12px;
+}
+
+.runtime-page summary {
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+  line-height: 24px;
+}
+
+.runtime-page summary:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.runtime-technical[open] summary,
+.runtime-routing-help[open] summary {
+  margin-bottom: 12px;
+}
+
+.runtime-details > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.runtime-details code {
+  font-family: var(--workspace-mono);
+  white-space: pre-wrap;
+}
+
+.runtime-field,
+.runtime-route-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 8px;
+}
+
+.runtime-field label {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.runtime-extension-routes h3 {
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.runtime-route-list {
+  display: grid;
+  gap: 16px;
+}
+
+.runtime-route-copy {
+  gap: 2px;
+}
+
+.runtime-unsaved {
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+}
+
+.runtime-save-bar {
+  border-top: 1px solid var(--el-border-color-lighter);
+  padding-top: 16px;
+  flex-wrap: wrap;
+}
+
+.runtime-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.runtime-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.runtime-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.runtime-pending-count {
+  padding: 0 6px;
+  line-height: 20px;
+  border-radius: var(--el-border-radius-base);
+  background: var(--seal-surface-soft);
+  color: var(--el-text-color-regular);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.runtime-file-picker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 8px;
+  padding: 28px 20px;
+  border: 1px dashed var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--seal-surface-soft);
+  text-align: center;
+}
+
+.runtime-file-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.runtime-file-picker:focus-within {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.runtime-file-picker strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.runtime-file-picker .el-icon {
+  font-size: 24px;
+  color: var(--el-text-color-secondary);
+}
+
+.runtime-file-picker.is-disabled {
+  opacity: 0.6;
+}
+
+.runtime-file-picker.is-disabled input {
+  cursor: not-allowed;
+}
+
+.runtime-upload-footer {
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.runtime-upload-footer .el-button {
+  flex-shrink: 0;
+}
+
+.runtime-pending-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.runtime-pending-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.runtime-pending-empty {
+  padding: 16px 0;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+}
+
+.runtime-uninstall {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.runtime-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 0;
+  font-size: 13px;
+}
+
+.runtime-discovery-alert {
+  margin-bottom: 20px;
+}
+
+.runtime-diagnostic pre {
+  max-height: 12rem;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding-inline-end: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .runtime-overview,
+  .runtime-install-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .runtime-card {
+    padding: 16px;
+  }
+
+  .runtime-muted,
+  .runtime-card-facts,
+  .runtime-details,
+  .runtime-field label,
+  .runtime-file-picker strong,
+  .runtime-pending-copy,
+  .runtime-pending-empty,
+  .runtime-state {
+    font-size: 16px;
+  }
+
+  .runtime-page :deep(.el-button),
+  .runtime-page :deep(.el-select__wrapper),
+  .runtime-page :deep(.el-tabs__item) {
+    min-height: 48px;
+  }
+
+  .runtime-page :deep(.el-select__wrapper) {
+    font-size: 16px;
+  }
+
+  .runtime-save-bar,
+  .runtime-upload-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .runtime-actions {
+    justify-content: stretch;
+  }
+
+  .runtime-actions .el-button {
+    flex: 1;
+  }
+}

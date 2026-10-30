@@ -24,7 +24,7 @@ const deleteByIndex = (index: number) => {
     v-for="(cond, index) in listModel"
     :key="index"
     class="mb-3 pl-2 border-l-2 border-orange-500">
-    <div class="pb-2 flex justify-between border-b">
+    <div class="condition-heading pb-2 flex justify-between border-b">
       <el-space>
         <el-text>模式</el-text>
         <el-radio-group v-model="cond.condType" size="small">
@@ -39,7 +39,7 @@ const deleteByIndex = (index: number) => {
     </div>
 
     <div v-if="cond.condType === 'textMatch'" style="display: flex" class="mobile-changeline">
-      <div style="width: 7rem; margin-right: 0.5rem">
+      <div class="match-type-field">
         <el-text
           >方式
           <el-tooltip
@@ -101,9 +101,28 @@ const deleteByIndex = (index: number) => {
 </template>
 
 <style scoped lang="css">
-@media screen and (max-width: 700px) {
+.condition-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.match-type-field {
+  width: 7rem;
+  margin-inline-end: 0.5rem;
+}
+
+.match-type-field :deep(.el-select) {
+  width: 100%;
+}
+
+@media screen and (max-width: 767px) {
   .mobile-changeline {
     flex-direction: column;
+  }
+
+  .match-type-field {
+    width: 100%;
+    margin-inline-end: 0;
   }
 }
 </style>

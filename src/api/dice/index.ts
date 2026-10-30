@@ -34,37 +34,26 @@ export function postMailTest() {
   >('post', 'config/mail_test');
 }
 
-export type ExecSplitOptionKey = 'short' | 'qq' | 'unlimited';
-
-export type ExecSplitOption = {
-  key: ExecSplitOptionKey;
-  label: string;
-  messageSplitLen: number;
-};
-
-export type ExecSplitOptions = {
-  defaultKey: ExecSplitOptionKey;
-  options: ExecSplitOption[];
-};
-
-export function getExecSplitOptions() {
-  return request<ExecSplitOptions>('get', 'exec/split_options');
+export interface ExecIdentity {
+  /** 形如 UI:1001 */
+  userId: string;
+  nickname: string;
+  /** 群聊时必填，形如 UI-Group:2001 */
+  groupId?: string;
+  groupName?: string;
+  groupRole?: 'owner' | 'admin' | 'member';
 }
 
 export function postExec(
   message: string,
   messageType: 'private' | 'group',
-  messageSplitLen?: number,
+  identity: ExecIdentity,
 ) {
-  const payload: {
-    message: string;
-    messageType: 'private' | 'group';
-    messageSplitLen?: number;
-  } = { message, messageType };
-  if (messageSplitLen !== undefined) {
-    payload.messageSplitLen = messageSplitLen;
-  }
-  return request('post', 'exec', payload);
+  return request('post', 'exec', { message, messageType, ...identity });
+}
+
+export function getCommandList() {
+  return request<string[]>('get', 'cmdList');
 }
 
 function upgradeUploadRequestConfig(
@@ -92,8 +81,14 @@ export function postUploadToUpgrade(
   );
 }
 
-export function getRecentMessage() {
-  return request<RecentMsg[]>('get', 'recentMessage');
+export interface RecentMessageBatch {
+  cursor: string;
+  messages: RecentMsg[];
+  truncated: boolean;
+}
+
+export function getRecentMessage(cursor?: string) {
+  return request<RecentMessageBatch>('get', 'recentMessage', { cursor });
 }
 
 export function postUpgrade() {

@@ -1,145 +1,162 @@
 <template>
-  <div class="group-page-header">
-    <div>
-      <h2>群管理</h2>
-      <el-text type="info"
-        >当前显示 {{ groupItems.length }} / {{ groupList.items?.length || 0 }} 个群组</el-text
-      >
-    </div>
-    <el-space wrap>
-      <el-button :icon="Refresh" @click="refreshListWithNameRetry">刷新</el-button>
-      <el-button
-        type="danger"
-        :icon="Delete"
-        :disabled="selectedGroupIds.length === 0"
-        @click="deleteSelectedGroups">
-        删除所选 {{ selectedGroupIds.length }}
-      </el-button>
-    </el-space>
-  </div>
+  <section class="workspace-page group-workspace" aria-labelledby="group-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="group-workspace-title" class="workspace-title">群组管理</h1>
+        <p class="workspace-subtitle">
+          查看骰子加入的群组，按需停用、退群或清理离线群组的本地记录。
+        </p>
+      </div>
+      <div class="workspace-actions">
+        <el-button :icon="Refresh" @click="refreshListWithNameRetry">刷新</el-button>
+        <el-tooltip content="只能选择离线群组；仅删除本地记录，不会退群" placement="bottom">
+          <el-button
+            type="danger"
+            plain
+            :icon="Delete"
+            :disabled="selectedGroupIds.length === 0"
+            @click="deleteSelectedGroups">
+            {{
+              selectedGroupIds.length
+                ? `删除所选记录（${selectedGroupIds.length}）`
+                : '删除所选记录'
+            }}
+          </el-button>
+        </el-tooltip>
+      </div>
+    </header>
 
-  <section class="group-filter-panel">
-    <div class="group-filter-row">
+    <section class="workspace-panel group-filter-panel" aria-label="筛选群组">
+      <label class="group-filter-label" for="group-search">搜索</label>
+      <div class="group-filter-controls">
+        <el-input
+          id="group-search"
+          v-model="searchBy"
+          class="group-search"
+          clearable
+          :prefix-icon="Search"
+          placeholder="群号、群名或邀请人" />
+        <el-select
+          v-model="endpointFilter"
+          class="group-endpoint-select"
+          clearable
+          filterable
+          :value-on-clear="''"
+          aria-label="按协议端筛选"
+          placeholder="全部协议端"
+          @clear="endpointFilter = ''">
+          <el-option
+            v-for="item in endpointOptions"
+            :key="item.value"
+            :value="item.value"
+            :label="item.label" />
+        </el-select>
+        <span class="group-count">
+          显示 {{ groupItems.length }} / {{ groupList.items?.length || 0 }} 个群组
+        </span>
+      </div>
+
       <span class="group-filter-label">平台</span>
-      <el-checkbox-group v-model="checkList">
-        <el-checkbox v-for="item in platformOptions" :key="item.value" :label="item.value">
+      <el-checkbox-group v-model="checkList" class="group-filter-controls" aria-label="平台">
+        <el-checkbox v-for="item in platformOptions" :key="item.value" :value="item.value">
           {{ item.label }}
         </el-checkbox>
       </el-checkbox-group>
-    </div>
-    <div class="group-filter-row">
-      <span class="group-filter-label">协议端</span>
-      <el-select
-        v-model="endpointFilter"
-        clearable
-        filterable
-        :value-on-clear="''"
-        @clear="endpointFilter = ''"
-        style="width: 18rem"
-        placeholder="全部协议端">
-        <el-option
-          v-for="item in endpointOptions"
-          :key="item.value"
-          :value="item.value"
-          :label="item.label" />
-      </el-select>
-    </div>
-    <div class="group-filter-row">
-      <span class="group-filter-label">状态</span>
-      <el-checkbox v-model="orderByTimeDesc">按最后使用时间降序</el-checkbox>
-      <el-checkbox v-model="filter30daysUnused">30 天未使用</el-checkbox>
-      <el-checkbox v-model="showOfflineOnly">只看离线群组</el-checkbox>
-    </div>
-    <div class="group-filter-row">
-      <span class="group-filter-label">搜索</span>
-      <el-input
-        v-model="searchBy"
-        clearable
-        style="max-width: 20rem"
-        placeholder="请输入帐号或群名的一部分" />
-    </div>
-  </section>
 
-  <div style="margin-top: 2rem">
-    <div v-bind="containerProps" style="height: calc(var(--seal-content-height) - 22.5rem)">
+      <span class="group-filter-label">条件</span>
+      <div class="group-filter-controls">
+        <el-checkbox v-model="filter30daysUnused">30 天未使用</el-checkbox>
+        <el-checkbox v-model="showOfflineOnly">只看离线群组</el-checkbox>
+        <el-checkbox v-model="orderByTimeDesc">最近使用的排在前面</el-checkbox>
+      </div>
+    </section>
+
+    <div v-if="groupItems.length === 0" class="workspace-panel workspace-empty">
+      <strong>{{ groupList.items?.length ? '没有符合筛选条件的群组' : '还没有群组记录' }}</strong>
+      <p>
+        {{
+          groupList.items?.length
+            ? '调整平台、协议端或搜索条件后再试。'
+            : '骰子加入群组并收到消息后，群组会出现在这里。'
+        }}
+      </p>
+    </div>
+    <div v-else v-bind="containerProps" class="workspace-body group-list">
       <div v-bind="wrapperProps">
-        <div v-for="item in list" :key="item.index" style="">
+        <div v-for="item in list" :key="item.index">
           <foldable-card class="group-card">
             <template #title>
-              <el-space class="item-header" size="large" alignment="center">
-                <el-checkbox
-                  :disabled="!isGroupOffline(item.data)"
-                  :model-value="selectedGroupIds.includes(item.data.groupId)"
-                  @change="toggleGroupSelection(item.data.groupId, $event)" />
-                <el-switch
-                  v-model="item.data.active"
-                  style="
-                    --el-switch-on-color: var(--el-color-success);
-                    --el-switch-off-color: var(--el-color-danger);
+              <div class="item-header">
+                <el-tooltip
+                  :content="
+                    isGroupOffline(item.data) ? '选中后可批量删除本地记录' : '在线群组不能删除记录'
                   "
-                  @click="item.data.changed = true" />
-                <el-space size="small" wrap>
-                  <el-tooltip
-                    :content="item.data.groupId"
-                    placement="top"
-                    trigger="click"
-                    :show-after="100">
-                    <el-text
-                      style="
-                        max-width: 23rem;
-                        overflow: hidden;
-                        white-space: nowrap;
-                        text-overflow: ellipsis;
-                      "
-                      size="large"
-                      tag="strong"
-                      >{{ item.data.groupId }}</el-text
-                    >
+                  placement="top">
+                  <el-checkbox
+                    :disabled="!isGroupOffline(item.data)"
+                    :aria-label="`选择 ${item.data.groupId}`"
+                    :model-value="selectedGroupIds.includes(item.data.groupId)"
+                    @change="toggleGroupSelection(item.data.groupId, $event)" />
+                </el-tooltip>
+                <label class="workspace-toggle group-active-toggle">
+                  <el-switch
+                    v-model="item.data.active"
+                    :aria-label="`在 ${item.data.groupId} 响应指令`"
+                    @click="item.data.changed = true" />
+                  <span>{{ item.data.active ? '响应指令' : '已停用' }}</span>
+                </label>
+                <div class="group-identity">
+                  <strong class="group-name">{{ item.data.groupName || '未获取到群名' }}</strong>
+                  <el-tooltip :content="item.data.groupId" placement="top" :show-after="300">
+                    <span class="group-id">{{ item.data.groupId }}</span>
                   </el-tooltip>
-                  <el-text>「{{ item.data.groupName || '未获取到' }}」</el-text>
-                  <el-tag size="small" effect="plain">{{
-                    getPlatformLabel(item.data.groupId)
-                  }}</el-tag>
-                  <el-tag v-if="isGroupOffline(item.data)" size="small" type="info" effect="dark">
-                    离线
-                  </el-tag>
-                  <el-tag v-else size="small" type="success" effect="plain">在线</el-tag>
-                </el-space>
-              </el-space>
+                </div>
+                <el-tag size="small" type="info" effect="plain">
+                  {{ getPlatformLabel(item.data.groupId) }}
+                </el-tag>
+                <el-tag v-if="isGroupOffline(item.data)" size="small" type="info">离线</el-tag>
+                <el-tag v-else size="small" type="success" effect="plain">在线</el-tag>
+              </div>
             </template>
 
             <template #title-extra>
               <el-button
                 v-if="item.data.changed"
-                type="success"
+                type="primary"
                 size="small"
                 :icon="DocumentChecked"
-                plain
                 @click="saveOne(item.data, item.index)"
-                >保存</el-button
+                >保存更改</el-button
               >
-              <el-button
-                type="danger"
-                size="small"
-                :icon="Delete"
-                :disabled="!isGroupOffline(item.data)"
-                plain
-                @click="deleteGroupDataLocal(item.data)"
-                >删除本地数据</el-button
-              >
+              <el-tooltip
+                :disabled="isGroupOffline(item.data)"
+                content="在线群组不能删除记录"
+                placement="top">
+                <span>
+                  <el-button
+                    type="danger"
+                    size="small"
+                    :icon="Delete"
+                    :disabled="!isGroupOffline(item.data)"
+                    plain
+                    @click="deleteGroupDataLocal(item.data)"
+                    >删除本地记录</el-button
+                  >
+                </span>
+              </el-tooltip>
               <template v-if="item.data.groupId.startsWith('QQ-Group:')">
                 <el-tooltip
                   v-for="(_, j) in item.data.diceIdExistsMap"
                   :key="j"
-                  raw-content
-                  :content="j.toString() + '<br>有二次确认'">
+                  :content="`让账号 ${j.toString()} 退出此群（会再次确认）`"
+                  placement="top">
                   <el-button
                     type="danger"
                     size="small"
                     :icon="Close"
                     plain
                     @click="quitGroup(item.data, item.index, j.toString())"
-                    >退出 {{ j.toString().slice(-4) }}</el-button
+                    >退群（…{{ j.toString().slice(-4) }}）</el-button
                   >
                 </el-tooltip>
               </template>
@@ -157,35 +174,37 @@
               <el-descriptions-item label="邀请人">{{
                 formatInviter(item.data)
               }}</el-descriptions-item>
-              <el-descriptions-item label="Log状态">{{
-                item.data.logOn ? '开启' : '关闭'
+              <el-descriptions-item label="跑团日志">{{
+                item.data.logOn ? '记录中' : '未记录'
               }}</el-descriptions-item>
               <el-descriptions-item label="迎新">{{
                 item.data.showGroupWelcome ? '开启' : '关闭'
               }}</el-descriptions-item>
               <el-descriptions-item label="协议端">
-                <el-tag
-                  v-for="endpoint in getGroupEndpointIds(item.data)"
-                  :key="endpoint"
-                  size="small"
-                  style="margin-right: 0.35rem"
-                  effect="plain">
-                  {{ endpoint }}
-                </el-tag>
+                <span class="group-tags">
+                  <el-tag
+                    v-for="endpoint in getGroupEndpointIds(item.data)"
+                    :key="endpoint"
+                    size="small"
+                    type="info"
+                    effect="plain">
+                    {{ endpoint }}
+                  </el-tag>
+                </span>
                 <el-text v-if="getGroupEndpointIds(item.data).length === 0" type="info">无</el-text>
               </el-descriptions-item>
               <el-descriptions-item :span="3" label="启用扩展">
-                <span v-if="item.data.tmpExtList">
+                <span v-if="item.data.tmpExtList" class="group-tags">
                   <el-tag
                     :key="group"
                     v-for="group of item.data.tmpExtList"
                     size="small"
-                    style="margin-right: 0.5rem"
+                    effect="plain"
                     disable-transitions
                     >{{ group }}</el-tag
                   >
                 </span>
-                <el-text v-else>'未知'</el-text>
+                <el-text v-else type="info">未知</el-text>
               </el-descriptions-item>
             </el-descriptions>
 
@@ -207,51 +226,11 @@
         </div>
       </div>
     </div>
-
-    <!-- <el-card shadow="hover" v-for="(i, index) in groupItems" style="margin-top: 1rem;">
-      <template #header>
-        <div class="item-header">
-          <el-space size="large" alignment="center">
-            <el-switch v-model="i.active" @click="i.changed = true"
-              style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)" />
-            <el-space size="small" wrap>
-              <el-text size="large" tag="strong">{{ i.groupId }}</el-text>
-              <el-text>「{{ i.groupName || '未获取到' }}」</el-text>
-            </el-space>
-          </el-space>
-          <el-space>
-            <el-button type="success" size="small" :icon="DocumentChecked" plain v-if="i.changed"
-              @click="saveOne(i, index)">保存</el-button>
-            <el-tooltip v-for="_, j in i.diceIdExistsMap" raw-content :content="j.toString() + '<br>有二次确认'">
-              <el-button type="danger" size="small" :icon="Close" plain @click="quitGroup(i, index, j.toString())">退出
-                {{ j.toString().slice(-4) }}</el-button>
-            </el-tooltip>
-          </el-space>
-        </div>
-      </template>
-      <el-descriptions>
-        <el-descriptions-item label="上次使用">{{ i.recentDiceSendTime ? dayjs.unix(i.recentDiceSendTime).fromNow() : '从未'
-        }}</el-descriptions-item>
-        <el-descriptions-item label="入群时间">{{ i.enteredTime ? dayjs.unix(i.enteredTime).fromNow() : '未知'
-        }}</el-descriptions-item>
-        <el-descriptions-item label="邀请人">{{ formatInviter(i) }}</el-descriptions-item>
-        <el-descriptions-item label="Log 状态">{{ i.logOn ? '开启' : '关闭' }}</el-descriptions-item>
-        <el-descriptions-item label="迎新">{{ i.showGroupWelcome ? '开启' : '关闭' }}</el-descriptions-item>
-        <el-descriptions-item />
-        <el-descriptions-item :span="3" label="启用扩展">
-          <span v-if="i.tmpExtList">
-            <el-tag size="small" v-for="group of i.tmpExtList" style="margin-right: 0.5rem;" disable-transitions>{{ group
-            }}</el-tag>
-          </span>
-          <el-text v-else>'未知'</el-text>
-        </el-descriptions-item>
-      </el-descriptions>
-    </el-card> -->
-  </div>
+  </section>
 </template>
 
 <script lang="ts" setup>
-import { DocumentChecked, Close, Delete, Refresh } from '@element-plus/icons-vue';
+import { DocumentChecked, Close, Delete, Refresh, Search } from '@element-plus/icons-vue';
 import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { now, sortBy } from 'lodash-es';
@@ -422,10 +401,10 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
   const quitGroupText =
     localStorage.getItem('quitGroupText') || '因长期不使用等原因，骰主后台操作退出';
   ElMessageBox.prompt(
-    '会进行退出留言“因长期不使用等原因，骰主后台操作退出”，输入英文大写 NO 则静默退出，写别的则为附加留言',
-    '退出此群？',
+    '默认会留下退群留言。输入英文大写 NO 则静默退出，输入其他内容则作为退群留言。',
+    '让骰子退出此群？',
     {
-      confirmButtonText: '确定',
+      confirmButtonText: '退出群组',
       cancelButtonText: '取消',
       type: 'warning',
       inputValue: quitGroupText,
@@ -433,7 +412,7 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
         h(
           'p',
           null,
-          '会进行退出留言“因长期不使用等原因，骰主后台操作退出”，输入英文大写 NO 则静默退出，写别的则为附加留言',
+          '默认会留下退群留言。输入英文大写 NO 则静默退出，输入其他内容则作为退群留言。',
         ),
         h(
           'label',
@@ -447,7 +426,7 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
               value: quitTextSave.value,
               type: 'checkbox',
             }),
-            h('span', null, '设为默认'),
+            h('span', null, ' 设为默认留言'),
           ],
         ),
       ]),
@@ -464,12 +443,7 @@ const quitGroup = async (i: any, index: number, diceId: string) => {
     }
 
     await refreshList();
-    ElMessage.success('退出完成');
-
-    ElMessage({
-      type: 'success',
-      message: '成功！',
-    });
+    ElMessage.success('已退出群组');
   });
 };
 
@@ -558,72 +532,103 @@ onBeforeMount(async () => {
 </script>
 
 <style lang="css">
-span.left {
-  display: inline-block;
-  min-width: 5rem;
+.group-filter-panel {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 16px;
+  flex-shrink: 0;
 }
 
-@media screen and (max-width: 700px) {
-  .bak-item {
-    flex-direction: column;
+.group-filter-label {
+  font-size: 13px;
+  color: var(--seal-text-secondary);
+}
 
-    & > span {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
+.group-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  min-width: 0;
+}
+
+.group-filter-controls .el-checkbox {
+  margin-inline-end: 0;
+}
+
+.group-search {
+  width: min(280px, 100%);
+}
+
+.group-endpoint-select {
+  width: min(240px, 100%);
+}
+
+.group-count {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+
+.group-list {
+  overflow-y: auto;
 }
 
 .item-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
-.group-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.group-filter-panel {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  background: var(--seal-panel-bg);
-  box-shadow: var(--el-box-shadow-light);
-}
-
-.group-filter-row {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 8px 16px;
+  min-width: 0;
 }
 
-.group-filter-label {
-  min-width: 4rem;
-  color: var(--el-text-color-secondary);
-  font-weight: 700;
+.group-active-toggle {
+  min-width: 6.5em;
+  font-size: 12px;
+  color: var(--seal-text-regular);
+}
+
+.group-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 24rem;
+}
+
+.group-name {
+  font-size: 15px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.group-id {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.group-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .group-card {
-  margin-top: 1rem;
+  margin-top: 16px;
 }
 
-@media screen and (max-width: 700px) {
-  .group-page-header {
-    flex-direction: column;
+@media (max-width: 767px) {
+  .group-filter-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
 
-  .group-filter-label {
-    width: 100%;
+  .group-count {
+    margin-inline-start: 0;
   }
 }
 </style>

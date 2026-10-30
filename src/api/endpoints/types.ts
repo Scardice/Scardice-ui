@@ -4,9 +4,8 @@ export interface EndpointConfigPayload {
 }
 
 export interface SecretRef {
-  ref?: string;
-  secretRef?: string;
-  version?: number;
+  ref: string;
+  version: number;
 }
 
 export interface EndpointConfigView {
@@ -20,30 +19,48 @@ export interface CapabilityView {
   actions: string[];
 }
 
+export type DiagnosticSeverity = 1 | 2 | 3;
+
 export interface DiagnosticField {
-  name?: string;
-  value?: string;
-  redacted?: boolean;
+  key: string;
+  value: string;
+  redacted: boolean;
 }
 
 export interface DiagnosticEntry {
-  severity?: string;
-  code?: string;
-  message?: string;
+  severity: DiagnosticSeverity;
+  code: string;
+  message: string;
   fields?: DiagnosticField[];
 }
 
 export interface DiagnosticView {
-  entries: DiagnosticEntry[];
+  entries: DiagnosticEntry[] | null;
 }
+
+export type DesiredState = 'disabled' | 'enabled' | 'removing' | 'deleted';
+export type ObservedState =
+  | 'stopped'
+  | 'starting'
+  | 'connected'
+  | 'stopping'
+  | 'failed'
+  | 'ambiguous';
+export type EndpointOperationState = 'idle' | 'pending' | 'succeeded' | 'failed' | 'ambiguous';
 
 export interface EndpointView {
   endpointId: string;
+  displayName?: string;
+  providerId?: string;
+  groupNum?: number;
+  cmdExecutedNum?: number;
+  cmdExecutedLastTime?: number;
+  onlineTotalTime?: number;
   adapterKey: string;
   config: EndpointConfigView;
-  desiredState: string;
-  observedState: string;
-  operationState: string;
+  desiredState: DesiredState;
+  observedState: ObservedState;
+  operationState: EndpointOperationState;
   desiredVersion: number;
   generation: number;
   operationId?: string;
@@ -52,11 +69,13 @@ export interface EndpointView {
   capabilities: CapabilityView;
 }
 
+export type OperationStatus = 'pending' | 'succeeded' | 'failed' | 'ambiguous';
+
 export interface OperationView {
   operationId: string;
   version: number;
   kind: string;
-  status: string;
+  status: OperationStatus;
   resultCode?: string;
   errorCode?: string;
   artifactId?: string;
@@ -80,6 +99,7 @@ export interface ErrorResponse {
 
 export interface EndpointCreateRequest {
   endpointId?: string;
+  displayName?: string;
   adapterKey: string;
   config: EndpointConfigPayload;
   secrets?: Record<string, string>;
@@ -185,4 +205,4 @@ export interface EndpointArtifact {
   filename?: string;
 }
 
-export type OperationTerminalStatus = 'succeeded' | 'failed' | 'expired' | 'ambiguous';
+export type OperationTerminalStatus = Exclude<OperationStatus, 'pending'> | 'expired';

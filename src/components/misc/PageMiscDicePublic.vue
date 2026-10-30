@@ -1,181 +1,116 @@
 <template>
-  <div class="flex flex-wrap gap-4">
-    <el-card shadow="always" style="width: 100%"
-      ><template #header>
-        <div style="height: 2rem; display: flex; justify-content: space-between">
-          <span style="font-size: 1.5rem; font-weight: bold">公骰设置</span>
-          <div>
-            <el-switch
-              v-model="config.publicDiceEnable"
-              active-text="启用"
-              inactive-text="关闭"
-              @change="enableChange" />
-            <el-button
-              :icon="DocumentChecked"
-              :disabled="!config.publicDiceEnable"
-              type="primary"
-              style="margin-left: 2rem"
-              @click="doSave"
-              >保存</el-button
-            >
+  <section class="workspace-page public-workspace" aria-labelledby="public-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="public-workspace-title" class="workspace-title">公骰设置</h1>
+        <p class="workspace-subtitle">把骰子登记到公骰列表，让其他人可以找到并邀请它。</p>
+      </div>
+      <div class="workspace-actions">
+        <label class="workspace-toggle">
+          <el-switch
+            v-model="config.publicDiceEnable"
+            aria-label="登记为公骰"
+            @change="enableChange" />
+          <span>登记为公骰</span>
+        </label>
+        <el-button
+          :icon="DocumentChecked"
+          :disabled="!config.publicDiceEnable"
+          type="primary"
+          @click="doSave"
+          >保存</el-button
+        >
+      </div>
+    </header>
+
+    <div class="workspace-body workspace-scroll">
+      <el-alert
+        v-if="!config.publicDiceEnable"
+        type="info"
+        :closable="false"
+        show-icon
+        title="当前未登记为公骰。开启右上角开关后即可编辑下列信息。" />
+
+      <div class="public-layout" :class="{ 'is-disabled': !config.publicDiceEnable }">
+        <section class="workspace-panel" aria-labelledby="public-info-title">
+          <div class="workspace-panel-header">
+            <div>
+              <h2 id="public-info-title">展示信息</h2>
+              <p>这些内容会显示在公骰列表中。</p>
+            </div>
           </div>
-        </div>
-      </template>
-      <el-container>
-        <el-header
-          v-if="isSmallWindow"
-          height="auto"
-          style="align-content: center; border: 2px solid">
-          <div :class="{ disabledOverlay: !config.publicDiceEnable }">
-            <el-avatar
-              shape="square"
-              style="width: auto; height: auto; vertical-align: top"
-              fit="contain"
-              :src="imgSeal"></el-avatar>
-          </div>
-        </el-header>
-        <el-aside v-else width="20%" style="align-content: center; border: 2px solid">
-          <div :class="{ disabledOverlay: !config.publicDiceEnable }">
-            <el-avatar
-              shape="square"
-              style="width: auto; height: auto; vertical-align: top"
-              fit="contain"
-              :src="imgSeal"></el-avatar>
-          </div>
-        </el-aside>
-        <el-main>
-          <el-form
-            style="
-              justify-items: center;
-              height: 100%;
-              align-content: center;
-              display: flex;
-              flex-direction: column;
-            ">
-            <el-row :gutter="20" justify="center" style="width: 100%; height: auto">
-              <el-col :span="12" :lg="12" :md="12" :sm="24" :xs="24"
-                ><el-form-item label="公骰UID" style="width: 100%"
-                  ><template #label
-                    ><div>
-                      <span>公骰 UID</span>
-                      <el-tooltip placement="left">
-                        <template #content>
-                          <div style="width: 10rem">
-                            公骰UID是上报公骰所使用的密钥， 通常情况下留空让系统自动生成，
-                            请勿随意将公骰的UID展示给他人
-                          </div>
-                        </template>
-                        <el-icon><question-filled /></el-icon>
-                      </el-tooltip></div
-                  ></template>
-                  <el-input
-                    show-password
-                    v-model="config.publicDiceId"
-                    :disabled="!config.publicDiceEnable"
-                    placeholder="留空则会自动注册" /> </el-form-item
-              ></el-col>
-              <el-col :span="12" :lg="12" :md="12" :sm="24" :xs="24"
-                ><el-form-item label="公骰昵称" style="width: 100%"
-                  ><template #label
-                    ><div>
-                      <span>公骰昵称</span>
-                      <el-tooltip placement="left">
-                        <template #content>
-                          <div style="width: 10rem">公骰昵称是展示在公骰列表的昵称</div>
-                        </template>
-                        <el-icon><question-filled /></el-icon>
-                      </el-tooltip></div
-                  ></template>
-                  <el-input
-                    v-model="config.publicDiceName"
-                    :disabled="!config.publicDiceEnable"
-                    placeholder="请输入公骰昵称" /> </el-form-item
-              ></el-col>
-            </el-row>
-            <el-row :gutter="20" justify="center" style="width: 100%; height: auto">
-              <el-col :span="12" :lg="12" :md="12" :sm="24" :xs="24"
-                ><el-form-item label="公骰头像" style="width: 100%"
-                  ><template #label
-                    ><div>
-                      <span>公骰头像</span>
-                      <el-tooltip placement="left">
-                        <template #content>
-                          <div style="width: 10rem">公骰头像是展示在公骰列表的头像</div>
-                        </template>
-                        <el-icon><question-filled /></el-icon>
-                      </el-tooltip></div
-                  ></template>
-                  <el-input
-                    v-model="config.publicDiceAvatar"
-                    :disabled="!config.publicDiceEnable"
-                    placeholder="请输入公骰头像Url" /> </el-form-item
-              ></el-col>
-              <el-col :span="12" :lg="12" :md="12" :sm="24" :xs="24"
-                ><el-form-item label="骰主留言" style="width: 100%"
-                  ><template #label
-                    ><div>
-                      <span>骰主留言</span>
-                      <el-tooltip placement="left">
-                        <template #content>
-                          <div style="width: 10rem">骰主留言是展示在公骰列表的留言</div>
-                        </template>
-                        <el-icon><question-filled /></el-icon>
-                      </el-tooltip></div
-                  ></template>
-                  <el-input
-                    v-model="config.publicDiceNote"
-                    :disabled="!config.publicDiceEnable"
-                    placeholder="请输入你的留言" /> </el-form-item
-              ></el-col>
-            </el-row>
-            <el-row :gutter="20" justify="center" style="width: 100%; flex: 1">
-              <el-col :span="24" :lg="24" :md="24" :sm="24" :xs="24">
-                <el-form-item label="公骰简介" style="width: 100%; height: 100%"
-                  ><template #label
-                    ><div>
-                      <span>公骰简介</span>
-                      <el-tooltip content="公骰简介" placement="left">
-                        <template #content>
-                          <div style="width: 10rem">公骰简介是展示在公骰列表的简介</div>
-                        </template>
-                        <el-icon><question-filled /></el-icon>
-                      </el-tooltip></div
-                  ></template>
-                  <el-input
-                    v-model="config.publicDiceBrief"
-                    :disabled="!config.publicDiceEnable"
-                    class="elinput"
-                    placeholder="请输入简介"
-                    type="textarea"
-                    clearable /> </el-form-item
-              ></el-col>
-            </el-row>
+          <el-form label-position="top" class="public-form" :disabled="!config.publicDiceEnable">
+            <el-form-item label="公骰昵称">
+              <el-input v-model="config.publicDiceName" placeholder="例如：余烬骰" />
+            </el-form-item>
+            <el-form-item label="头像地址">
+              <el-input v-model="config.publicDiceAvatar" placeholder="https://…/avatar.png" />
+            </el-form-item>
+            <el-form-item label="骰主留言" class="public-form-wide">
+              <el-input
+                v-model="config.publicDiceNote"
+                placeholder="例如：欢迎拉群，请先阅读使用须知" />
+            </el-form-item>
+            <el-form-item label="公骰简介" class="public-form-wide">
+              <el-input
+                v-model="config.publicDiceBrief"
+                type="textarea"
+                :autosize="{ minRows: 3, maxRows: 8 }"
+                placeholder="介绍骰子支持的规则、功能与使用限制" />
+            </el-form-item>
+            <el-form-item label="公骰 UID" class="public-form-wide">
+              <el-input v-model="config.publicDiceId" show-password placeholder="留空则自动注册" />
+              <p class="public-hint">上报公骰使用的密钥。通常留空自动生成，请勿展示给他人。</p>
+            </el-form-item>
           </el-form>
-        </el-main>
-      </el-container>
-      <template #footer
-        ><div :class="{ disabledOverlay: !config.publicDiceEnable }">
-          <span style="font-size: 1.2rem; font-weight: bold">选择要上报的终端</span>
-          <el-table
-            ref="multipleTableRef"
-            :data="tableData"
-            row-key="id"
-            style="width: 100%; margin-top: 1rem"
-            @selection-change="handleSelectionChange">
-            <el-table-column type="selection" width="100%" />
-            <el-table-column property="userId" sortable label="账号" />
-            <el-table-column property="platform" sortable label="平台" />
-            <el-table-column property="adapter" sortable label="协议" />
-            <el-table-column property="state" sortable label="状态" />
-          </el-table>
+        </section>
+
+        <aside class="workspace-panel public-preview" aria-label="公骰列表预览">
+          <span class="public-preview-label">列表预览</span>
+          <div class="public-preview-card">
+            <img
+              class="public-preview-avatar"
+              :src="config.publicDiceAvatar || imgSeal"
+              alt=""
+              @error="($event.target as HTMLImageElement).src = imgSeal" />
+            <div class="public-preview-text">
+              <strong>{{ config.publicDiceName || '未命名公骰' }}</strong>
+              <span v-if="config.publicDiceNote">{{ config.publicDiceNote }}</span>
+            </div>
+          </div>
+          <p class="public-preview-brief">{{ config.publicDiceBrief || '暂无简介' }}</p>
+        </aside>
+      </div>
+
+      <section
+        class="workspace-panel"
+        :class="{ 'is-disabled': !config.publicDiceEnable }"
+        aria-labelledby="public-endpoints-title">
+        <div class="workspace-panel-header">
+          <div>
+            <h2 id="public-endpoints-title">上报的账号</h2>
+            <p>勾选的账号会作为公骰出现在列表中，保存后生效。</p>
+          </div>
         </div>
-      </template>
-    </el-card>
-  </div>
+        <el-table
+          ref="multipleTableRef"
+          :data="tableData"
+          row-key="id"
+          empty-text="还没有可上报的账号"
+          @selection-change="handleSelectionChange">
+          <el-table-column type="selection" width="48" />
+          <el-table-column property="userId" sortable label="账号" />
+          <el-table-column property="platform" sortable label="平台" />
+          <el-table-column property="adapter" sortable label="接入方式" />
+          <el-table-column property="state" sortable label="状态" />
+        </el-table>
+      </section>
+    </div>
+  </section>
 </template>
 <script lang="ts" setup>
 import imgSeal from '~/assets/seal.png';
-import { DocumentChecked, QuestionFilled } from '@element-plus/icons-vue';
+import { DocumentChecked } from '@element-plus/icons-vue';
 import type { TableInstance } from 'element-plus';
 import { getDicePublicInfo, setDicePublicInfo } from '~/api/public_dice';
 const config = ref<any>({});
@@ -185,10 +120,6 @@ const handleSelectionChange = (selection: any[]) => {
   selected = selection;
 };
 const tableData = ref<any>([]);
-const isSmallWindow = ref(false);
-const checkScreenSize = () => {
-  isSmallWindow.value = window.innerWidth < 992;
-};
 let selected: any[] = [];
 const enableChange = async (value: string | number | boolean) => {
   config.value.publicDiceEnable = value;
@@ -198,7 +129,7 @@ const enableChange = async (value: string | number | boolean) => {
 const doSave = async () => {
   await setDicePublicInfo(config.value, selected);
   await refreshInfo();
-  ElMessage.success('已保存');
+  ElMessage.success('公骰信息已保存');
 };
 
 const refreshInfo = async () => {
@@ -253,35 +184,87 @@ const refreshInfo = async () => {
 };
 
 onBeforeMount(async () => {
-  window.addEventListener('resize', checkScreenSize);
   await refreshInfo();
 });
 </script>
 <style scoped lang="css">
-.el-col {
-  justify-items: center;
+.public-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+  gap: var(--workspace-gap);
+  align-items: start;
 }
-.edit-tag {
-  width: 100%;
-  text-align: center;
+
+.public-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.public-form-wide {
+  grid-column: 1 / -1;
+}
+
+.public-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--seal-text-secondary);
+}
+
+.public-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.public-preview-label {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+
+.public-preview-card {
   display: flex;
-  padding-inline: 1.5rem;
-  padding-block: 0.5rem;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
-.edit-text {
-  width: 5.5rem;
-  text-align: left;
-  margin-right: 0.5rem;
+
+.public-preview-avatar {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--seal-surface-soft);
 }
-.elinput {
-  height: 100%;
-  :deep(.el-textarea__inner) {
-    height: 100%;
-  }
+
+.public-preview-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
-.disabledOverlay {
-  filter: grayscale(1);
-  opacity: 0.6;
+
+.public-preview-text span,
+.public-preview-brief {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.public-preview-brief {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.is-disabled :deep(.el-table) {
   pointer-events: none;
+  opacity: 0.6;
+}
+
+@media (max-width: 991px) {
+  .public-layout,
+  .public-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

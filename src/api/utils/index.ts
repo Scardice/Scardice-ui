@@ -20,14 +20,28 @@ export function postUtilsCheckCronExpr(expr: string) {
   return request('post', 'check_cron_expr', { expr });
 }
 
+export type UtilsNetworkHealthTarget = {
+  target: 'qq' | 'kook' | 'discord' | 'telegram' | 'dingtalk' | 'slack';
+  ok: boolean;
+  duration: number;
+  statusCode: number;
+};
+
+export type UtilsNetworkHealthResponse = {
+  result: true;
+  total: 6;
+  ok: UtilsNetworkHealthTarget['target'][];
+  targets: UtilsNetworkHealthTarget[];
+  timestamp: number;
+};
+
 export function getUtilsCheckNetWorkHealth() {
-  return request<
-    | {
-        result: true;
-        total: number;
-        ok: string[];
-        timestamp: number;
-      }
-    | { result: false }
-  >('get', 'check_network_health');
+  // 后端按平台重试；HTTP 层重试会重复整组探测。
+  return request<UtilsNetworkHealthResponse | { result: false }>(
+    'get',
+    'check_network_health',
+    undefined,
+    'json',
+    { 'axios-retry': { retries: 0 } },
+  );
 }

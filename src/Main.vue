@@ -1,179 +1,218 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
-  <el-container id="root" class="seal-root mx-auto my-0 flex flex-col">
-    <el-header class="nav flex-none text-white flex justify-between">
-      <el-space alignment="center" :size="0" style="height: 60px">
-        <div class="menu-button-wrapper mx-2">
-          <el-button link size="large" @click="drawerMenu = true">
-            <el-icon color="#fff" size="1.5rem">
-              <IconMenu />
-            </el-icon>
-          </el-button>
-        </div>
-
-        <el-space
-          :v-show="store.canAccess"
-          direction="vertical"
-          alignment="flex-start"
-          :size="0"
-          style="">
-          <el-space size="small" alignment="center">
-            <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
-              >Scardice</span
-            >
-            <el-tooltip
-              v-if="store.diceServers.length > 0 && store.diceServers[0].baseInfo.containerMode"
-              class="flex items-center">
-              <template #content>当前以容器模式启动，部分功能受到限制。</template>
-              <el-icon type="info">
-                <i-carbon-container-software />
-              </el-icon>
-            </el-tooltip>
-          </el-space>
-          <span v-if="store.diceServers.length > 0" size="small" style="font-size: 0.7rem">
-            {{ store.diceServers[0].baseInfo.OS }} -
-            {{ store.diceServers[0].baseInfo.arch }}
+  <el-container id="root" class="seal-root app-shell" :class="{ 'nav-rail': navigationCompact }">
+    <div
+      v-if="testWebUIBypass.auth || testWebUIBypass.originRateLimit"
+      role="alert"
+      class="w-full bg-red-700 px-4 py-3 text-center font-semibold text-white">
+      <strong>测试安全警告：</strong>
+      <span v-if="testWebUIBypass.auth">WebUI 与管理 API 的凭据校验已关闭。</span>
+      <span v-if="testWebUIBypass.originRateLimit">
+        管理 API 的 Origin 校验与速率限制已关闭。
+      </span>
+    </div>
+    <a class="workspace-skip-link" href="#workspace-main" @click.prevent="workspaceMain?.focus()">
+      跳到工作区
+    </a>
+    <el-header class="global-header">
+      <div class="brand-area">
+        <el-button
+          class="nav-toggle"
+          text
+          :aria-label="overlayNavigation ? '打开导航' : navigationCompact ? '展开导航' : '收起导航'"
+          :aria-expanded="overlayNavigation ? drawerMenu : !navigationCompact"
+          :icon="overlayNavigation ? IconMenu : navigationCompact ? Expand : Fold"
+          @click="toggleNavigation" />
+        <button class="brand-wordmark" type="button" @click="enableAdvancedConfig">Scardice</button>
+      </div>
+      <div class="global-actions">
+        <button
+          type="button"
+          class="workspace-search"
+          aria-label="搜索页面或功能"
+          @click="paletteOpen = true">
+          <el-icon><Search /></el-icon><span>搜索页面</span><kbd>Ctrl K</kbd>
+        </button>
+        <el-tooltip
+          :content="hasRuntimeVersion ? `核心版本 ${baseInfo.version}` : '核心版本未知'"
+          placement="bottom">
+          <span class="connection-status" :class="{ offline: store.backendOffline }" role="status">
+            <span aria-hidden="true"></span>
+            {{ store.backendOffline ? '核心离线' : store.canAccess ? '已连接' : '未登录' }}
           </span>
-        </el-space>
-      </el-space>
-
-      <el-space
-        v-show="store.canAccess"
-        size="large"
-        style="color: #fff; font-size: small; text-align: right">
-        <div style="cursor: pointer" @click="dialogFeed = true">
-          <el-badge value="new" :hidden="newsChecked">
-            <img :src="imgNews" alt="news" style="width: 2.3rem" />
-          </el-badge>
-        </div>
-
-        <div style="display: flex; flex-direction: column; align-items: center">
-          <div style="display: flex; align-items: center">
-            <el-tag
-              effect="dark"
-              size="small"
-              disable-transitions
-              style="margin-right: 0.3rem"
-              :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
-              {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
-            </el-tag>
-            <el-tooltip :content="store.curDice.baseInfo.version" placement="bottom">
-              <el-text size="large" style="color: #fff">
-                {{ store.curDice.baseInfo.versionSimple }}
-              </el-text>
-            </el-tooltip>
-          </div>
-          <div v-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode">
-            🆕{{ store.curDice.baseInfo.versionNew }}
-          </div>
-        </div>
-      </el-space>
+        </el-tooltip>
+        <el-tooltip v-if="store.canAccess" content="余烬新闻" placement="bottom">
+          <button
+            type="button"
+            class="news-button"
+            aria-label="查看余烬新闻"
+            @click="dialogFeed = true">
+            <el-badge is-dot :hidden="!newsLoaded || newsChecked">
+              <el-icon :size="22" aria-hidden="true"><Bell /></el-icon>
+            </el-badge>
+          </button>
+        </el-tooltip>
+      </div>
     </el-header>
 
-    <div class="main-shell flex-grow flex">
-      <div class="menu flex-none overflow-y-auto no-scrollbar">
-        <Menu v-model:advanced-config-counter="advancedConfigCounter" type="dark" />
-      </div>
-
-      <div ref="contentBox" class="seal-content h-auto text-left flex-1">
+    <div class="main-shell">
+      <aside v-if="!overlayNavigation" class="sidebar">
+        <Menu
+          :pages="navigationPages"
+          :active-path="currentPage?.path ?? route.path"
+          :compact="navigationCompact"
+          @search="paletteOpen = true" />
+      </aside>
+      <div ref="contentBox" class="seal-content">
         <div class="seal-background" aria-hidden="true">
           <div class="seal-background-image"></div>
           <div class="seal-background-mask"></div>
         </div>
-        <el-main ref="rightbox" v-loading="loading" class="main-container w-full">
-          <router-view v-slot="{ Component, route }">
-            <transition name="route-fade" mode="out-in" appear>
-              <div :key="route.fullPath" class="route-page">
-                <component
-                  :is="Component"
-                  @update:advanced-settings-show="
-                    (show: boolean) => refreshAdvancedSettings(show)
-                  " />
-              </div>
-            </transition>
+        <main
+          id="workspace-main"
+          ref="workspaceMain"
+          v-loading="loading"
+          class="el-main main-container"
+          tabindex="-1">
+          <router-view v-slot="{ Component, route: currentRoute }">
+            <div :key="currentRoute.name ?? currentRoute.path" class="route-page">
+              <component :is="Component" @update:advanced-settings-show="refreshAdvancedSettings" />
+            </div>
           </router-view>
-        </el-main>
+        </main>
       </div>
     </div>
   </el-container>
 
   <el-drawer
     v-model="drawerMenu"
+    title="全部功能"
     direction="ltr"
-    :show-close="false"
-    size="50%"
-    class="drawer-menu">
-    <template #header>
-      <div class="text-white flex items-center justify-between">
-        <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
-          <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
-            >Scardice</span
-          >
-          <span v-if="store.diceServers.length > 0" style="font-size: 0.7rem">
-            {{ store.diceServers[0].baseInfo.OS }} -
-            {{ store.diceServers[0].baseInfo.arch }}
-          </span>
-        </el-space>
-
-        <el-tag
-          effect="dark"
-          size="small"
-          disable-transitions
-          :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
-          {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
-        </el-tag>
-      </div>
-    </template>
-    <Menu v-model:advanced-config-counter="advancedConfigCounter" type="dark" />
+    size="min(280px, 88vw)"
+    class="drawer-menu workspace-menu-drawer">
+    <Menu
+      :pages="navigationPages"
+      :active-path="currentPage?.path ?? route.path"
+      @navigate="drawerMenu = false"
+      @search="paletteOpen = true" />
   </el-drawer>
 
   <el-dialog
-    v-model="showDialog"
-    title=""
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="false"
-    class="the-dialog">
-    <h3>输入 UI 密码或管理员令牌</h3>
-    <el-input v-model="password" type="password"></el-input>
-    <el-button type="primary" style="padding: 0px 50px; margin-top: 1rem" @click="doUnlock"
-      >确认</el-button
+    v-model="paletteOpen"
+    title="跳转到工作区"
+    width="min(560px, calc(100vw - 24px))"
+    class="workspace-command-dialog"
+    @opened="paletteInput?.focus()">
+    <el-input
+      ref="paletteInput"
+      v-model="paletteQuery"
+      :prefix-icon="Search"
+      placeholder="搜索页面或功能"
+      aria-label="搜索页面或功能"
+      clearable
+      @keydown="handlePaletteKey" />
+    <div ref="paletteResults" class="workspace-command-results">
+      <button
+        v-for="(page, index) in paletteMatches"
+        :key="page.path"
+        type="button"
+        class="workspace-command-result"
+        @click="navigateFromPalette(page.path)"
+        @keydown.down.prevent="focusPaletteResult(index + 1)"
+        @keydown.up.prevent="focusPaletteResult(index - 1)">
+        <el-icon :size="20"><component :is="page.icon" /></el-icon>
+        <span
+          ><strong>{{ page.label }}</strong
+          ><small>{{ groupLabel(page.group) }} · {{ page.hint }}</small></span
+        >
+        <el-icon><ArrowRight /></el-icon>
+      </button>
+      <p v-if="!paletteMatches.length" class="workspace-empty" role="status">
+        没有匹配的功能，请尝试其他名称。
+      </p>
+    </div>
+    <template #footer
+      ><span class="workspace-subtitle">↑ ↓ 选择 · Enter 打开 · Esc 关闭</span></template
     >
   </el-dialog>
 
   <el-dialog
+    v-model="showDialog"
+    title="登录 WebUI"
+    width="min(400px, calc(100vw - 24px))"
+    :close-on-click-modal="false"
+    :close-on-press-escape="false"
+    :show-close="false"
+    class="the-dialog login-dialog">
+    <form class="login-form" @submit.prevent="doUnlock">
+      <label for="login-password">UI 密码或管理员令牌</label>
+      <el-input
+        id="login-password"
+        v-model="password"
+        type="password"
+        show-password
+        autocomplete="current-password"
+        placeholder="输入后按 Enter 登录" />
+      <el-button type="primary" native-type="submit" :disabled="!password">登录</el-button>
+    </form>
+  </el-dialog>
+
+  <el-dialog
     v-model="dialogLostConnectionVisible"
-    title="主程序离线"
+    title="与核心的连接已断开"
+    width="min(440px, calc(100vw - 24px))"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
     :show-close="false"
     class="the-dialog">
-    <div>与主程序断开连接，请耐心等待连接恢复</div>
-    <div>如果失去响应过久，请登录服务器处理</div>
+    <p>正在每 5 秒自动重连，恢复后此提示会自动关闭。</p>
+    <p>如果长时间没有恢复，请检查服务器上的 Scardice 进程是否仍在运行。</p>
   </el-dialog>
 
   <el-dialog
     v-model="dialogFeed"
     :close-on-click-modal="false"
-    :close-on-press-escape="false"
+    :close-on-press-escape="!newsLoaded || newsLoadError"
     class="dialog-feed"
-    :show-close="false">
+    :show-close="!newsLoaded || newsLoadError">
     <template #header="{ close, titleId, titleClass }">
       <div class="my-header">
-        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">余烬新闻</h4>
-        <el-button type="success" :icon="Check" @click="checkNews(close)">确认已读</el-button>
+        <h4 :id="titleId" :class="titleClass" class="news-title">余烬新闻</h4>
+        <el-button type="primary" :icon="Check" :disabled="!newsLoaded" @click="checkNews(close)"
+          >标记为已读</el-button
+        >
       </div>
     </template>
 
-    <div style="text-align: left" v-html="newsData"></div>
+    <p v-if="newsLoadError" role="alert" class="news-load-error">
+      {{
+        newsLoaded ? '获取最新余烬新闻失败，仍显示上次成功获取的内容。' : '暂时无法获取余烬新闻。'
+      }}
+    </p>
+    <p v-if="newsLoaded && !newsData" role="status">暂无内容</p>
+    <div
+      v-if="newsLoaded && newsData"
+      data-news-content
+      style="text-align: left"
+      v-html="newsData"></div>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { isAdminAuthMode, useStore } from './store';
-import imgNews from '~/assets/news.png';
+import { testWebUIBypass } from '~/utils/test-webui-bypass';
 
-import { Check, Menu as IconMenu } from '@element-plus/icons-vue';
+import {
+  ArrowRight,
+  Bell,
+  Check,
+  Expand,
+  Fold,
+  Menu as IconMenu,
+  Search,
+} from '@element-plus/icons-vue';
+import type { InputInstance } from 'element-plus';
+import { buildNavigation, groupLabel, searchNavigation } from '~/router/navigation';
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -199,32 +238,60 @@ watch(
 );
 
 const store = useStore();
+const baseInfo = computed(() => store.curDice.baseInfo);
+const hasRuntimeVersion = computed(() => {
+  const info = baseInfo.value;
+  return Boolean(
+    info.appChannel &&
+    info.version &&
+    info.version !== '0.0' &&
+    info.versionSimple &&
+    info.versionSimple !== '0.0',
+  );
+});
 const password = ref('');
 
 const dialogFeed = ref(false);
 
-const newsData = ref(`<div>暂无内容</div>`);
+const newsData = ref('');
 const newsChecked = ref(true);
 const newsMark = ref('');
-const checkNews = async (close: any) => {
+const newsLoaded = ref(false);
+const newsLoadError = ref(false);
+const checkNews = async (close: () => void) => {
   console.log('newsMark', newsMark.value);
-  const ret = await postUtilsCheckNews(newsMark.value);
-  if (ret?.result) {
-    ElMessage.success('已阅读最新的余烬新闻');
-  } else {
+  if (!newsLoaded.value) return;
+  try {
+    const ret = await postUtilsCheckNews(newsMark.value);
+    if (ret?.result) {
+      ElMessage.success('已阅读最新的余烬新闻');
+    } else {
+      ElMessage.error('阅读余烬新闻失败');
+      return;
+    }
+    if (await updateNews()) close();
+  } catch {
     ElMessage.error('阅读余烬新闻失败');
   }
-  await updateNews();
-  close();
 };
 const updateNews = async () => {
-  const newsInfo = await getNewUtils();
-  if (newsInfo.result) {
+  try {
+    const newsInfo = await getNewUtils();
+    if (!newsInfo.result) {
+      newsLoadError.value = true;
+      ElMessage.error(newsInfo.err ?? '获取余烬新闻失败');
+      return false;
+    }
     newsData.value = newsInfo.news;
     newsChecked.value = newsInfo.checked;
     newsMark.value = newsInfo.newsMark;
-  } else {
-    ElMessage.error(newsInfo?.err ?? '获取余烬新闻失败');
+    newsLoaded.value = true;
+    newsLoadError.value = false;
+    return true;
+  } catch {
+    newsLoadError.value = true;
+    ElMessage.error('获取余烬新闻失败');
+    return false;
   }
 };
 
@@ -272,21 +339,20 @@ const checkPassword = async () => {
 };
 
 onBeforeMount(async () => {
-  const adminMode = isAdminAuthMode();
-  if (!adminMode) {
+  const adminMode = !testWebUIBypass.auth && isAdminAuthMode();
+  if (store.canAccess) {
     void store.getBaseInfo();
+  }
+  if (!adminMode) {
     void store.getCustomText();
   }
 
-  if (store.canAccess && !adminMode) {
+  if (store.canAccess && !adminMode && !testWebUIBypass.auth) {
     void checkPassword();
   }
 
   timerId = setInterval(async () => {
     if (store.canAccess) {
-      if (isAdminAuthMode()) {
-        return;
-      }
       try {
         await store.getBaseInfo();
         store.backendOffline = false;
@@ -319,10 +385,9 @@ onBeforeMount(async () => {
   }
 });
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let timerId: number;
 
-const rightbox = ref(null);
+const workspaceMain = ref<HTMLElement | null>(null);
 const contentBox = ref<HTMLElement | null>(null);
 let backgroundResizeObserver: ResizeObserver | undefined;
 let backgroundRectFrame = 0;
@@ -351,6 +416,7 @@ const queueBackgroundRectSync = () => {
 
 onMounted(() => {
   queueBackgroundRectSync();
+  window.addEventListener('keydown', handleWorkspaceShortcut);
   window.addEventListener('resize', queueBackgroundRectSync);
   if (contentBox.value) {
     backgroundResizeObserver = new ResizeObserver(queueBackgroundRectSync);
@@ -359,6 +425,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.clearInterval(timerId);
+  window.removeEventListener('keydown', handleWorkspaceShortcut);
   window.removeEventListener('resize', queueBackgroundRectSync);
   backgroundResizeObserver?.disconnect();
   if (backgroundRectFrame) {
@@ -392,10 +460,114 @@ const router = useRouter();
 const refreshAdvancedSettings = async (show: boolean) => {
   if (!show) {
     advancedConfigCounter.value = 0;
-    await router.push({ path: '/log', replace: true });
+    await router.push({ path: '/home', replace: true });
     ElMessage.success('已关闭高级设置页');
   }
 };
+
+const route = useRoute();
+const overlayNavigation = useMediaQuery('(max-width: 1023px)');
+const wideNavigation = useMediaQuery('(min-width: 1440px)');
+const navigationMode = useStorage<'auto' | 'expanded' | 'compact'>(
+  'workspace-navigation-mode',
+  'auto',
+);
+const navigationCompact = computed(
+  () =>
+    navigationMode.value === 'compact' ||
+    (navigationMode.value !== 'expanded' && !wideNavigation.value),
+);
+const density = useStorage<'comfortable' | 'compact' | 'dense'>('workspace-density', 'compact');
+const navigationPages = computed(() =>
+  buildNavigation(Object.keys(store.curDice.customTexts), advancedConfigCounter.value >= 8),
+);
+const currentPage = computed(() =>
+  navigationPages.value.find(page =>
+    page.category !== undefined
+      ? route.name === 'custom-text' && page.category === route.params.category
+      : page.path === route.path,
+  ),
+);
+const paletteOpen = ref(false);
+const paletteQuery = ref('');
+const paletteInput = ref<InputInstance>();
+const paletteResults = ref<HTMLElement>();
+const paletteMatches = computed(() => searchNavigation(navigationPages.value, paletteQuery.value));
+
+function toggleNavigation() {
+  if (overlayNavigation.value) drawerMenu.value = true;
+  else navigationMode.value = navigationCompact.value ? 'expanded' : 'compact';
+}
+
+function handleWorkspaceShortcut(event: KeyboardEvent) {
+  if (
+    event.isComposing ||
+    event.altKey ||
+    !(event.ctrlKey || event.metaKey) ||
+    event.key.toLowerCase() !== 'k'
+  )
+    return;
+  if (showDialog.value || dialogLostConnectionVisible.value || dialogFeed.value) return;
+  event.preventDefault();
+  paletteOpen.value = !paletteOpen.value;
+}
+
+function focusPaletteResult(index: number) {
+  const results = paletteResults.value?.querySelectorAll<HTMLButtonElement>(
+    '.workspace-command-result',
+  );
+  if (results?.length) results[(index + results.length) % results.length]?.focus();
+}
+
+function handlePaletteKey(event: Event | KeyboardEvent) {
+  if (!(event instanceof KeyboardEvent) || event.isComposing) return;
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    focusPaletteResult(0);
+  } else if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    focusPaletteResult(paletteMatches.value.length - 1);
+  } else if (event.key === 'Enter' && paletteMatches.value[0]) {
+    event.preventDefault();
+    void navigateFromPalette(paletteMatches.value[0].path);
+  }
+}
+
+async function navigateFromPalette(path: string) {
+  const failure = await router.push(path);
+  if (failure) return;
+  paletteOpen.value = false;
+  drawerMenu.value = false;
+  await nextTick();
+  workspaceMain.value?.focus();
+}
+
+watch(paletteOpen, open => {
+  if (open) paletteQuery.value = '';
+});
+watch(
+  density,
+  value => {
+    document.documentElement.dataset.density = value;
+  },
+  { immediate: true },
+);
+watch(
+  currentPage,
+  page => {
+    document.title = `${page?.label ?? 'Scardice'} · Scardice`;
+  },
+  { immediate: true },
+);
+watch(overlayNavigation, overlay => {
+  if (!overlay) drawerMenu.value = false;
+});
+watch(
+  () => route.fullPath,
+  () => {
+    drawerMenu.value = false;
+  },
+);
 </script>
 
 <style>
@@ -432,132 +604,534 @@ body {
   background: var(--seal-scrollbar-thumb-hover);
 }
 
-.main-container {
-  padding: 2rem;
-  box-sizing: border-box;
-  height: 100%;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
+.seal-root.app-shell {
+  display: flex;
+  flex-direction: column;
+  color: var(--seal-text-color);
+  background: var(--seal-page-bg);
 }
-
-.route-fade-enter-active,
-.route-fade-leave-active {
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+.global-header {
+  --el-header-height: 52px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 24px;
+  padding-inline: 12px 20px;
+  background: var(--seal-surface-bg-base);
+  border-bottom: 1px solid var(--seal-border-color-light);
+  min-width: 0;
 }
-
-.route-fade-enter-from {
-  opacity: 0;
-  transform: translateY(6px);
+.brand-area,
+.global-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
-
-.route-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
+.brand-area {
+  flex-shrink: 0;
 }
-
-.route-page {
-  height: 100%;
-  overflow-y: auto;
+.brand-wordmark {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
 }
-
+.global-header .nav-toggle {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+}
+.global-actions {
+  margin-inline-start: auto;
+  gap: 16px;
+}
+.workspace-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  min-height: 32px;
+  background: var(--seal-surface-soft);
+  color: var(--seal-text-secondary);
+  border: 1px solid var(--seal-border-color-light);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.workspace-search kbd {
+  margin-inline-start: 20px;
+  font: inherit;
+  font-size: 10px;
+}
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.connection-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--el-color-success);
+}
+.connection-status.offline > span {
+  background: var(--el-color-danger);
+}
+.news-button {
+  width: 28px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--seal-text-color);
+  cursor: pointer;
+}
+.news-button .el-icon {
+  display: block;
+}
 .main-shell {
+  display: flex;
+  flex: 1;
   width: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
 }
-
+.sidebar {
+  display: flex;
+  flex: 0 0 180px;
+  width: 180px;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--seal-nav-bg);
+  color: #edf2f5;
+}
+.nav-rail .sidebar {
+  flex-basis: 56px;
+  width: 56px;
+}
 .seal-content {
+  flex: 1;
   min-width: 0;
   min-height: 0;
-  max-width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
+  text-align: start;
 }
-
-.h100 {
+.main-container {
+  padding: 0;
+  box-sizing: border-box;
   height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
-
-@media screen and (max-width: 639.9px) {
-  .nav {
-    padding: 0 0.5rem 0 0;
-  }
-
-  .menu {
-    display: none;
-  }
-
-  .menu-button-wrapper {
-    display: block;
-  }
-
-  .main-container {
-    padding: 1rem;
-  }
+.route-page {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 20px;
+  box-sizing: border-box;
 }
-
-@media screen and (min-width: 640px) {
-  .nav {
-    padding: 0 1rem 0 1.5rem;
-  }
-
-  .menu {
-    display: block;
-  }
-
-  .menu-button-wrapper {
-    display: none;
-  }
+.route-page:has(> .workspace-page) {
+  padding: 0;
+  overflow: hidden;
 }
-
-.sd-center {
+.workspace-navigation {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 10px 8px;
+  color: #edf2f5;
+  font-size: 13px;
+}
+.nav-search {
+  flex-shrink: 0;
+  padding: 0 0 10px;
+}
+.nav-search .el-input__wrapper {
+  background: var(--seal-nav-hover-bg);
+  box-shadow: 0 0 0 1px #ffffff24 inset;
+}
+.nav-search .el-input__inner {
+  color: #fff;
+}
+.nav-search .el-input__inner::placeholder {
+  color: #d1d7dd;
+}
+.nav-search .el-input__prefix,
+.nav-search .el-input__suffix {
+  color: #d1d7dd;
+}
+.nav-search-button {
+  width: 40px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  color: inherit;
+  background: var(--seal-nav-hover-bg);
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.nav-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.nav-primary,
+.nav-group-toggle,
+.nav-destination,
+.nav-about,
+.nav-search-result {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  margin-block: 2px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  text-align: start;
+  cursor: pointer;
 }
-
+.nav-primary:hover,
+.nav-group-toggle:hover,
+.nav-destination:hover,
+.nav-about:hover,
+.nav-search-result:hover {
+  background: var(--seal-nav-hover-bg);
+}
+.nav-primary.active,
+.nav-destination.active,
+.nav-about.active,
+.nav-search-result.active {
+  color: #fff;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--seal-nav-active) 18%, transparent);
+  box-shadow: inset 3px 0 0 var(--seal-nav-active);
+}
+.nav-group-toggle.has-active {
+  color: #fff;
+  font-weight: 600;
+}
+.nav-group-toggle.has-active .el-icon:first-child {
+  color: var(--seal-nav-active);
+}
+.nav-group-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  white-space: nowrap;
+}
+.nav-count {
+  font-size: 11px;
+  color: #c5ced7;
+}
+.nav-group-chevron {
+  font-size: 10px;
+  flex: none;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-group-chevron.expanded {
+  transform: rotate(180deg);
+}
+.nav-group-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.nav-group-collapse.open {
+  grid-template-rows: 1fr;
+  transition-duration: 240ms;
+}
+.nav-group-collapse > .nav-group-items {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 120ms ease,
+    transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.nav-group-collapse.open > .nav-group-items {
+  opacity: 1;
+  transform: none;
+  transition-duration: 220ms, 240ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-group-chevron,
+  .nav-group-collapse,
+  .nav-group-collapse > .nav-group-items {
+    transition: none;
+  }
+}
+.nav-divider {
+  height: 1px;
+  margin-block: 12px;
+  background: #ffffff24;
+}
+.nav-group-items .nav-destination {
+  padding-inline-start: 34px;
+}
+.nav-destination > span:first-child {
+  flex: 1;
+}
+.nav-advanced-label {
+  font-size: 10px;
+  color: #c5ced7;
+}
+.workspace-navigation.compact .nav-primary,
+.workspace-navigation.compact .nav-group-toggle,
+.workspace-navigation.compact .nav-about {
+  justify-content: center;
+  padding-inline: 0;
+}
+.workspace-navigation.compact .nav-divider {
+  margin-inline: 6px;
+}
+.nav-search-result {
+  display: block;
+}
+.nav-search-result small {
+  display: block;
+  font-size: 11px;
+  color: #c5ced7;
+}
+.nav-search-count {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #c5ced7;
+}
+.nav-no-results {
+  padding: 8px;
+  color: #d1d7dd;
+}
+.nav-no-results button {
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.nav-footer {
+  flex-shrink: 0;
+  border-top: 1px solid #ffffff24;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.nav-total {
+  display: block;
+  padding: 5px 8px 0;
+  color: #c5ced7;
+  font-size: 11px;
+}
+.workspace-nav-popper.el-popper {
+  padding: 8px;
+  background: var(--seal-nav-bg);
+  border-color: var(--seal-nav-hover-bg);
+  color: #edf2f5;
+}
+.nav-popup-content {
+  max-height: min(460px, calc(100dvh - 80px));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.nav-popup-heading {
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px 10px;
+  font-size: 12px;
+  color: #c5ced7;
+}
+.nav-popup-heading span {
+  margin-inline-start: auto;
+}
+.workspace-navigation a:focus-visible,
+.workspace-navigation button:focus-visible,
+.workspace-nav-popper a:focus-visible {
+  outline: 2px solid var(--seal-nav-active);
+  outline-offset: -2px;
+}
+.workspace-skip-link {
+  position: fixed;
+  inset-block-start: -70px;
+  inset-inline-start: 10px;
+  z-index: 9999;
+  background: var(--seal-surface-bg-base);
+  color: var(--seal-text-color);
+  padding: 8px 12px;
+  border: 2px solid var(--el-color-primary);
+}
+.workspace-skip-link:focus {
+  inset-block-start: 6px;
+}
+.workspace-command-results {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  max-height: min(460px, 50dvh);
+  overflow: auto;
+}
+.workspace-command-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: transparent;
+  color: var(--seal-text-color);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  text-align: start;
+  cursor: pointer;
+}
+.workspace-command-result:hover,
+.workspace-command-result:focus-visible {
+  background: var(--seal-surface-soft);
+}
+.workspace-command-result > span {
+  flex: 1;
+  min-width: 0;
+}
+.workspace-command-result strong {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+}
+.workspace-command-result small {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+.brand-wordmark:focus-visible,
+.workspace-search:focus-visible,
+.workspace-command-result:focus-visible,
+.news-button:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+.workspace-menu-drawer .el-drawer__header {
+  flex: none;
+  margin: 0;
+  padding: 16px;
+  color: #fff;
+}
+.workspace-menu-drawer .el-drawer__body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.workspace-menu-drawer .el-drawer__close-btn {
+  color: #fff;
+}
+.news-title {
+  margin: 0;
+}
+.login-form {
+  display: grid;
+  gap: 8px;
+}
+.login-form label {
+  font-size: 13px;
+  color: var(--seal-text-regular);
+}
+.login-form .el-button {
+  margin-block-start: 8px;
+}
+.my-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
 #app {
   font-family: var(--seal-font-family);
-  /* font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif; */
-  text-align: center;
+  text-align: start;
   color: var(--seal-text-color);
   height: 100%;
   width: 100%;
   overflow: hidden;
   display: flex;
 }
-
-.element-plus-logo {
-  width: 50%;
-}
-
-.my-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-}
-
-@media screen and (max-width: 640px) {
-  .dialog-feed {
-    width: 90% !important;
+@media (max-width: 1199px) {
+  .global-header {
+    gap: 12px;
   }
 }
-
-.drawer-menu {
-  background-color: var(--seal-nav-bg);
-
-  .el-drawer__header {
-    margin: 0;
-    padding: 1rem;
+@media (max-width: 767px) {
+  .global-header {
+    padding-inline: 8px;
+    gap: 8px;
   }
-
-  .el-drawer__body {
-    padding: 0;
+  .brand-area {
+    gap: 4px;
+  }
+  .brand-wordmark {
+    font-size: 16px;
+  }
+  .global-actions {
+    gap: 4px;
+  }
+  .global-header .nav-toggle,
+  .workspace-search,
+  .news-button {
+    min-width: 44px;
+    width: 44px;
+    min-height: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 4px;
+  }
+  .workspace-search span,
+  .workspace-search kbd {
+    display: none;
+  }
+  .route-page {
+    padding: 12px;
+  }
+  .workspace-navigation .nav-primary,
+  .workspace-navigation .nav-group-toggle,
+  .workspace-navigation .nav-destination,
+  .nav-about,
+  .nav-search-result {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .workspace-navigation .el-input__wrapper {
+    min-height: 40px;
+  }
+  .workspace-command-dialog .el-dialog__body {
+    padding-inline: 12px;
+  }
+  .dialog-feed,
+  .the-dialog {
+    width: min(560px, calc(100vw - 24px)) !important;
   }
 }
 </style>

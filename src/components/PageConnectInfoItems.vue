@@ -1,113 +1,141 @@
 <template>
-  <!-- <div style="position: relative;"> -->
-  <Teleport v-if="!connectionsLoading && !connectionsLoadFailed" to="#root">
-    <div style="position: absolute; right: 40px; bottom: 60px; z-index: 10">
-      <!--    <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>-->
-      <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button>
-    </div>
-  </Teleport>
-  <!-- </div> -->
+  <section class="workspace-page connect-workspace" aria-labelledby="connect-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="connect-workspace-title" class="workspace-title">账号设置</h1>
+        <p class="workspace-subtitle">连接各平台的机器人账号，查看在线状态并管理登录。</p>
+      </div>
+      <div class="workspace-actions">
+        <el-button
+          v-if="!connectionsLoading && !connectionsLoadFailed"
+          type="primary"
+          :icon="Plus"
+          @click="addOne">
+          添加账号
+        </el-button>
+      </div>
+    </header>
 
-  <div v-if="connectionsLoading" v-loading="true" style="min-height: 4rem"></div>
-  <div v-else-if="connectionsLoadFailed">获取账号列表失败，请稍后重试</div>
-  <div v-else-if="!store.curDice.conns?.length">
-    <span style="vertical-align: middle">似乎还没有账号，</span>
-    <el-link style="font-size: 16px; font-weight: bolder" type="primary" @click="addOne"
-      >点我添加一个</el-link
-    >
-  </div>
+    <div class="workspace-body workspace-scroll">
+      <div v-if="connectionsLoading" v-loading="true" class="connect-loading"></div>
+      <div v-else-if="connectionsLoadFailed" class="workspace-panel workspace-empty" role="alert">
+        <strong>无法读取账号列表</strong>
+        <p>请确认核心仍在运行，然后重试。</p>
+        <el-button :icon="Refresh" @click="refreshLoginStates">重试</el-button>
+      </div>
+      <div v-else-if="!store.curDice.conns?.length" class="workspace-panel workspace-empty">
+        <strong>还没有连接任何账号</strong>
+        <p>添加 QQ、Discord、KOOK 等平台的机器人账号后，骰子才能收发消息。</p>
+      </div>
 
-  <div v-else style="display: flex; flex-wrap: wrap">
-    <div
-      v-for="(i, index) in reactive(store.curDice.conns)"
-      :key="index"
-      style="min-width: 20rem; flex: 1 0 50%; flex-grow: 0">
-      <el-card
-        class="box-card"
-        shadow="hover"
-        style="margin-right: 1rem; margin-bottom: 1rem; position: relative">
-        <template #header>
-          <div class="card-header">
-            <span style="word-break: break-all"
-              >{{ i.nickname || '<"未知">' }}({{ i.userId }})</span
-            >
-            <!-- <el-button class="button" type="text"  @click="doModify(i, index)">修改</el-button> -->
-            <el-button size="small" type="danger" :icon="Delete" plain @click="doRemove(i)"
-              >删除</el-button
-            >
-          </div>
-        </template>
-
-        <div
-          v-if="shouldShowMilkyQrcode(i.adapter?.loginState) && store.curDice.qrcodes[i.id]"
-          class="login-state-panel login-state-panel--qr">
-          <template v-if="i.adapter?.loginState === goCqHttpStateCode.MilkyLoginWaitingForConfirm">
-            <div class="login-state-title">已扫码，请在手机 QQ 上确认登录</div>
-            <div class="login-state-description">正在等待手机端确认，请不要关闭本页面。</div>
-          </template>
-          <template v-else>
-            <div class="login-state-title">需要同账号的手机 QQ 扫码登录</div>
-            <div class="login-state-description">请在 2 分钟内完成扫描。</div>
-          </template>
-          <img
-            class="login-state-qrcode"
-            alt="QQ 扫码登录二维码"
-            :src="store.curDice.qrcodes[i.id]" />
-        </div>
-
-        <div
-          v-if="
-            i.adapter?.loginState === goCqHttpStateCode.InLoginBar &&
-            i.adapter?.goCqHttpLoginDeviceLockUrl
-          "
-          class="login-state-panel">
-          <template v-if="i.id === curCaptchaIdSet">
-            <div class="login-state-title">已提交 ticket</div>
-            <div class="login-state-description">正在等待协议端回应，请稍候。</div>
-          </template>
-          <template v-else>
-            <div class="login-state-title">滑条验证码流程</div>
-            <div class="login-state-description">请访问下方链接完成验证。</div>
-            <div class="login-state-link-wrap">
-              <el-link
-                class="login-state-link"
-                type="primary"
-                href="javascript:void(0)"
-                @click="captchaUrlSet(i, i.adapter?.goCqHttpLoginDeviceLockUrl)">
-                {{ i.adapter?.goCqHttpLoginDeviceLockUrl }}
-              </el-link>
+      <div v-else class="connect-grid">
+        <el-card
+          v-for="(i, index) in reactive(store.curDice.conns)"
+          :key="index"
+          class="box-card"
+          shadow="never">
+          <template #header>
+            <div class="card-header">
+              <div class="card-title">
+                <strong>{{ i.nickname || '未知昵称' }}</strong>
+                <span class="card-account">{{ i.userId }}</span>
+              </div>
+              <div class="card-status">
+                <el-tag v-if="i.ambiguous" type="warning" disable-transitions>状态待确认</el-tag>
+                <el-tag v-else-if="i.state === 0" type="info" disable-transitions>已断开</el-tag>
+                <el-tag v-else-if="i.state === 2" type="warning" disable-transitions>
+                  连接中
+                </el-tag>
+                <el-tag v-else-if="i.state === 1" type="success" disable-transitions>
+                  已连接
+                </el-tag>
+                <el-tag v-else-if="i.state === 3" type="danger" disable-transitions>
+                  连接失败
+                </el-tag>
+                <el-tooltip
+                  v-if="
+                    Math.round(new Date().getTime() / 1000) -
+                      i.adapter?.inPackGoCqHttpLastRestricted <
+                    30 * 60
+                  "
+                  :content="`最近 30 分钟内出现过风控警告（${dayjs.unix(i.adapter?.inPackGoCqHttpLastRestricted).fromNow()}），重新登录后标记会暂时消失。`">
+                  <el-tag type="warning">风控警告</el-tag>
+                </el-tooltip>
+              </div>
             </div>
           </template>
-        </div>
 
-        <div
-          v-if="i.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode"
-          class="login-state-panel">
-          <div class="login-state-title">短信验证码流程</div>
-          <div class="login-state-description">输入协议端收到的验证码以继续登录。</div>
-          <div class="login-state-form">
-            <el-form label-position="top">
-              <el-form-item label="验证码">
-                <el-input v-model="smsCode"></el-input>
-              </el-form-item>
-              <el-form-item>
-                <el-button :disabled="smsCode == ''" type="primary" @click="submitSmsCode(i)"
-                  >提交</el-button
-                >
-              </el-form-item>
-            </el-form>
+          <div
+            v-if="shouldShowMilkyQrcode(i.adapter?.loginState) && store.curDice.qrcodes[i.id]"
+            class="login-state-panel login-state-panel--qr">
+            <template
+              v-if="i.adapter?.loginState === goCqHttpStateCode.MilkyLoginWaitingForConfirm">
+              <div class="login-state-title">已扫码，请在手机 QQ 上确认登录</div>
+              <div class="login-state-description">正在等待手机端确认，请不要关闭本页面。</div>
+            </template>
+            <template v-else>
+              <div class="login-state-title">需要同账号的手机 QQ 扫码登录</div>
+              <div class="login-state-description">请在 2 分钟内完成扫描。</div>
+            </template>
+            <img
+              class="login-state-qrcode"
+              alt="QQ 扫码登录二维码"
+              :src="store.curDice.qrcodes[i.id]" />
           </div>
-        </div>
 
-        <el-form ref="formRef" :model="i" label-width="100px">
-          <el-alert
-            v-if="i.platform === 'QQ' && i.protocolType === 'red'"
-            type="error"
-            :closable="false"
-            style="margin-bottom: 1rem">
-            新版 Chronocat（0.2.x 以上）不再提供 red 协议，故余烬将在未来移除该支持，请尽快迁移。
-          </el-alert>
-          <!-- <el-form-item label="帐号">
+          <div
+            v-if="
+              i.adapter?.loginState === goCqHttpStateCode.InLoginBar &&
+              i.adapter?.goCqHttpLoginDeviceLockUrl
+            "
+            class="login-state-panel">
+            <template v-if="i.id === curCaptchaIdSet">
+              <div class="login-state-title">已提交 ticket</div>
+              <div class="login-state-description">正在等待协议端回应，请稍候。</div>
+            </template>
+            <template v-else>
+              <div class="login-state-title">滑条验证码流程</div>
+              <div class="login-state-description">请访问下方链接完成验证。</div>
+              <div class="login-state-link-wrap">
+                <el-link
+                  class="login-state-link"
+                  type="primary"
+                  href="javascript:void(0)"
+                  @click="captchaUrlSet(i, i.adapter?.goCqHttpLoginDeviceLockUrl)">
+                  {{ i.adapter?.goCqHttpLoginDeviceLockUrl }}
+                </el-link>
+              </div>
+            </template>
+          </div>
+
+          <div
+            v-if="i.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode"
+            class="login-state-panel">
+            <div class="login-state-title">短信验证码流程</div>
+            <div class="login-state-description">输入协议端收到的验证码以继续登录。</div>
+            <div class="login-state-form">
+              <el-form label-position="top">
+                <el-form-item label="验证码">
+                  <el-input v-model="smsCode"></el-input>
+                </el-form-item>
+                <el-form-item>
+                  <el-button :disabled="smsCode == ''" type="primary" @click="submitSmsCode(i)"
+                    >提交</el-button
+                  >
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+
+          <el-form ref="formRef" :model="i" label-width="100px">
+            <el-alert
+              v-if="i.platform === 'QQ' && i.protocolType === 'red'"
+              type="error"
+              :closable="false"
+              style="margin-bottom: 1rem">
+              新版 Chronocat（0.2.x 以上）不再提供 red 协议，故余烬将在未来移除该支持，请尽快迁移。
+            </el-alert>
+            <!-- <el-form-item label="帐号">
             <el-input v-model="i.account"></el-input>
             <div>123456789<el-tag size="small">{{i.platform}}</el-tag></div>
           </el-form-item>
@@ -116,749 +144,261 @@
             <div>阮鸫</div>
           </el-form-item> -->
 
-          <el-form-item label="状态">
-            <el-space>
-              <div v-if="i.ambiguous">
-                <el-tag type="warning" disable-transitions>状态不明确</el-tag>
+            <el-form-item label="群组数量">
+              <div>{{ i.groupNum }}</div>
+            </el-form-item>
+
+            <el-form-item label="累计响应指令">
+              <div>{{ i.cmdExecutedNum }}</div>
+            </el-form-item>
+
+            <el-form-item label="上次执行指令">
+              <div v-if="i.cmdExecutedLastTime">
+                {{ dayjs.unix(i.cmdExecutedLastTime).fromNow() }}
               </div>
-              <div v-else-if="i.state === 0">
-                <el-tag type="danger" disable-transitions>断开</el-tag>
-              </div>
-              <div v-else-if="i.state === 2">
-                <el-tag type="warning" disable-transitions>连接中</el-tag>
-              </div>
-              <div v-else-if="i.state === 1">
-                <el-tag type="success" disable-transitions>已连接</el-tag>
-              </div>
-              <div v-else-if="i.state === 3">
-                <el-tag type="danger" disable-transitions>失败</el-tag>
-              </div>
-              <el-tooltip
-                v-if="
-                  Math.round(new Date().getTime() / 1000) -
-                    i.adapter?.inPackGoCqHttpLastRestricted <
-                  30 * 60
-                "
-                :content="
-                  `看到这个标签是因为最近20分钟内有风控警告，将在重新登录后临时消除。触发时间: ` +
-                  dayjs.unix(i.adapter?.inPackGoCqHttpLastRestricted).fromNow()
-                ">
-                <el-tag type="warning">风控</el-tag>
-              </el-tooltip>
-            </el-space>
-          </el-form-item>
+              <div v-else>从未</div>
+            </el-form-item>
 
-          <el-form-item label="群组数量">
-            <div>{{ i.groupNum }}</div>
-          </el-form-item>
+            <el-form-item v-if="i.adapter?.connectUrl" label="连接地址">
+              <!-- <el-input v-model="i.connectUrl"></el-input> -->
+              <div>{{ i.adapter?.connectUrl }}</div>
+            </el-form-item>
 
-          <el-form-item label="累计响应指令">
-            <div>{{ i.cmdExecutedNum }}</div>
-          </el-form-item>
+            <el-form-item v-if="i.adapter?.isReverse" label="服务地址">
+              <!-- <el-input v-model="i.connectUrl"></el-input> -->
+              <div>{{ i.adapter?.reverseAddr }}/ws</div>
+            </el-form-item>
 
-          <el-form-item label="上次执行指令">
-            <div v-if="i.cmdExecutedLastTime">
-              {{ dayjs.unix(i.cmdExecutedLastTime).fromNow() }}
-            </div>
-            <div v-else>从未</div>
-          </el-form-item>
-
-          <el-form-item v-if="i.adapter?.connectUrl" label="连接地址">
-            <!-- <el-input v-model="i.connectUrl"></el-input> -->
-            <div>{{ i.adapter?.connectUrl }}</div>
-          </el-form-item>
-
-          <el-form-item v-if="i.adapter?.isReverse" label="服务地址">
-            <!-- <el-input v-model="i.connectUrl"></el-input> -->
-            <div>{{ i.adapter?.reverseAddr }}/ws</div>
-          </el-form-item>
-
-          <template
-            v-if="
-              i.platform === 'QQ' &&
-              (i.protocolType === 'onebot' ||
-                i.protocolType === 'walle-q' ||
-                i.protocolType === 'milky') &&
-              (i.adapter.builtinMode === 'gocq' || !i.adapter.builtinMode)
-            ">
-            <!-- <el-form-item label="忽略好友请求">
+            <template
+              v-if="
+                i.platform === 'QQ' &&
+                (i.protocolType === 'onebot' ||
+                  i.protocolType === 'walle-q' ||
+                  i.protocolType === 'milky') &&
+                (i.adapter.builtinMode === 'gocq' ||
+                  i.adapter.builtinMode === 'lagrange' ||
+                  !i.adapter.builtinMode)
+              ">
+              <!-- <el-form-item label="忽略好友请求">
               <div>{{i.adapter?.ignoreFriendRequest ? '是' : '否'}}</div>
             </el-form-item> -->
 
-            <el-form-item v-if="i.adapter.useInPackGoCqhttp" label="协议">
-              <!-- <el-input v-model="i.connectUrl"></el-input> -->
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">Unset</div>
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 3">MacOS</div>
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 5">iPad</div>
-              <div v-if="i.adapter?.inPackGoCqHttpProtocol === 6">AndroidPad</div>
-              <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
-            </el-form-item>
-            <el-form-item v-if="i.adapter.useInPackGoCqhttp" label="协议版本">
-              <div v-if="i.adapter?.inPackGoCqHttpAppVersion === ''">未指定</div>
-              <div
-                v-if="
-                  i.adapter?.inPackGoCqHttpAppVersion && i.adapter.inPackGoCqHttpAppVersion !== ''
-                ">
-                {{ i.adapter.inPackGoCqHttpAppVersion }}
-              </div>
-            </el-form-item>
-            <el-form-item v-if="i.protocolType" label="协议类型">
-              <div>
-                {{ i.protocolType }}
-              </div>
-            </el-form-item>
-            <el-form-item v-if="i.adapter.useInPackGoCqhttp" label="协议实现">
-              <!-- <el-input v-model="i.connectUrl"></el-input> -->
-              <div v-if="i.adapter?.implementation === 'gocq' || i.adapter?.implementation === ''">
-                Go-Cqhttp
-              </div>
-              <div v-if="i.adapter?.implementation === 'walle-q'">Walle-q</div>
-              <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
-            </el-form-item>
-            <el-form-item v-else-if="i.adapter?.isReverse" label="特殊">
-              <div>反向 WS</div>
-            </el-form-item>
-            <el-form-item v-else-if="i.adapter?.built_in_mode" label="特殊">
-              <div>{{ i.adapter?.built_in_mode }}</div>
-              <el-button
-                size="small"
-                type="primary"
-                style="margin-left: 1rem"
-                :icon="Edit"
-                @click="askSetDataGocq(i)"></el-button>
-            </el-form-item>
-            <el-form-item v-else label="特殊">
-              <div>分离部署</div>
-              <el-button
-                size="small"
-                type="primary"
-                style="margin-left: 1rem"
-                :icon="Edit"
-                @click="askSetDataGocq(i)"></el-button>
-            </el-form-item>
-          </template>
+              <el-form-item v-if="i.adapter.useInPackGoCqhttp" label="协议">
+                <!-- <el-input v-model="i.connectUrl"></el-input> -->
+                <div v-if="i.adapter?.inPackGoCqHttpProtocol === 0">Unset</div>
+                <div v-if="i.adapter?.inPackGoCqHttpProtocol === 1">Android</div>
+                <div v-if="i.adapter?.inPackGoCqHttpProtocol === 2">Android 手表</div>
+                <div v-if="i.adapter?.inPackGoCqHttpProtocol === 3">MacOS</div>
+                <div v-if="i.adapter?.inPackGoCqHttpProtocol === 5">iPad</div>
+                <div v-if="i.adapter?.inPackGoCqHttpProtocol === 6">AndroidPad</div>
+                <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
+              </el-form-item>
+              <el-form-item v-if="i.adapter.useInPackGoCqhttp" label="协议版本">
+                <div v-if="i.adapter?.inPackGoCqHttpAppVersion === ''">未指定</div>
+                <div
+                  v-if="
+                    i.adapter?.inPackGoCqHttpAppVersion && i.adapter.inPackGoCqHttpAppVersion !== ''
+                  ">
+                  {{ i.adapter.inPackGoCqHttpAppVersion }}
+                </div>
+              </el-form-item>
+              <el-form-item v-if="i.protocolType" label="协议类型">
+                <div>
+                  {{ i.protocolType }}
+                </div>
+              </el-form-item>
+              <el-form-item v-if="i.adapter.useInPackGoCqhttp" label="协议实现">
+                <!-- <el-input v-model="i.connectUrl"></el-input> -->
+                <div
+                  v-if="i.adapter?.implementation === 'gocq' || i.adapter?.implementation === ''">
+                  Go-Cqhttp
+                </div>
+                <div v-if="i.adapter?.implementation === 'walle-q'">Walle-q</div>
+                <!-- <el-button type="primary" class="btn-add" :icon="Plus" circle @click="addOne"></el-button> -->
+              </el-form-item>
+              <el-form-item v-else-if="i.adapter?.isReverse" label="特殊">
+                <div>反向 WS</div>
+              </el-form-item>
+              <el-form-item v-else-if="i.adapter?.built_in_mode" label="特殊">
+                <div>{{ i.adapter?.built_in_mode }}</div>
+                <el-button
+                  size="small"
+                  class="card-inline-action"
+                  :icon="Edit"
+                  @click="askSetDataGocq(i)">
+                  修改
+                </el-button>
+              </el-form-item>
+              <el-form-item v-else label="特殊">
+                <div>分离部署</div>
+                <el-button
+                  size="small"
+                  class="card-inline-action"
+                  :icon="Edit"
+                  @click="askSetDataGocq(i)">
+                  修改
+                </el-button>
+              </el-form-item>
+            </template>
 
-          <template
-            v-if="
-              i.platform === 'QQ' &&
-              i.protocolType === 'onebot' &&
-              i.adapter.builtinMode === 'lagrange'
-            ">
-            <el-form-item label="接入方式">
-              <div>内置客户端</div>
-            </el-form-item>
-            <el-form-item label="签名版本">
-              <div>{{ i.adapter.signServerVer }}</div>
-            </el-form-item>
-            <el-form-item label="签名服务">
-              <div>{{ i.adapter.signServerName }}</div>
-            </el-form-item>
-          </template>
+            <template
+              v-if="
+                i.platform === 'QQ' &&
+                i.protocolType === 'onebot' &&
+                i.adapter.builtinMode === 'lagrange'
+              ">
+              <el-form-item label="接入方式">
+                <div>内置客户端</div>
+              </el-form-item>
+              <el-form-item label="签名版本">
+                <div>{{ i.adapter.signServerVer }}</div>
+              </el-form-item>
+              <el-form-item label="签名服务">
+                <div>{{ i.adapter.signServerName }}</div>
+              </el-form-item>
+            </template>
 
-          <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
-            <el-form-item label="协议">
-              <div>[已弃用]Red</div>
-            </el-form-item>
-            <el-form-item label="协议版本">
-              <div>{{ i.adapter?.redVersion || '未知' }}</div>
-            </el-form-item>
-            <el-form-item label="连接地址">
-              <div>{{ i.adapter?.host + ':' + i.adapter?.port }}</div>
-            </el-form-item>
-          </template>
+            <template v-if="i.platform === 'QQ' && i.protocolType === 'red'">
+              <el-form-item label="协议">
+                <div>[已弃用]Red</div>
+              </el-form-item>
+              <el-form-item label="协议版本">
+                <div>{{ i.adapter?.redVersion || '未知' }}</div>
+              </el-form-item>
+              <el-form-item label="连接地址">
+                <div>{{ i.adapter?.host + ':' + i.adapter?.port }}</div>
+              </el-form-item>
+            </template>
 
-          <template v-if="i.platform === 'QQ' && i.protocolType === 'official'">
-            <el-form-item label="协议">
-              <div>[WIP] 官方 QQ Bot</div>
-            </el-form-item>
-            <el-form-item label="AppID">
-              <div>{{ i.adapter?.appID }}</div>
-            </el-form-item>
-          </template>
+            <template v-if="i.platform === 'QQ' && i.protocolType === 'official'">
+              <el-form-item label="协议">
+                <div>[WIP] 官方 QQ Bot</div>
+              </el-form-item>
+              <el-form-item label="AppID">
+                <div>{{ i.adapter?.appID }}</div>
+              </el-form-item>
+            </template>
 
-          <template
-            v-if="
-              i.platform === 'QQ' && i.protocolType === 'onebot' && i.adapter.builtinMode === 'gocq'
-            ">
-            <el-form-item label="其他">
-              <el-tooltip content="导出gocq设置，用于转分离部署" placement="top-start">
-                <el-button type="" @click="doGocqExport(i)">导出</el-button>
-              </el-tooltip>
-            </el-form-item>
-          </template>
+            <template
+              v-if="
+                i.platform === 'QQ' &&
+                i.protocolType === 'onebot' &&
+                i.adapter.builtinMode === 'gocq' &&
+                i.endpointView.capabilities.actions.includes('generate-config-artifact')
+              ">
+              <el-form-item label="其他">
+                <el-tooltip content="导出gocq设置，用于转分离部署" placement="top-start">
+                  <el-button @click="doGocqExport(i)">导出配置</el-button>
+                </el-tooltip>
+              </el-form-item>
+            </template>
 
-          <template v-if="i.protocolType === 'satori'">
-            <el-form-item label="协议">
-              <div>[WIP]Satori</div>
-            </el-form-item>
-            <el-form-item label="平台">
-              <div>{{ i.platform }}</div>
-            </el-form-item>
-          </template>
+            <template v-if="i.protocolType === 'satori'">
+              <el-form-item label="协议">
+                <div>[WIP]Satori</div>
+              </el-form-item>
+              <el-form-item label="平台">
+                <div>{{ i.platform }}</div>
+              </el-form-item>
+            </template>
 
-          <!-- <el-form-item label="密码">
+            <!-- <el-form-item label="密码">
             <el-input type="password" v-model="i.password"></el-input>
           </el-form-item> -->
 
-          <!-- <el-form-item label="启用">
+            <!-- <el-form-item label="启用">
             <el-switch v-model="i.enable"></el-switch>
           </el-form-item> -->
 
-          <!-- <el-form-item label=""> -->
-          <div
-            v-if="i.ambiguous"
-            style="display: flex; justify-content: center; margin-bottom: 1rem">
+            <!-- <el-form-item label=""> -->
+          </el-form>
+          <div class="card-actions">
             <el-tooltip
-              content="仅在已从外部确认协议端最终状态后操作，确认后会解除当前操作阻塞"
-              placement="bottom-start">
-              <el-button type="danger" @click="askResolveAmbiguous(i)">处理不明确</el-button>
+              v-if="i.ambiguous"
+              content="仅在已从协议端确认账号的最终状态后操作，确认后会解除当前操作阻塞"
+              placement="top">
+              <el-button type="warning" plain @click="askResolveAmbiguous(i)"
+                >确认最终状态</el-button
+              >
             </el-tooltip>
-          </div>
-          <div
-            v-else-if="
-              ![goCqHttpStateCode.InLogin, goCqHttpStateCode.InLoginQrCode].includes(
-                i.adapter?.loginState,
-              )
-            "
-            style="display: flex; justify-content: center; margin-bottom: 1rem">
-            <el-button-group>
-              <el-tooltip
-                content="如果日志中出现帐号被风控，可以试试这个功能"
-                placement="bottom-start">
-                <el-button type="warning" @click="askGocqhttpReLogin(i)">重新登录</el-button>
+            <template
+              v-else-if="
+                ![goCqHttpStateCode.InLogin, goCqHttpStateCode.InLoginQrCode].includes(
+                  i.adapter?.loginState,
+                )
+              ">
+              <el-tooltip content="日志中出现风控提示时，可尝试重新登录" placement="top">
+                <el-button :icon="Refresh" @click="askGocqhttpReLogin(i)">重新登录</el-button>
               </el-tooltip>
-              <el-tooltip
-                content="离线/启用此账号，重启骰子后仍将保持离线/启用状态"
-                placement="bottom-start">
-                <el-button v-if="i.enable" type="warning" @click="askSetEnable(i, false)"
-                  >禁用</el-button
-                >
-                <el-button v-else type="warning" @click="askSetEnable(i, true)">启用</el-button>
+              <el-tooltip content="停用后账号保持离线，重启骰子后依然生效" placement="top">
+                <el-button v-if="i.enable" @click="askSetEnable(i, false)">停用账号</el-button>
+                <el-button v-else @click="askSetEnable(i, true)">启用账号</el-button>
               </el-tooltip>
-            </el-button-group>
+            </template>
+            <el-button
+              @click="
+                diagnosticTarget = {
+                  id: String(i.id),
+                  name: `${i.nickname || '未知昵称'} · ${i.userId}`,
+                }
+              ">
+              运行诊断
+            </el-button>
+            <el-button class="card-delete" type="danger" :icon="Delete" plain @click="doRemove(i)">
+              删除
+            </el-button>
           </div>
-          <!-- </el-form-item> -->
-        </el-form>
-      </el-card>
+        </el-card>
+      </div>
     </div>
-  </div>
 
-  <el-dialog
-    v-model="dialogSetDataFormVisible"
-    title="属性修改"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="false"
-    class="the-dialog">
-    <el-form :model="form">
-      <el-form-item label="类型" :label-width="formLabelWidth">
-        <div>QQ 账号</div>
-      </el-form-item>
+    <EndpointDiagnostics
+      v-if="diagnosticTarget"
+      :endpoint-id="diagnosticTarget.id"
+      :name="diagnosticTarget.name"
+      @close="diagnosticTarget = null" />
 
-      <el-form-item label="忽略好友请求" :label-width="formLabelWidth">
-        <el-checkbox v-model="form.ignoreFriendRequest">{{
-          form.ignoreFriendRequest ? '我会登录官方客户端处理好友请求' : '让余烬帮我按照预设答案处理'
-        }}</el-checkbox>
-      </el-form-item>
-
-      <el-form-item
-        label="协议"
-        :label-width="formLabelWidth"
-        required
-        v-if="form.endpoint.adapter?.useInPackGoCqhttp">
-        <el-select v-model="form.protocol">
-          <!-- <el-option label="iPad 协议" :value="0"></el-option> -->
-          <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
-          <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
-          <el-option label="MacOS" :value="3"></el-option>
-          <el-option label="iPad" :value="5"></el-option>
-          <el-option
-            v-if="form.implementation === 'gocq' || form.implementation === ''"
-            label="AndroidPad - 稳定协议，建议！"
-            :value="6"></el-option>
-          <!-- <el-option label="MacOS" :value="3"></el-option> -->
-        </el-select>
-      </el-form-item>
-
-      <el-form-item
-        v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>版本</span>
-            <el-tooltip content="只有需要升级协议版本时才指定。" style="">
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-select v-model="form.appVersion">
-          <el-option
-            v-for="version of supportedQQVersions"
-            :key="version"
-            :value="version"
-            :label="version || '不指定版本'" />
-        </el-select>
-      </el-form-item>
-
-      <el-form-item
-        v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>签名服务</span>
-            <el-tooltip
-              content="如果不知道这是什么，请选择 不使用。允许填写签名服务相关信息。"
-              style="">
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-radio-group v-model="signConfigType" size="small" @change="signConfigTypeChange">
-          <el-radio-button value="none">不使用</el-radio-button>
-          <el-radio-button value="simple">简易配置</el-radio-button>
-          <el-radio-button value="advanced">高级配置</el-radio-button>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'simple'
-        "
-        label="服务url"
-        :label-width="formLabelWidth">
-        <el-input
-          v-model="form.signServerConfig.signServers[0].url"
-          type="string"
-          autocomplete="off"
-          placeholder="http://127.0.0.1:13579"></el-input>
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'simple'
-        "
-        label="服务key"
-        :label-width="formLabelWidth">
-        <el-input
-          v-model="form.signServerConfig.signServers[0].key"
-          type="string"
-          autocomplete="off"
-          placeholder="114514"></el-input>
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'simple'
-        "
-        label="服务鉴权"
-        :label-width="formLabelWidth">
-        <el-input
-          v-model="form.signServerConfig.signServers[0].authorization"
-          type="string"
-          autocomplete="off"
-          placeholder="Bearer xxxx 未设置可不填"></el-input>
-      </el-form-item>
-
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        ">
-        <el-alert type="warning" :closable="false"
-          >如果不理解以下配置项，请使用 <strong>简易配置</strong></el-alert
-        >
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        ">
-        <el-table :data="form.signServerConfig.signServers" table-layout="auto">
-          <el-table-column prop="url" label="服务url">
-            <template #default="scope">
-              <el-input v-model="scope.row.url" placeholder="http://127.0.0.1:8080" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="key" label="服务key">
-            <template #default="scope">
-              <el-input v-model="scope.row.key" placeholder="114514" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="authorization" label="服务鉴权">
-            <template #default="scope">
-              <el-input v-model="scope.row.authorization" placeholder="Bearer xxxx" />
-            </template>
-          </el-table-column>
-          <el-table-column align="right">
-            <!-- eslint-disable-next-line vue/no-unused-vars -->
-            <template #header="scope">
-              <el-button size="small" type="primary" @click="handleSignServerAdd"
-                >新增一行</el-button
-              >
-            </template>
-            <template #default="scope">
-              <el-button size="small" type="danger" @click="handleSignServerDelete(scope.row.url)"
-                >删除</el-button
-              >
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        "
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>自动切换规则</span>
-            <el-tooltip style="">
-              <template #content>
-                判断签名服务不可用（需要切换）的额外规则<br />
-                - 不设置（此时仅在请求无法返回结果时判定为不可用）<br />
-                - 在获取到的 sign 为空（若选此建议关闭
-                auto-register，一般为实例未注册但是请求签名的情况）<br />
-                - 在获取到的 sign 或 token 为空（若选此建议关闭 auto-refresh-token）
-              </template>
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-radio-group v-model="form.signServerConfig.ruleChangeSignServer" size="small">
-          <el-radio-button :value="0">不设置</el-radio-button>
-          <el-radio-button :value="1">sign 为空时切换</el-radio-button>
-          <el-radio-button :value="2">sign/token为空时切换</el-radio-button>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        "
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>最大尝试次数</span>
-            <el-tooltip style="">
-              <template #content>
-                连续寻找可用签名服务器最大尝试次数<br />
-                为 0 时会在连续 3
-                次没有找到可用签名服务器后保持使用主签名服务器，不再尝试进行切换备用<br />
-                否则会在达到指定次数后 <strong>退出</strong> 主程序
-              </template>
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-input-number
-          v-model="form.signServerConfig.maxCheckCount"
-          size="small"
-          :precision="0"
-          :min="0" />
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        "
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>请求超时时间</span>
-            <el-tooltip style="">
-              <template #content> 签名服务请求超时时间（s）</template>
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-input-number
-          v-model="form.signServerConfig.signServerTimeout"
-          size="small"
-          :precision="0"
-          :min="0" />
-        <span>&nbsp;秒</span>
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        "
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>自动注册实例</span>
-            <el-tooltip style="">
-              <template #content>
-                在实例可能丢失（获取到的签名为空）时是否尝试重新注册<br />
-                为 true 时，在签名服务不可用时可能每次发消息都会尝试重新注册并签名。<br />
-                为 false 时，将不会自动注册实例，在签名服务器重启或实例被销毁后需要重启 go-cqhttp
-                以获取实例<br />
-                否则后续消息将不会正常签名。关闭此项后可以考虑开启签名服务器端 auto_register
-                避免需要重启<br />
-                由于实现问题，当前建议关闭此项，推荐开启签名服务器的自动注册实例
-              </template>
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-switch
-          v-model="form.signServerConfig.autoRegister"
-          style="--el-switch-on-color: #67c23a" />
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        "
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>自动刷新 token</span>
-            <el-tooltip style="">
-              <template #content>
-                是否在 token 过期后立即自动刷新签名 token（在需要签名时才会检测到，主要防止 token
-                意外丢失）<br />
-                独立于定时刷新
-              </template>
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-switch
-          v-model="form.signServerConfig.autoRefreshToken"
-          style="--el-switch-on-color: #67c23a" />
-      </el-form-item>
-      <el-form-item
-        v-if="
-          form.accountType === 0 &&
-          (form.protocol === 1 || form.protocol === 6) &&
-          signConfigType === 'advanced'
-        "
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>刷新间隔</span>
-            <el-tooltip style="">
-              <template #content>
-                定时刷新 token 间隔时间，单位为分钟，建议 30~40 分钟，不可超过 60 分钟<br />
-                目前丢失 token 也不会有太大影响，可设置为 0 以关闭，推荐开启
-              </template>
-              <el-icon>
-                <QuestionFilled />
-              </el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-input-number
-          v-model="form.signServerConfig.refreshInterval"
-          size="small"
-          :precision="0"
-          :min="0" />
-        <span>&nbsp;分钟</span>
-      </el-form-item>
-
-      <el-form-item
-        v-if="form.endpoint.protocolType === 'pureonebot'"
-        :label-width="formLabelWidth">
-        <template #label>
-          <div style="display: flex; align-items: center">
-            <span>图片资源地址</span>
-            <el-tooltip
-              content="协议端访问本端图片资源的 base URL。默认自动推导，如无法访问请手动填写。留空使用自动值。">
-              <el-icon><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-        </template>
-        <el-input
-          v-model="form.imageAssetBaseUrl"
-          :placeholder="form.imageAssetBaseUrlAuto || 'http://127.0.0.1:3211'"
-          clearable>
-          <template #append>
-            <el-tag
-              v-if="form.imageAssetBaseUrlAuto && !form.imageAssetBaseUrl"
-              type="success"
-              size="small"
-              >自动</el-tag
-            >
-            <el-tag v-else-if="form.imageAssetBaseUrl" type="warning" size="small">自定义</el-tag>
-          </template>
-        </el-input>
-        <div
-          v-if="form.imageAssetBaseUrlAuto && !form.imageAssetBaseUrl"
-          style="font-size: 12px; color: #909399; margin-top: 4px">
-          自动推导: {{ form.imageAssetBaseUrlAuto }}
-          <span
-            v-if="form.imageAssetBaseUrlCandidates && form.imageAssetBaseUrlCandidates.length > 1">
-            （候选: {{ form.imageAssetBaseUrlCandidates.join(', ') }}）
-          </span>
-        </div>
-      </el-form-item>
-
-      <small>
-        <div>提示：切换协议后，需要点击重新登录，或.master reboot 重启骰子以应用设置</div>
-      </small>
-    </el-form>
-
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="dialogSetDataFormVisible = false">取消</el-button>
-        <el-button type="primary" @click="doSetData">确定</el-button>
-      </span>
-    </template>
-  </el-dialog>
-  <el-dialog
-    v-model="dialogFormVisible"
-    title="帐号登录"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="false"
-    class="the-dialog">
-    <el-button style="float: right; margin-top: -4rem" @click="openSocks"
-      >辅助工具 -13325 端口</el-button
-    >
-    <template v-if="form.step === 1">
-      <el-alert
-        v-if="form.accountType === 7"
-        type="error"
-        :closable="false"
-        style="margin-bottom: 1.5rem"
-        >该支持功能不完善，所适配的目标 Chronocat 版本为 0.0.54，低于该版本不建议使用。<br />同时，新版
-        Chronocat（0.2.x 以上）不再提供 red 协议，余烬也将在未来移除该支持。</el-alert
-      >
-      <el-alert
-        v-if="form.accountType === 10"
-        type="warning"
-        :closable="false"
-        style="margin-bottom: 1.5rem"
-        >该支持仍处于实验阶段，部分功能尚未完善。<br />同时，受到腾讯官方提供的 API
-        能力的限制，一些功能暂时无法实现。</el-alert
-      >
-      <el-alert
-        v-if="form.accountType === 14"
-        type="warning"
-        :closable="false"
-        style="margin-bottom: 1.5rem"
-        >该支持仍处于实验阶段，部分功能尚未完善。<br />- QQ 平台适配目标版本 0.2.x 以上的
-        Chronocat。</el-alert
-      >
-      <el-alert
-        v-if="
-          store.diceServers.length > 0 &&
-          store.diceServers[0].baseInfo.containerMode &&
-          (form.accountType === ImConnectionTypeLagrangeOnebot ||
-            form.accountType === ImConnectionTypeGocqLegacy ||
-            isInternalMilkyAccountType(form.accountType))
-        "
-        type="warning"
-        :closable="false"
-        class="mb-6">
-        当前为容器模式，内置客户端被禁用。
-      </el-alert>
-
+    <el-dialog
+      v-model="dialogSetDataFormVisible"
+      title="属性修改"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      class="the-dialog">
       <el-form :model="form">
-        <el-form-item label="账号类型" :label-width="formLabelWidth">
-          <el-select v-model="selectedAccountPlatform">
-            <el-option label="QQ" value="QQ"></el-option>
-            <el-option label="[WIP]Satori" :value="ImConnectionTypeSatori"></el-option>
-            <el-option label="[WIP]SealChat" :value="ImConnectionTypeSealChat"></el-option>
-            <el-option label="Discord" :value="ImConnectionTypeDiscord"></el-option>
-            <el-option label="KOOK(开黑啦)" :value="ImConnectionTypeKook"></el-option>
-            <el-option label="Telegram" :value="ImConnectionTypeTelegram"></el-option>
-            <el-option label="Minecraft服务器" :value="ImConnectionTypeMinecraft"></el-option>
-            <el-option label="Dodo语音" :value="ImConnectionTypeDodo"></el-option>
-            <el-option label="钉钉" :value="ImConnectionTypeDingTalk"></el-option>
-            <el-option label="Slack" :value="ImConnectionTypeSlack"></el-option>
-          </el-select>
+        <el-form-item label="类型" :label-width="formLabelWidth">
+          <div>QQ 账号</div>
+        </el-form-item>
+
+        <el-form-item label="忽略好友请求" :label-width="formLabelWidth">
+          <el-checkbox v-model="form.ignoreFriendRequest">{{
+            form.ignoreFriendRequest
+              ? '我会登录官方客户端处理好友请求'
+              : '让余烬帮我按照预设答案处理'
+          }}</el-checkbox>
         </el-form-item>
 
         <el-form-item
-          v-if="selectedAccountPlatform === 'QQ'"
-          label="QQ 协议"
-          :label-width="formLabelWidth">
-          <el-select v-model="form.accountType">
-            <el-option
-              label="QQ(内置Milky / Yogurt)"
-              :value="ImConnectionTypeMilkyInternalYogurt"
-              :disabled="isContainerMode()"></el-option>
-            <el-option
-              label="QQ(内置Milky / Lagrange)"
-              :value="ImConnectionTypeMilkyInternalLagrange"
-              :disabled="isContainerMode()"></el-option>
-            <el-option
-              label="QQ(内置Milky / Lagrange兼容)"
-              :value="ImConnectionTypeMilkyInternal"
-              :disabled="isContainerMode()"></el-option>
-            <el-option
-              label="QQ(内置客户端)"
-              :value="ImConnectionTypeLagrangeOnebot"
-              :disabled="isContainerMode()"></el-option>
-            <el-option label="QQ(Milky)" :value="ImConnectionTypeMilkySeparate"></el-option>
-            <el-option
-              label="QQ(onebot11正向WS)"
-              :value="ImConnectionTypeOnebotSeparate"></el-option>
-            <el-option
-              label="QQ(onebot11反向WS)"
-              :value="ImConnectionTypeOnebotReverse"></el-option>
-            <el-option label="QQ(官方机器人)" :value="ImConnectionTypeOfficialQQ"></el-option>
-            <el-option label="[已弃用]QQ(red协议)" :value="ImConnectionTypeRed"></el-option>
-            <el-option
-              label="[已弃用]QQ(gocq)"
-              :value="ImConnectionTypeGocqLegacy"
-              :disabled="isContainerMode()"></el-option>
-          </el-select>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeGocqLegacy"
-          label="设备"
+          label="协议"
           :label-width="formLabelWidth"
-          required>
+          required
+          v-if="form.endpoint.adapter?.useInPackGoCqhttp">
           <el-select v-model="form.protocol">
-            <!-- <el-option label="Unset" :value="0"></el-option> -->
-            <el-option label="Android 协议" :value="1"></el-option>
+            <!-- <el-option label="iPad 协议" :value="0"></el-option> -->
+            <el-option label="Android 协议 - 稳定协议，建议！" :value="1"></el-option>
             <el-option label="Android 手表协议 - 可共存,但不支持频道/戳一戳" :value="2"></el-option>
             <el-option label="MacOS" :value="3"></el-option>
             <el-option label="iPad" :value="5"></el-option>
             <el-option
               v-if="form.implementation === 'gocq' || form.implementation === ''"
-              label="AndroidPad - 可共存"
+              label="AndroidPad - 稳定协议，建议！"
               :value="6"></el-option>
             <!-- <el-option label="MacOS" :value="3"></el-option> -->
           </el-select>
         </el-form-item>
 
         <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
-            (form.protocol === 1 || form.protocol === 6)
-          "
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
           :label-width="formLabelWidth">
           <template #label>
             <div style="display: flex; align-items: center">
@@ -878,206 +418,9 @@
               :label="version || '不指定版本'" />
           </el-select>
         </el-form-item>
-        <!-- <el-form-item v-if="form.accountType === 0" label="协议实现" :label-width="formLabelWidth" required>
-          <el-select v-model="form.implementation">
-            <el-option label="Go-cqhttp" :value="'gocq'"></el-option>
-            <el-option label="Walle-Q" :value="'walle-q'"></el-option>
-          </el-select>
-        </el-form-item> -->
 
         <el-form-item
-          v-if="form.accountType === ImConnectionTypeLagrangeOnebot"
-          label="账号"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeLagrangeOnebot"
-          label="签名版本"
-          :label-width="formLabelWidth"
-          required>
-          <template #label>
-            <span>
-              签名版本
-              <el-tooltip content="如果不知道这是什么，请保持默认选中">
-                <el-icon><question-filled /></el-icon>
-              </el-tooltip>
-            </span>
-          </template>
-          <el-select
-            v-model="form.signServerVersion"
-            :disabled="!signInfoLoaded"
-            @change="signServerVersionChange"
-            placeholder="请选择签名版本">
-            <template v-for="info in signInfos">
-              <el-option
-                v-if="!info.ignored"
-                :key="info.version"
-                :label="info.version"
-                :value="info.version">
-                <div style="display: flex; align-items: center">
-                  <span style="float: left; margin-right: 0.5rem">{{ info.version }}</span>
-                  <el-tag v-if="info.selected" type="success">最新</el-tag>
-                </div></el-option
-              ></template
-            >
-            <el-option key="custom" label="自定义" value="自定义"></el-option>
-            <template #label>
-              <template v-for="info in signInfos">
-                <div
-                  :key="info.version"
-                  v-if="info.version === form.signServerVersion && info.selected"
-                  style="display: flex; align-items: center">
-                  <span style="float: left; margin-right: 0.5rem">{{
-                    form.signServerVersion
-                  }}</span>
-                  <el-tag type="success">最新</el-tag>
-                </div>
-              </template>
-            </template>
-          </el-select>
-          <el-text v-if="signVerWarningText !== ''" type="warning" size="small">{{
-            signVerWarningText
-          }}</el-text>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeLagrangeOnebot"
-          label="签名服务"
-          :label-width="formLabelWidth"
-          required>
-          <template #label>
-            <span>
-              签名服务
-              <el-tooltip content="如果不知道这是什么，请保持默认选中">
-                <el-icon><question-filled /></el-icon>
-              </el-tooltip>
-            </span>
-          </template>
-          <el-select
-            v-if="form.signServerVersion !== '自定义'"
-            v-model="form.signServerName"
-            :disabled="!signInfoLoaded"
-            @change="signServerServerChange"
-            placeholder="请选择签名服务">
-            <template v-for="info in signInfos">
-              <template v-if="info.version === form.signServerVersion && !info.ignored">
-                <template v-for="server in info.servers">
-                  <el-option
-                    v-if="!server.ignored"
-                    :key="server.name"
-                    :label="server.name"
-                    :value="server.name">
-                    <div style="display: flex; align-items: center">
-                      <span style="float: left; margin-right: 0.5rem">{{ server.name }}</span>
-                      <el-tag v-if="server.latency < 120" type="success"
-                        >{{ server.latency }}ms</el-tag
-                      >
-                      <el-tag
-                        v-else-if="server.latency >= 120 && server.latency < 360"
-                        type="warning"
-                        >{{ server.latency }}ms</el-tag
-                      >
-                      <el-tag v-else-if="server.latency >= 360" type="danger"
-                        >{{ server.latency }}ms</el-tag
-                      >
-                    </div>
-                  </el-option>
-                </template>
-              </template>
-            </template>
-            <template #label>
-              <template v-for="info in signInfos">
-                <template v-if="info.version === form.signServerVersion && !info.ignored">
-                  <template v-for="server in info.servers">
-                    <div
-                      :key="server.name"
-                      v-if="server.name === form.signServerName"
-                      style="display: flex; align-items: center">
-                      <span style="float: left; margin-right: 0.5rem">{{ server.name }}</span>
-                      <el-tag v-if="server.latency < 120" type="success"
-                        >{{ server.latency }}ms</el-tag
-                      >
-                      <el-tag
-                        v-else-if="server.latency >= 120 && server.latency < 360"
-                        type="warning"
-                        >{{ server.latency }}ms</el-tag
-                      >
-                      <el-tag v-else-if="server.latency >= 360" type="danger"
-                        >{{ server.latency }}ms</el-tag
-                      >
-                    </div>
-                  </template>
-                </template>
-              </template>
-            </template>
-          </el-select>
-          <el-input
-            v-else
-            v-model="form.signServerName"
-            autocomplete="off"
-            placeholder="请输入自定义签名地址"></el-input>
-          <el-text v-if="signServerWarningText !== ''" type="warning" size="small">{{
-            signServerWarningText
-          }}</el-text>
-        </el-form-item>
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeGocqLegacy ||
-            isInternalMilkyAccountType(form.accountType)
-          "
-          label="账号"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeGocqLegacy"
-          label="密码"
-          :label-width="formLabelWidth">
-          <el-input v-model="form.password" type="password" autocomplete="off"></el-input>
-          <small>
-            <div>提示：新设备首次登录多半需要手机版扫码，建议先准备好</div>
-            <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
-            <div>如果出现“要求同一 WIFI 扫码”可以本地登录后备份，复制到服务器上。</div>
-            <!-- v-if="form.protocol !== 2"  -->
-            <div style="color: #aa4422">
-              提示：首次登录时，建议先尝试 AndroidPad，如失败，切换使用 Android，再失败手表协议。
-            </div>
-            <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示：首次登录时，iPad 或者 Android 手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
-          </small>
-        </el-form-item>
-
-        <el-form-item
-          v-if="isInternalMilkyAccountType(form.accountType)"
-          label=""
-          :label-width="formLabelWidth">
-          <small>
-            <div style="color: #aa4422">输入的 QQ 账号务必是你即将扫码登录的账号</div>
-            <div style="color: #aa4422">否则登录会失败</div>
-          </small>
-        </el-form-item>
-
-        <!-- <el-form-item label="附加参数" :label-width="formLabelWidth">
-          <template #label>
-            <div style="display: flex; align-items: center;">
-              <span>附加参数</span>
-              <el-tooltip content="默认参数的作用为让 gocqhttp 在启动时自动更新协议" style="">
-                <el-icon>
-                  <QuestionFilled />
-                </el-icon>
-              </el-tooltip>
-            </div>
-          </template>
-          <el-input v-model="form.extraArgs" type="string" autocomplete="off"></el-input>
-        </el-form-item> -->
-
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
-            (form.protocol === 1 || form.protocol === 6)
-          "
+          v-if="form.accountType === 0 && (form.protocol === 1 || form.protocol === 6)"
           :label-width="formLabelWidth">
           <template #label>
             <div style="display: flex; align-items: center">
@@ -1099,7 +442,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'simple'
           "
@@ -1109,11 +452,11 @@
             v-model="form.signServerConfig.signServers[0].url"
             type="string"
             autocomplete="off"
-            placeholder="http://127.0.0.1:8080"></el-input>
+            placeholder="http://127.0.0.1:13579"></el-input>
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'simple'
           "
@@ -1127,7 +470,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'simple'
           "
@@ -1137,12 +480,12 @@
             v-model="form.signServerConfig.signServers[0].authorization"
             type="string"
             autocomplete="off"
-            placeholder="Bearer xxxx"></el-input>
+            placeholder="Bearer xxxx 未设置可不填"></el-input>
         </el-form-item>
 
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           ">
@@ -1152,7 +495,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           ">
@@ -1189,7 +532,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           "
@@ -1219,7 +562,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           "
@@ -1248,7 +591,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           "
@@ -1257,7 +600,7 @@
             <div style="display: flex; align-items: center">
               <span>请求超时时间</span>
               <el-tooltip style="">
-                <template #content> 签名服务请求超时时间 (s) </template>
+                <template #content> 签名服务请求超时时间（s）</template>
                 <el-icon>
                   <QuestionFilled />
                 </el-icon>
@@ -1273,7 +616,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           "
@@ -1303,7 +646,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           "
@@ -1329,7 +672,7 @@
         </el-form-item>
         <el-form-item
           v-if="
-            form.accountType === ImConnectionTypeGocqLegacy &&
+            form.accountType === 0 &&
             (form.protocol === 1 || form.protocol === 6) &&
             signConfigType === 'advanced'
           "
@@ -1357,802 +700,1450 @@
         </el-form-item>
 
         <el-form-item
-          v-if="form.accountType === ImConnectionTypeOnebotSeparate"
-          label="账号"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOnebotSeparate"
-          label="连接地址"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.connectUrl"
-            placeholder="正向WS连接地址，如 ws://127.0.0.1:1234"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOnebotSeparate"
-          label="访问令牌"
+          v-if="form.endpoint.protocolType === 'pureonebot'"
           :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center">
+              <span>图片资源地址</span>
+              <el-tooltip
+                content="协议端访问本端图片资源的 base URL。默认自动推导，如无法访问请手动填写。留空使用自动值。">
+                <el-icon><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </div>
+          </template>
           <el-input
-            v-model="form.accessToken"
-            placeholder="gocqhttp配置的access token，没有不用填写"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOnebotReverse"
-          label="账号"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOnebotReverse"
-          label="连接地址"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.reverseAddr"
-            placeholder="反向WS服务地址，如 0.0.0.0:4001 (允许全部IP连入，4001端口)"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSealChat"
-          label="连接地址"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.url"
-            placeholder="连接地址，如 ws://127.0.0.1:3212/ws/seal"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSealChat"
-          label="Token"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.token"
-            type="text"
-            autocomplete="off"
-            placeholder="填入平台管理界面中获取的token"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSatori"
-          label="平台"
-          :label-width="formLabelWidth"
-          required>
-          <el-radio-group v-model="form.platform">
-            <el-radio-button value="QQ" />
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSatori"
-          label="主机"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.host"
-            placeholder="Satori 服务的地址，如 127.0.0.1"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSatori"
-          label="端口"
-          :label-width="formLabelWidth"
-          required>
-          <el-input-number
-            v-model="form.port as any"
-            placeholder="如 5500"
-            autocomplete="off"></el-input-number>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSatori"
-          label="Token"
-          :label-width="formLabelWidth">
-          <el-input
-            v-model="form.token"
-            type="text"
-            autocomplete="off"
-            placeholder="填入鉴权 token，没有时无需填写"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeRed"
-          label="主机"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.host"
-            placeholder="Red 服务的地址，如 127.0.0.1"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeRed"
-          label="端口"
-          :label-width="formLabelWidth"
-          required>
-          <el-input-number
-            v-model="form.port as any"
-            placeholder="如 16530"
-            autocomplete="off"></el-input-number>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeRed"
-          label="令牌"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.token"
-            placeholder="Red 服务的 token"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOfficialQQ"
-          label="登录方式"
-          :label-width="formLabelWidth"
-          required>
-          <el-radio-group v-model="form.officialQQLoginMode">
-            <el-radio-button value="manual">手动填写</el-radio-button>
-            <el-radio-button value="qrcode">扫码登录</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
-          "
-          label="机器人ID"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.appID"
-            placeholder="填写在开放平台获取的AppID"
-            autocomplete="off"
-            type="number"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
-          "
-          label="机器人令牌"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.token"
-            placeholder="填写在开放平台获取的Token"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
-          "
-          label="机器人密钥"
-          :label-width="formLabelWidth"
-          required>
-          <el-input
-            v-model="form.appSecret"
-            placeholder="填写在开放平台获取的AppSecret"
-            type="text"
-            autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'manual'
-          "
-          :label-width="formLabelWidth">
-          <el-button
-            type="primary"
-            :disabled="!isOfficialQQManualFormValid || officialQQTestTesting"
-            :loading="officialQQTestTesting"
-            @click="testOfficialQQManual">
-            测试连接
-          </el-button>
-        </el-form-item>
-        <el-form-item
-          v-if="
-            form.accountType === ImConnectionTypeOfficialQQ &&
-            form.officialQQLoginMode === 'manual' &&
-            officialQQTestTested
-          "
-          :label-width="formLabelWidth">
-          <el-alert v-if="officialQQTestResult?.exists" type="warning" :closable="false" show-icon>
-            <template #title>
-              测试成功，但该账号与现有连接重复（UIN: {{ officialQQTestResult.uin }}，昵称:
-              {{ officialQQTestResult.nickname || '未设置' }}）
+            v-model="form.imageAssetBaseUrl"
+            :placeholder="form.imageAssetBaseUrlAuto || 'http://127.0.0.1:3211'"
+            clearable>
+            <template #append>
+              <el-tag
+                v-if="form.imageAssetBaseUrlAuto && !form.imageAssetBaseUrl"
+                type="success"
+                size="small"
+                >自动</el-tag
+              >
+              <el-tag v-else-if="form.imageAssetBaseUrl" type="warning" size="small">自定义</el-tag>
             </template>
-          </el-alert>
-          <el-alert v-else-if="officialQQTestResult" type="success" :closable="false" show-icon>
-            <template #title>
-              测试成功！识别账号：{{ officialQQTestResult.nickname || '未设置' }} (UIN:
-              {{ officialQQTestResult.uin }})
-            </template>
-          </el-alert>
-          <el-alert v-else-if="officialQQTestError" type="error" :closable="false" show-icon>
-            <template #title> 测试失败：{{ officialQQTestError }} </template>
-          </el-alert>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOfficialQQ"
-          label="只在频道使用"
-          :label-width="formLabelWidth"
-          required>
-          <el-switch v-model="form.onlyQQGuild" />
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeOfficialQQ"
-          :label-width="formLabelWidth">
-          <small>
-            <div>提示：进入腾讯开放平台创建一个机器人</div>
-            <div>https://q.qq.com/#/app/bot</div>
-            <div>创建之后进入机器人管理后台，切换到「开发 - 开发设置」页</div>
-            <div v-if="form.officialQQLoginMode === 'manual'">把机器人的相关信息复制并粘贴进来</div>
-            <div v-else>点击下一步生成二维码，使用手机 QQ 扫描完成绑定。</div>
-          </small>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDiscord"
-          label="Token"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
-          <small>
-            <div>提示：首先去 discord 开发者平台创建一个新的 Application</div>
-            <div>https://discord.com/developers/applications</div>
-            <div>点击 New Application 创建之后进入应用，然后点 bot，Add bot</div>
-            <div>然后把 Privileged Gateway Intents 下面的三个开关打开</div>
-            <div>最后把 bot 的 token 复制下来粘贴进来</div>
-          </small>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDiscord"
-          label="http 代理地址"
-          :label-width="formLabelWidth">
-          <el-input
-            v-model="form.proxyURL"
-            type="string"
-            autocomplete="off"
-            placeholder="例：http://127.0.0.1:7890" />
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDiscord"
-          label="反向代理地址"
-          :label-width="formLabelWidth">
-          <el-input
-            v-model="form.reverseProxyUrl"
-            type="string"
-            autocomplete="off"
-            placeholder="此地址需要代理到 https://discord.com/ 通常来说正向代理和反向代理只需要一个" />
-          <el-input
-            v-model="form.reverseProxyCDNUrl"
-            type="string"
-            autocomplete="off"
-            placeholder="此地址需要代理到 https://cdn.discordapp.com/ " />
-          <div style="color: #aa4422">
-            注意：反向代理是全局生效的，你一旦设置反向代理地址，这个骰子的所有 Discord
-            连接都会使用这个地址
+          </el-input>
+          <div
+            v-if="form.imageAssetBaseUrlAuto && !form.imageAssetBaseUrl"
+            style="font-size: 12px; color: #909399; margin-top: 4px">
+            自动推导: {{ form.imageAssetBaseUrlAuto }}
+            <span
+              v-if="
+                form.imageAssetBaseUrlCandidates && form.imageAssetBaseUrlCandidates.length > 1
+              ">
+              （候选: {{ form.imageAssetBaseUrlCandidates.join(', ') }}）
+            </span>
           </div>
         </el-form-item>
 
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeKook"
-          label="Token"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
-          <small>
-            <div>提示：进入 KOOK 开发者平台创建一个新的应用</div>
-            <div>https://developer.kookapp.cn/app/index</div>
-            <div>点击新建应用 创建之后进入应用，然后点机器人</div>
-            <div>把机器人的 token 复制下来粘贴进来</div>
-          </small>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeTelegram"
-          label="Token"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
-          <small>
-            <div>提示：私聊 BotFather(https://t.me/BotFather)</div>
-            <div>使用/newbot 申请一个新的机器人</div>
-            <div>
-              按照指示创建机器人之后，在 Bot setting 里面把 Group privacy 里面 privacy mode 关掉
-            </div>
-            <div>把机器人的 token 复制下来粘贴进来</div>
-          </small>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeTelegram"
-          label="http 代理地址"
-          :label-width="formLabelWidth">
-          <el-input
-            v-model="form.proxyURL"
-            type="string"
-            autocomplete="off"
-            placeholder="http://127.0.0.1:7890" />
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeMinecraft"
-          label="Url"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.url" type="string" autocomplete="off"></el-input>
-          <small>
-            <div><strong>提示</strong></div>
-            <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0">
-              <li>地址请按 ip:端口 格式填写，默认端口 8887。</li>
-            </ul>
-            <div style="margin-top: 0.35rem"><strong>Paper 端配置方法</strong></div>
-            <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0">
-              <li>
-                前往
-                <a
-                  href="https://github.com/sealdice/sealdice-minecraft/releases/latest"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >GitHub Releases</a
-                >
-                下载最新 mc 插件，并安装到 mc 服务器中。
-              </li>
-              <li>
-                详细使用说明：
-                <a
-                  href="https://github.com/sealdice/sealdice-minecraft#readme"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >ReadMe</a
-                >
-              </li>
-            </ul>
-            <div style="margin-top: 0.35rem"><strong>Fabric/(Neo)Forge 端配置方法</strong></div>
-            <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0">
-              <li>
-                从
-                <a
-                  href="https://www.curseforge.com/minecraft/mc-mods/sealdice2mc"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >CurseForge</a
-                >
-                或
-                <a
-                  href="https://modrinth.com/mod/sealdice2mc"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >Modrinth</a
-                >
-                下载 SealDice2MC 模组，安装在服务端（或局域网联机的主机端）。
-              </li>
-              <li>
-                详细使用说明：
-                <a
-                  href="https://github.com/Dontplay0112/Sealdice2MC#readme"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  >ReadMe</a
-                >
-              </li>
-            </ul>
-          </small>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDodo"
-          label="ClientID"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.clientID" type="string" autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDodo"
-          label="Token"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
-          <small>
-            <div>提示：前往 Dodo 开发者平台 https://doker.imdodo.com/bot-list</div>
-            <div>如果需要提交审核可以写跑团机器人开发</div>
-            <div>你的帐号过审后，点击创建应用</div>
-            <div>创建完成之后将 clientID 和 Token 复制到这两个框中</div>
-          </small>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDingTalk"
-          label="昵称"
-          :label-width="formLabelWidth">
-          <el-input
-            v-model="form.nickname"
-            type="string"
-            autocomplete="off"
-            placeholder="机器人的昵称"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === 8"
-          label="ClientID"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.clientID" type="string" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDingTalk"
-          label="RobotCode"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.robotCode" type="string" autocomplete="off"></el-input>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeDingTalk"
-          label="Token"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
-          <small>
-            <div>提示：前往钉钉开发者平台 https://open-dev.dingtalk.com/fe/app</div>
-            <div>点击创建应用</div>
-            <div>点击 基础信息 - 应用信息</div>
-            <div>把 AppKey 复制到 ClientID 内</div>
-            <div>把 AppSecret 复制到 Token 内</div>
-            <div>创建完成之后点击 应用功能 - 机器人与消息推送 并将机器人配置的开关打开</div>
-            <div>请务必确保 推送方式/消息接受模式 都为 Stream 模式</div>
-            <div>点击发布后 复制 RobotCode 到 RobotCode 内</div>
-          </small>
-        </el-form-item>
-
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSlack"
-          label="AppToken"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.appToken" type="string" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item
-          v-if="form.accountType === ImConnectionTypeSlack"
-          label="BotToken"
-          :label-width="formLabelWidth"
-          required>
-          <el-input v-model="form.botToken" type="string" autocomplete="off"></el-input>
-          <small>
-            <div>提示：前往 Slack 开发者平台 https://api.slack.com/apps</div>
-            <div>点击 Create an app 选择 From scratch</div>
-            <div>按照要求创建 APP 后，点击 OAuth & Permissions</div>
-            <div>在下方的 Scopes 中，为机器人添加 channels:write 和 im:write</div>
-            <div>点击 Install App to Workspace</div>
-            <div>随后将 Bot User OAuth Token 复制并粘贴在 Bot Token 内</div>
-            <div>点击 Socket Mode</div>
-            <div>把 Enable Socket Mode 打开</div>
-            <div>点击 Event Subscriptions</div>
-            <div>在 Subscribe to bot events 中，添加 app_mention message.groups 和 message.im</div>
-            <div>如果要求你 reinstall 按照提示照做</div>
-            <div>点击 Basic Information</div>
-            <div>在 App-Level Tokens 一栏，点击 Generate Token and Scopes</div>
-            <div>弹出的窗口添加 connections:write 命名随意</div>
-            <div>随后将生成的 Token 复制到 App Token 内</div>
-          </small>
-        </el-form-item>
+        <small>
+          <div>提示：切换协议后，需要点击重新登录，或.master reboot 重启骰子以应用设置</div>
+        </small>
       </el-form>
 
-      <el-form-item
-        v-if="form.accountType === ImConnectionTypeMilkySeparate"
-        label="Token"
-        :label-width="formLabelWidth">
-        <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
-      </el-form-item>
-      <el-form-item
-        v-if="form.accountType === ImConnectionTypeMilkySeparate"
-        label="Websocket Gateway"
-        :label-width="formLabelWidth"
-        required>
-        <el-input
-          v-model="form.wsGateway"
-          type="string"
-          autocomplete="off"
-          placeholder="ws://127.0.0.1:3000/event"></el-input>
-      </el-form-item>
-      <el-form-item
-        v-if="form.accountType === ImConnectionTypeMilkySeparate"
-        label="REST Gateway"
-        :label-width="formLabelWidth"
-        required>
-        <el-input
-          v-model="form.restGateway"
-          type="string"
-          autocomplete="off"
-          placeholder="http://127.0.0.1:3000/api"></el-input>
-      </el-form-item>
-    </template>
-    <template v-else-if="form.step === 2">
-      <el-timeline style="min-height: 260px">
-        <el-timeline-item
-          v-for="(activity, index) in activities"
-          :key="index"
-          :type="activity.type as any"
-          :color="activity.color"
-          :size="activity.size as any"
-          :hollow="activity.hollow">
-          <div>{{ activity.content }}</div>
-          <div v-if="index === 2 && isTestMode">
-            <div>欢迎体验余烬骰点核心，展示模式下不提供登录功能，请谅解。</div>
-            <div>如需测试指令，请移步“指令测试”界面。</div>
-            <div>此外，数据会定期自动重置。</div>
-            <div>展示版本未必是最新版，建议您下载体验。</div>
-            <el-button style="margin-top: 1rem" @click="formClose">再会</el-button>
-          </div>
-          <div v-else-if="index === 2 && shouldShowMilkyQrcode(curConn.adapter?.loginState)">
-            <div
-              v-if="curConn.adapter?.loginState === goCqHttpStateCode.MilkyLoginWaitingForConfirm">
-              已扫码，请在手机 QQ 上确认登录。二维码会保留显示以便核对账号。
-            </div>
-            <div v-else>登录需要扫码验证，请使用登录此账号的手机 QQ 扫描二维码以继续登录：</div>
-            <img
-              :src="store.curDice.qrcodes[curConn.id]"
-              style="width: 20rem; height: 20rem; image-rendering: pixelated" />
-          </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="dialogSetDataFormVisible = false">取消</el-button>
+          <el-button type="primary" @click="doSetData">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+    <el-dialog
+      v-model="dialogFormVisible"
+      title="帐号登录"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      class="the-dialog">
+      <el-button style="float: right; margin-top: -4rem" @click="openSocks"
+        >辅助工具 -13325 端口</el-button
+      >
+      <template v-if="form.step === 1">
+        <el-alert
+          v-if="form.accountType === 7"
+          type="error"
+          :closable="false"
+          style="margin-bottom: 1.5rem"
+          >该支持功能不完善，所适配的目标 Chronocat 版本为 0.0.54，低于该版本不建议使用。<br />同时，新版
+          Chronocat（0.2.x 以上）不再提供 red 协议，余烬也将在未来移除该支持。</el-alert
+        >
+        <el-alert
+          v-if="form.accountType === 10"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 1.5rem"
+          >该支持仍处于实验阶段，部分功能尚未完善。<br />同时，受到腾讯官方提供的 API
+          能力的限制，一些功能暂时无法实现。</el-alert
+        >
+        <el-alert
+          v-if="form.accountType === 14"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 1.5rem"
+          >该支持仍处于实验阶段，部分功能尚未完善。<br />- QQ 平台适配目标版本 0.2.x 以上的
+          Chronocat。</el-alert
+        >
+        <el-alert
+          v-if="
+            store.diceServers.length > 0 &&
+            store.diceServers[0].baseInfo.containerMode &&
+            (form.accountType === ImConnectionTypeLagrangeOnebot ||
+              form.accountType === ImConnectionTypeGocqLegacy ||
+              isInternalMilkyAccountType(form.accountType))
+          "
+          type="warning"
+          :closable="false"
+          class="mb-6">
+          当前为容器模式，内置客户端需要镜像中包含对应运行资源。
+        </el-alert>
 
-          <div
-            v-else-if="index === 2 && isOfficialQQQrWaiting(curConn)"
-            class="official-qq-qr-login">
-            <div>请使用手机 QQ 扫描二维码完成官方机器人绑定：</div>
-            <img
-              v-if="officialQQQrImage"
-              class="official-qq-qr-image"
-              alt="QQ 官方机器人绑定二维码"
-              :src="officialQQQrImage" />
-            <template v-else-if="officialQQQrUrl">
+        <el-form :model="form">
+          <el-form-item label="账号类型" :label-width="formLabelWidth">
+            <el-select v-model="selectedAccountPlatform">
+              <el-option label="QQ" value="QQ"></el-option>
+              <el-option label="[WIP]Satori" :value="ImConnectionTypeSatori"></el-option>
+              <el-option label="[WIP]SealChat" :value="ImConnectionTypeSealChat"></el-option>
+              <el-option label="Discord" :value="ImConnectionTypeDiscord"></el-option>
+              <el-option label="KOOK(开黑啦)" :value="ImConnectionTypeKook"></el-option>
+              <el-option label="Telegram" :value="ImConnectionTypeTelegram"></el-option>
+              <el-option label="Minecraft服务器" :value="ImConnectionTypeMinecraft"></el-option>
+              <el-option label="Dodo语音" :value="ImConnectionTypeDodo"></el-option>
+              <el-option label="钉钉" :value="ImConnectionTypeDingTalk"></el-option>
+              <el-option label="Slack" :value="ImConnectionTypeSlack"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item
+            v-if="selectedAccountPlatform === 'QQ'"
+            label="QQ 协议"
+            :label-width="formLabelWidth">
+            <el-select v-model="form.accountType">
+              <el-option
+                label="QQ(内置Milky / Yogurt)"
+                :value="ImConnectionTypeMilkyInternalYogurt"></el-option>
+              <el-option
+                label="QQ(内置Milky / Lagrange)"
+                :value="ImConnectionTypeMilkyInternalLagrange"></el-option>
+              <el-option
+                label="QQ(内置Milky / Lagrange兼容)"
+                :value="ImConnectionTypeMilkyInternal"></el-option>
+              <el-option label="QQ(内置客户端)" :value="ImConnectionTypeLagrangeOnebot"></el-option>
+              <el-option label="QQ(Milky)" :value="ImConnectionTypeMilkySeparate"></el-option>
+              <el-option
+                label="QQ(onebot11正向WS)"
+                :value="ImConnectionTypeOnebotSeparate"></el-option>
+              <el-option
+                label="QQ(onebot11反向WS)"
+                :value="ImConnectionTypeOnebotReverse"></el-option>
+              <el-option label="QQ(官方机器人)" :value="ImConnectionTypeOfficialQQ"></el-option>
+              <el-option label="[已弃用]QQ(red协议)" :value="ImConnectionTypeRed"></el-option>
+              <el-option
+                label="[已弃用]QQ(gocq)"
+                :value="ImConnectionTypeGocqLegacy"
+                :disabled="true"></el-option>
+            </el-select>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeGocqLegacy"
+            label="设备"
+            :label-width="formLabelWidth"
+            required>
+            <el-select v-model="form.protocol">
+              <!-- <el-option label="Unset" :value="0"></el-option> -->
+              <el-option label="Android 协议" :value="1"></el-option>
+              <el-option
+                label="Android 手表协议 - 可共存,但不支持频道/戳一戳"
+                :value="2"></el-option>
+              <el-option label="MacOS" :value="3"></el-option>
+              <el-option label="iPad" :value="5"></el-option>
+              <el-option
+                v-if="form.implementation === 'gocq' || form.implementation === ''"
+                label="AndroidPad - 可共存"
+                :value="6"></el-option>
+              <!-- <el-option label="MacOS" :value="3"></el-option> -->
+            </el-select>
+          </el-form-item>
+
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6)
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>版本</span>
+                <el-tooltip content="只有需要升级协议版本时才指定。" style="">
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-select v-model="form.appVersion">
+              <el-option
+                v-for="version of supportedQQVersions"
+                :key="version"
+                :value="version"
+                :label="version || '不指定版本'" />
+            </el-select>
+          </el-form-item>
+          <!-- <el-form-item v-if="form.accountType === 0" label="协议实现" :label-width="formLabelWidth" required>
+          <el-select v-model="form.implementation">
+            <el-option label="Go-cqhttp" :value="'gocq'"></el-option>
+            <el-option label="Walle-Q" :value="'walle-q'"></el-option>
+          </el-select>
+        </el-form-item> -->
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeLagrangeOnebot"
+            label="账号"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeLagrangeOnebot"
+            label="签名版本"
+            :label-width="formLabelWidth"
+            required>
+            <template #label>
+              <span>
+                签名版本
+                <el-tooltip content="如果不知道这是什么，请保持默认选中">
+                  <el-icon><question-filled /></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
+            <el-select
+              v-model="form.signServerVersion"
+              :disabled="!signInfoLoaded"
+              @change="signServerVersionChange"
+              placeholder="请选择签名版本">
+              <template v-for="info in signInfos">
+                <el-option
+                  v-if="!info.ignored"
+                  :key="info.version"
+                  :label="info.version"
+                  :value="info.version">
+                  <div style="display: flex; align-items: center">
+                    <span style="float: left; margin-right: 0.5rem">{{ info.version }}</span>
+                    <el-tag v-if="info.selected" type="success">最新</el-tag>
+                  </div></el-option
+                ></template
+              >
+              <el-option key="custom" label="自定义" value="自定义"></el-option>
+              <template #label>
+                <template v-for="info in signInfos">
+                  <div
+                    :key="info.version"
+                    v-if="info.version === form.signServerVersion && info.selected"
+                    style="display: flex; align-items: center">
+                    <span style="float: left; margin-right: 0.5rem">{{
+                      form.signServerVersion
+                    }}</span>
+                    <el-tag type="success">最新</el-tag>
+                  </div>
+                </template>
+              </template>
+            </el-select>
+            <el-text v-if="signVerWarningText !== ''" type="warning" size="small">{{
+              signVerWarningText
+            }}</el-text>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeLagrangeOnebot"
+            label="签名服务"
+            :label-width="formLabelWidth"
+            required>
+            <template #label>
+              <span>
+                签名服务
+                <el-tooltip content="如果不知道这是什么，请保持默认选中">
+                  <el-icon><question-filled /></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
+            <el-select
+              v-if="form.signServerVersion !== '自定义'"
+              v-model="form.signServerName"
+              :disabled="!signInfoLoaded"
+              @change="signServerServerChange"
+              placeholder="请选择签名服务">
+              <template v-for="info in signInfos">
+                <template v-if="info.version === form.signServerVersion && !info.ignored">
+                  <template v-for="server in info.servers">
+                    <el-option
+                      v-if="!server.ignored"
+                      :key="server.name"
+                      :label="server.name"
+                      :value="server.name">
+                      <div style="display: flex; align-items: center">
+                        <span style="float: left; margin-right: 0.5rem">{{ server.name }}</span>
+                        <el-tag v-if="server.latency < 120" type="success"
+                          >{{ server.latency }}ms</el-tag
+                        >
+                        <el-tag
+                          v-else-if="server.latency >= 120 && server.latency < 360"
+                          type="warning"
+                          >{{ server.latency }}ms</el-tag
+                        >
+                        <el-tag v-else-if="server.latency >= 360" type="danger"
+                          >{{ server.latency }}ms</el-tag
+                        >
+                      </div>
+                    </el-option>
+                  </template>
+                </template>
+              </template>
+              <template #label>
+                <template v-for="info in signInfos">
+                  <template v-if="info.version === form.signServerVersion && !info.ignored">
+                    <template v-for="server in info.servers">
+                      <div
+                        :key="server.name"
+                        v-if="server.name === form.signServerName"
+                        style="display: flex; align-items: center">
+                        <span style="float: left; margin-right: 0.5rem">{{ server.name }}</span>
+                        <el-tag v-if="server.latency < 120" type="success"
+                          >{{ server.latency }}ms</el-tag
+                        >
+                        <el-tag
+                          v-else-if="server.latency >= 120 && server.latency < 360"
+                          type="warning"
+                          >{{ server.latency }}ms</el-tag
+                        >
+                        <el-tag v-else-if="server.latency >= 360" type="danger"
+                          >{{ server.latency }}ms</el-tag
+                        >
+                      </div>
+                    </template>
+                  </template>
+                </template>
+              </template>
+            </el-select>
+            <el-input
+              v-else
+              v-model="form.signServerName"
+              autocomplete="off"
+              placeholder="请输入自定义签名地址"></el-input>
+            <el-text v-if="signServerWarningText !== ''" type="warning" size="small">{{
+              signServerWarningText
+            }}</el-text>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy ||
+              isInternalMilkyAccountType(form.accountType)
+            "
+            label="账号"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeGocqLegacy"
+            label="密码"
+            :label-width="formLabelWidth">
+            <el-input v-model="form.password" type="password" autocomplete="off"></el-input>
+            <small>
+              <div>提示：新设备首次登录多半需要手机版扫码，建议先准备好</div>
+              <div>能够进行扫码登录（不填写密码即可），但注意扫码登录不支持自动重连。</div>
+              <div>如果出现“要求同一 WIFI 扫码”可以本地登录后备份，复制到服务器上。</div>
+              <!-- v-if="form.protocol !== 2"  -->
+              <div style="color: #aa4422">
+                提示：首次登录时，建议先尝试 AndroidPad，如失败，切换使用 Android，再失败手表协议。
+              </div>
+              <!-- <div v-if="form.protocol !== 1" style="color: #aa4422;">提示：首次登录时，iPad 或者 Android 手表协议一般都会失败，建议用安卓登录后改协议。</div> -->
+            </small>
+          </el-form-item>
+
+          <el-form-item
+            v-if="isInternalMilkyAccountType(form.accountType)"
+            label=""
+            :label-width="formLabelWidth">
+            <small>
+              <div style="color: #aa4422">输入的 QQ 账号务必是你即将扫码登录的账号</div>
+              <div style="color: #aa4422">否则登录会失败</div>
+            </small>
+          </el-form-item>
+
+          <!-- <el-form-item label="附加参数" :label-width="formLabelWidth">
+          <template #label>
+            <div style="display: flex; align-items: center;">
+              <span>附加参数</span>
+              <el-tooltip content="默认参数的作用为让 gocqhttp 在启动时自动更新协议" style="">
+                <el-icon>
+                  <QuestionFilled />
+                </el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+          <el-input v-model="form.extraArgs" type="string" autocomplete="off"></el-input>
+        </el-form-item> -->
+
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6)
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>签名服务</span>
+                <el-tooltip
+                  content="如果不知道这是什么，请选择 不使用。允许填写签名服务相关信息。"
+                  style="">
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-radio-group v-model="signConfigType" size="small" @change="signConfigTypeChange">
+              <el-radio-button value="none">不使用</el-radio-button>
+              <el-radio-button value="simple">简易配置</el-radio-button>
+              <el-radio-button value="advanced">高级配置</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'simple'
+            "
+            label="服务url"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.signServerConfig.signServers[0].url"
+              type="string"
+              autocomplete="off"
+              placeholder="http://127.0.0.1:8080"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'simple'
+            "
+            label="服务key"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.signServerConfig.signServers[0].key"
+              type="string"
+              autocomplete="off"
+              placeholder="114514"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'simple'
+            "
+            label="服务鉴权"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.signServerConfig.signServers[0].authorization"
+              type="string"
+              autocomplete="off"
+              placeholder="Bearer xxxx"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            ">
+            <el-alert type="warning" :closable="false"
+              >如果不理解以下配置项，请使用 <strong>简易配置</strong></el-alert
+            >
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            ">
+            <el-table :data="form.signServerConfig.signServers" table-layout="auto">
+              <el-table-column prop="url" label="服务url">
+                <template #default="scope">
+                  <el-input v-model="scope.row.url" placeholder="http://127.0.0.1:8080" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="key" label="服务key">
+                <template #default="scope">
+                  <el-input v-model="scope.row.key" placeholder="114514" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="authorization" label="服务鉴权">
+                <template #default="scope">
+                  <el-input v-model="scope.row.authorization" placeholder="Bearer xxxx" />
+                </template>
+              </el-table-column>
+              <el-table-column align="right">
+                <!-- eslint-disable-next-line vue/no-unused-vars -->
+                <template #header="scope">
+                  <el-button size="small" type="primary" @click="handleSignServerAdd"
+                    >新增一行</el-button
+                  >
+                </template>
+                <template #default="scope">
+                  <el-button
+                    size="small"
+                    type="danger"
+                    @click="handleSignServerDelete(scope.row.url)"
+                    >删除</el-button
+                  >
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>自动切换规则</span>
+                <el-tooltip style="">
+                  <template #content>
+                    判断签名服务不可用（需要切换）的额外规则<br />
+                    - 不设置（此时仅在请求无法返回结果时判定为不可用）<br />
+                    - 在获取到的 sign 为空（若选此建议关闭
+                    auto-register，一般为实例未注册但是请求签名的情况）<br />
+                    - 在获取到的 sign 或 token 为空（若选此建议关闭 auto-refresh-token）
+                  </template>
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-radio-group v-model="form.signServerConfig.ruleChangeSignServer" size="small">
+              <el-radio-button :value="0">不设置</el-radio-button>
+              <el-radio-button :value="1">sign 为空时切换</el-radio-button>
+              <el-radio-button :value="2">sign/token为空时切换</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>最大尝试次数</span>
+                <el-tooltip style="">
+                  <template #content>
+                    连续寻找可用签名服务器最大尝试次数<br />
+                    为 0 时会在连续 3
+                    次没有找到可用签名服务器后保持使用主签名服务器，不再尝试进行切换备用<br />
+                    否则会在达到指定次数后 <strong>退出</strong> 主程序
+                  </template>
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-input-number
+              v-model="form.signServerConfig.maxCheckCount"
+              size="small"
+              :precision="0"
+              :min="0" />
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>请求超时时间</span>
+                <el-tooltip style="">
+                  <template #content> 签名服务请求超时时间 (s) </template>
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-input-number
+              v-model="form.signServerConfig.signServerTimeout"
+              size="small"
+              :precision="0"
+              :min="0" />
+            <span>&nbsp;秒</span>
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>自动注册实例</span>
+                <el-tooltip style="">
+                  <template #content>
+                    在实例可能丢失（获取到的签名为空）时是否尝试重新注册<br />
+                    为 true 时，在签名服务不可用时可能每次发消息都会尝试重新注册并签名。<br />
+                    为 false 时，将不会自动注册实例，在签名服务器重启或实例被销毁后需要重启
+                    go-cqhttp 以获取实例<br />
+                    否则后续消息将不会正常签名。关闭此项后可以考虑开启签名服务器端 auto_register
+                    避免需要重启<br />
+                    由于实现问题，当前建议关闭此项，推荐开启签名服务器的自动注册实例
+                  </template>
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-switch
+              v-model="form.signServerConfig.autoRegister"
+              style="--el-switch-on-color: #67c23a" />
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>自动刷新 token</span>
+                <el-tooltip style="">
+                  <template #content>
+                    是否在 token 过期后立即自动刷新签名 token（在需要签名时才会检测到，主要防止
+                    token 意外丢失）<br />
+                    独立于定时刷新
+                  </template>
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-switch
+              v-model="form.signServerConfig.autoRefreshToken"
+              style="--el-switch-on-color: #67c23a" />
+          </el-form-item>
+          <el-form-item
+            v-if="
+              form.accountType === ImConnectionTypeGocqLegacy &&
+              (form.protocol === 1 || form.protocol === 6) &&
+              signConfigType === 'advanced'
+            "
+            :label-width="formLabelWidth">
+            <template #label>
+              <div style="display: flex; align-items: center">
+                <span>刷新间隔</span>
+                <el-tooltip style="">
+                  <template #content>
+                    定时刷新 token 间隔时间，单位为分钟，建议 30~40 分钟，不可超过 60 分钟<br />
+                    目前丢失 token 也不会有太大影响，可设置为 0 以关闭，推荐开启
+                  </template>
+                  <el-icon>
+                    <QuestionFilled />
+                  </el-icon>
+                </el-tooltip>
+              </div>
+            </template>
+            <el-input-number
+              v-model="form.signServerConfig.refreshInterval"
+              size="small"
+              :precision="0"
+              :min="0" />
+            <span>&nbsp;分钟</span>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOnebotSeparate"
+            label="账号"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOnebotSeparate"
+            label="连接地址"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.connectUrl"
+              placeholder="正向WS连接地址，如 ws://127.0.0.1:1234"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOnebotSeparate"
+            label="访问令牌"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.accessToken"
+              placeholder="gocqhttp配置的access token，没有不用填写"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOnebotReverse"
+            label="账号"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.account" type="number" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOnebotReverse"
+            label="连接地址"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.reverseAddr"
+              placeholder="反向WS服务地址，如 0.0.0.0:4001 (允许全部IP连入，4001端口)"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSealChat"
+            label="连接地址"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.url"
+              placeholder="连接地址，如 ws://127.0.0.1:3212/ws/seal"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSealChat"
+            label="Token"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.token"
+              type="text"
+              autocomplete="off"
+              placeholder="填入平台管理界面中获取的token"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSatori"
+            label="平台"
+            :label-width="formLabelWidth"
+            required>
+            <el-radio-group v-model="form.platform">
+              <el-radio-button value="QQ" />
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSatori"
+            label="主机"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.host"
+              placeholder="Satori 服务的地址，如 127.0.0.1"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSatori"
+            label="端口"
+            :label-width="formLabelWidth"
+            required>
+            <el-input-number
+              v-model="form.port as any"
+              placeholder="如 5500"
+              autocomplete="off"></el-input-number>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSatori"
+            label="Token"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.token"
+              type="text"
+              autocomplete="off"
+              placeholder="填入鉴权 token，没有时无需填写"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeRed"
+            label="主机"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.host"
+              placeholder="Red 服务的地址，如 127.0.0.1"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeRed"
+            label="端口"
+            :label-width="formLabelWidth"
+            required>
+            <el-input-number
+              v-model="form.port as any"
+              placeholder="如 16530"
+              autocomplete="off"></el-input-number>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeRed"
+            label="令牌"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.token"
+              placeholder="Red 服务的 token"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOfficialQQ"
+            label="登录方式"
+            :label-width="formLabelWidth"
+            required>
+            <el-radio-group v-model="form.officialQQLoginMode">
+              <el-radio-button value="manual">手动填写</el-radio-button>
+              <el-radio-button value="qrcode">扫码登录</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOfficialQQ"
+            label="机器人ID"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.appID"
+              placeholder="填写在开放平台获取的AppID"
+              autocomplete="off"
+              type="number"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOfficialQQ"
+            label="机器人令牌"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.token"
+              placeholder="填写在开放平台获取的Token"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOfficialQQ"
+            label="机器人密钥"
+            :label-width="formLabelWidth"
+            required>
+            <el-input
+              v-model="form.appSecret"
+              placeholder="填写在开放平台获取的AppSecret"
+              type="text"
+              autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOfficialQQ"
+            label="只在频道使用"
+            :label-width="formLabelWidth"
+            required>
+            <el-switch v-model="form.onlyQQGuild" />
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeOfficialQQ"
+            :label-width="formLabelWidth">
+            <small>
+              <div>提示：进入腾讯开放平台创建一个机器人</div>
+              <div>https://q.qq.com/#/app/bot</div>
+              <div>创建之后进入机器人管理后台，切换到「开发 - 开发设置」页</div>
+              <div>把机器人的相关信息复制并粘贴进来，扫码登录也需要配置这些凭据。</div>
+              <div>账号创建后默认停用，请在账号卡片中启用。</div>
+            </small>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDiscord"
+            label="Token"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+            <small>
+              <div>提示：首先去 discord 开发者平台创建一个新的 Application</div>
+              <div>https://discord.com/developers/applications</div>
+              <div>点击 New Application 创建之后进入应用，然后点 bot，Add bot</div>
+              <div>然后把 Privileged Gateway Intents 下面的三个开关打开</div>
+              <div>最后把 bot 的 token 复制下来粘贴进来</div>
+            </small>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDiscord"
+            label="http 代理地址"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.proxyURL"
+              type="string"
+              autocomplete="off"
+              placeholder="例：http://127.0.0.1:7890" />
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDiscord"
+            label="反向代理地址"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.reverseProxyUrl"
+              type="string"
+              autocomplete="off"
+              placeholder="此地址需要代理到 https://discord.com/ 通常来说正向代理和反向代理只需要一个" />
+            <el-input
+              v-model="form.reverseProxyCDNUrl"
+              type="string"
+              autocomplete="off"
+              placeholder="此地址需要代理到 https://cdn.discordapp.com/ " />
+            <div style="color: #aa4422">
+              注意：反向代理是全局生效的，你一旦设置反向代理地址，这个骰子的所有 Discord
+              连接都会使用这个地址
+            </div>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeKook"
+            label="Token"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+            <small>
+              <div>提示：进入 KOOK 开发者平台创建一个新的应用</div>
+              <div>https://developer.kookapp.cn/app/index</div>
+              <div>点击新建应用 创建之后进入应用，然后点机器人</div>
+              <div>把机器人的 token 复制下来粘贴进来</div>
+            </small>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeTelegram"
+            label="Token"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+            <small>
+              <div>提示：私聊 BotFather(https://t.me/BotFather)</div>
+              <div>使用/newbot 申请一个新的机器人</div>
+              <div>
+                按照指示创建机器人之后，在 Bot setting 里面把 Group privacy 里面 privacy mode 关掉
+              </div>
+              <div>把机器人的 token 复制下来粘贴进来</div>
+            </small>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeTelegram"
+            label="http 代理地址"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.proxyURL"
+              type="string"
+              autocomplete="off"
+              placeholder="http://127.0.0.1:7890" />
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeMinecraft"
+            label="Url"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.url" type="string" autocomplete="off"></el-input>
+            <small>
+              <div><strong>提示</strong></div>
+              <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0">
+                <li>地址请按 ip:端口 格式填写，默认端口 8887。</li>
+              </ul>
+              <div style="margin-top: 0.35rem"><strong>Paper 端配置方法</strong></div>
+              <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0">
+                <li>
+                  前往
+                  <a
+                    href="https://github.com/sealdice/sealdice-minecraft/releases/latest"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >GitHub Releases</a
+                  >
+                  下载最新 mc 插件，并安装到 mc 服务器中。
+                </li>
+                <li>
+                  详细使用说明：
+                  <a
+                    href="https://github.com/sealdice/sealdice-minecraft#readme"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >ReadMe</a
+                  >
+                </li>
+              </ul>
+              <div style="margin-top: 0.35rem"><strong>Fabric/(Neo)Forge 端配置方法</strong></div>
+              <ul style="margin: 0.25rem 0 0 1.2rem; padding: 0">
+                <li>
+                  从
+                  <a
+                    href="https://www.curseforge.com/minecraft/mc-mods/sealdice2mc"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >CurseForge</a
+                  >
+                  或
+                  <a
+                    href="https://modrinth.com/mod/sealdice2mc"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >Modrinth</a
+                  >
+                  下载 SealDice2MC 模组，安装在服务端（或局域网联机的主机端）。
+                </li>
+                <li>
+                  详细使用说明：
+                  <a
+                    href="https://github.com/Dontplay0112/Sealdice2MC#readme"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    >ReadMe</a
+                  >
+                </li>
+              </ul>
+            </small>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDodo"
+            label="ClientID"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.clientID" type="string" autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDodo"
+            label="Token"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+            <small>
+              <div>提示：前往 Dodo 开发者平台 https://doker.imdodo.com/bot-list</div>
+              <div>如果需要提交审核可以写跑团机器人开发</div>
+              <div>你的帐号过审后，点击创建应用</div>
+              <div>创建完成之后将 clientID 和 Token 复制到这两个框中</div>
+            </small>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDingTalk"
+            label="昵称"
+            :label-width="formLabelWidth">
+            <el-input
+              v-model="form.nickname"
+              type="string"
+              autocomplete="off"
+              placeholder="机器人的昵称"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === 8"
+            label="ClientID"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.clientID" type="string" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDingTalk"
+            label="RobotCode"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.robotCode" type="string" autocomplete="off"></el-input>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeDingTalk"
+            label="Token"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+            <small>
+              <div>提示：前往钉钉开发者平台 https://open-dev.dingtalk.com/fe/app</div>
+              <div>点击创建应用</div>
+              <div>点击 基础信息 - 应用信息</div>
+              <div>把 AppKey 复制到 ClientID 内</div>
+              <div>把 AppSecret 复制到 Token 内</div>
+              <div>创建完成之后点击 应用功能 - 机器人与消息推送 并将机器人配置的开关打开</div>
+              <div>请务必确保 推送方式/消息接受模式 都为 Stream 模式</div>
+              <div>点击发布后 复制 RobotCode 到 RobotCode 内</div>
+            </small>
+          </el-form-item>
+
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSlack"
+            label="AppToken"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.appToken" type="string" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item
+            v-if="form.accountType === ImConnectionTypeSlack"
+            label="BotToken"
+            :label-width="formLabelWidth"
+            required>
+            <el-input v-model="form.botToken" type="string" autocomplete="off"></el-input>
+            <small>
+              <div>提示：前往 Slack 开发者平台 https://api.slack.com/apps</div>
+              <div>点击 Create an app 选择 From scratch</div>
+              <div>按照要求创建 APP 后，点击 OAuth & Permissions</div>
+              <div>在下方的 Scopes 中，为机器人添加 channels:write 和 im:write</div>
+              <div>点击 Install App to Workspace</div>
+              <div>随后将 Bot User OAuth Token 复制并粘贴在 Bot Token 内</div>
+              <div>点击 Socket Mode</div>
+              <div>把 Enable Socket Mode 打开</div>
+              <div>点击 Event Subscriptions</div>
+              <div>
+                在 Subscribe to bot events 中，添加 app_mention message.groups 和 message.im
+              </div>
+              <div>如果要求你 reinstall 按照提示照做</div>
+              <div>点击 Basic Information</div>
+              <div>在 App-Level Tokens 一栏，点击 Generate Token and Scopes</div>
+              <div>弹出的窗口添加 connections:write 命名随意</div>
+              <div>随后将生成的 Token 复制到 App Token 内</div>
+            </small>
+          </el-form-item>
+        </el-form>
+
+        <el-form-item
+          v-if="form.accountType === ImConnectionTypeMilkySeparate"
+          label="Token"
+          :label-width="formLabelWidth">
+          <el-input v-model="form.token" type="string" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === ImConnectionTypeMilkySeparate"
+          label="Websocket Gateway"
+          :label-width="formLabelWidth"
+          required>
+          <el-input
+            v-model="form.wsGateway"
+            type="string"
+            autocomplete="off"
+            placeholder="ws://127.0.0.1:3000/event"></el-input>
+        </el-form-item>
+        <el-form-item
+          v-if="form.accountType === ImConnectionTypeMilkySeparate"
+          label="REST Gateway"
+          :label-width="formLabelWidth"
+          required>
+          <el-input
+            v-model="form.restGateway"
+            type="string"
+            autocomplete="off"
+            placeholder="http://127.0.0.1:3000/api"></el-input>
+        </el-form-item>
+      </template>
+      <template v-else-if="form.step === 2">
+        <el-timeline style="min-height: 260px">
+          <el-timeline-item
+            v-for="(activity, index) in activities"
+            :key="index"
+            :type="activity.type as any"
+            :color="activity.color"
+            :size="activity.size as any"
+            :hollow="activity.hollow">
+            <div>{{ activity.content }}</div>
+            <div v-if="index === 2 && isTestMode">
+              <div>欢迎体验余烬骰点核心，展示模式下不提供登录功能，请谅解。</div>
+              <div>如需测试指令，请移步“指令测试”界面。</div>
+              <div>此外，数据会定期自动重置。</div>
+              <div>展示版本未必是最新版，建议您下载体验。</div>
+              <el-button style="margin-top: 1rem" @click="formClose">再会</el-button>
+            </div>
+            <div
+              v-else-if="
+                index === 2 &&
+                curConn.protocolType !== 'official' &&
+                shouldShowMilkyQrcode(curConn.adapter?.loginState)
+              ">
+              <div
+                v-if="
+                  curConn.adapter?.loginState === goCqHttpStateCode.MilkyLoginWaitingForConfirm
+                ">
+                已扫码，请在手机 QQ 上确认登录。二维码会保留显示以便核对账号。
+              </div>
+              <div v-else>登录需要扫码验证，请使用登录此账号的手机 QQ 扫描二维码以继续登录：</div>
               <img
-                v-if="officialQQQrRendered"
+                :src="store.curDice.qrcodes[curConn.id]"
+                style="width: 20rem; height: 20rem; image-rendering: pixelated" />
+            </div>
+
+            <div
+              v-else-if="index === 2 && isOfficialQQQrWaiting(curConn)"
+              class="official-qq-qr-login">
+              <div>请使用手机 QQ 扫描二维码完成官方机器人绑定：</div>
+              <img
+                v-if="officialQQQrImage"
                 class="official-qq-qr-image"
                 alt="QQ 官方机器人绑定二维码"
-                :src="officialQQQrRendered" />
-              <el-text v-else type="info">正在生成二维码，请稍候。</el-text>
-              <div class="official-qq-qr-url">
-                <el-text type="info" size="small">原始绑定链接：</el-text>
-                <el-link
-                  class="official-qq-qr-url-link"
-                  :href="officialQQQrUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  type="primary">
-                  {{ officialQQQrUrl }}
-                </el-link>
-              </div>
-            </template>
-            <el-text v-else type="info">正在获取二维码，请稍候。</el-text>
-          </div>
-
-          <div v-else-if="index === 2 && getMilkyTerminalLoginText(curConn.adapter?.loginState)">
-            <div>{{ getMilkyTerminalLoginText(curConn.adapter?.loginState) }}</div>
-            <div>二维码登录已结束，此账号已自动禁用。需要重新尝试时，请再次启用账号。</div>
-          </div>
-
-          <div
-            v-else-if="
-              index === 2 &&
-              curConn.adapter?.loginState === goCqHttpStateCode.InLoginDeviceLock &&
-              curConn.adapter?.goCqHttpLoginDeviceLockUrl
-            ">
-            <template v-if="curConn.id === curCaptchaIdSet">
-              <div>已提交 ticket，正在等待 gocqhttp 回应</div>
-            </template>
-            <template v-else>
-              <div>账号已开启设备锁，请访问此链接进行验证：</div>
-              <div style="line-break: anywhere">
-                <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{
-                  curConn.adapter?.goCqHttpLoginDeviceLockUrl
-                }}</el-link>
-              </div>
-            </template>
-
-            <div>
-              <div>确认验证完成后，点击此按钮：</div>
-              <div>
-                <!-- :disabled="duringRelogin" -->
-                <el-button type="warning" @click="gocqhttpReLogin(curConn)">下一步</el-button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-else-if="
-              index === 2 &&
-              curConn.adapter?.loginState === goCqHttpStateCode.InLoginBar &&
-              curConn.adapter?.goCqHttpLoginDeviceLockUrl
-            ">
-            <template v-if="curConn.id === curCaptchaIdSet">
-              <div>已提交 ticket，正在等待 gocqhttp 回应</div>
-            </template>
-            <template v-else>
-              <div>滑条验证码流程，访问以下链接操作：</div>
-              <div style="line-break: anywhere">
-                <div>
-                  <a
-                    style="line-break: anywhere"
-                    href="javascript:void(0)"
-                    @click="captchaUrlSet(curConn, curConn.adapter?.goCqHttpLoginDeviceLockUrl)"
-                    >{{ curConn.adapter?.goCqHttpLoginDeviceLockUrl }}</a
-                  >
+                :src="officialQQQrImage" />
+              <template v-else-if="officialQQQrUrl">
+                <img
+                  v-if="officialQQQrRendered"
+                  class="official-qq-qr-image"
+                  alt="QQ 官方机器人绑定二维码"
+                  :src="officialQQQrRendered" />
+                <el-text v-else type="info">正在生成二维码，请稍候。</el-text>
+                <div class="official-qq-qr-url">
+                  <el-text type="info" size="small">原始绑定链接：</el-text>
+                  <el-link
+                    class="official-qq-qr-url-link"
+                    :href="officialQQQrUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    type="primary">
+                    {{ officialQQQrUrl }}
+                  </el-link>
                 </div>
-                <!-- <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link> -->
+              </template>
+              <el-text v-else type="info">正在获取二维码，请稍候。</el-text>
+            </div>
+
+            <div v-else-if="index === 2 && getMilkyTerminalLoginText(curConn.adapter?.loginState)">
+              <div>{{ getMilkyTerminalLoginText(curConn.adapter?.loginState) }}</div>
+              <div>二维码登录已结束，此账号已自动禁用。需要重新尝试时，请再次启用账号。</div>
+            </div>
+
+            <div
+              v-else-if="
+                index === 2 &&
+                curConn.adapter?.loginState === goCqHttpStateCode.InLoginDeviceLock &&
+                curConn.adapter?.goCqHttpLoginDeviceLockUrl
+              ">
+              <template v-if="curConn.id === curCaptchaIdSet">
+                <div>已提交 ticket，正在等待 gocqhttp 回应</div>
+              </template>
+              <template v-else>
+                <div>账号已开启设备锁，请访问此链接进行验证：</div>
+                <div style="line-break: anywhere">
+                  <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{
+                    curConn.adapter?.goCqHttpLoginDeviceLockUrl
+                  }}</el-link>
+                </div>
+              </template>
+
+              <div>
+                <div>确认验证完成后，点击此按钮：</div>
+                <div>
+                  <!-- :disabled="duringRelogin" -->
+                  <el-button type="warning" @click="gocqhttpReLogin(curConn)">下一步</el-button>
+                </div>
               </div>
-            </template>
-          </div>
-
-          <div
-            v-else-if="
-              index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode
-            ">
-            <!-- <div v-else-if="1"> -->
-            <div>短信验证码流程：</div>
-            <div style="line-break: anywhere">
-              <el-form label-width="5rem">
-                <el-form-item label="手机号">
-                  <div>{{ curConn.adapter?.goCqHttpSmsNumberTip }}</div>
-                </el-form-item>
-                <el-form-item label="验证码">
-                  <el-input v-model="smsCode"></el-input>
-                </el-form-item>
-                <el-form-item label="">
-                  <el-button
-                    :disabled="smsCode == ''"
-                    type="primary"
-                    @click="submitSmsCode(curConn)"
-                    >提交</el-button
-                  >
-                </el-form-item>
-              </el-form>
             </div>
-          </div>
 
-          <div
-            v-else-if="
-              index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.LoginFailed
-            ">
-            <div>
-              <div>登录失败！可能是以下原因：</div>
-              <ul>
-                <li>密码错误 (注意检查大小写)</li>
-                <li>二维码获取失败 (日志中会有“二维码错误”)</li>
-                <li>扫二维码超时过期 (约 2 分钟)</li>
-                <li>余烬发生了故障</li>
-              </ul>
-              <div>具体请参见日志。如果不出现“确定”按钮，请直接刷新。</div>
-              <div>若删除账号重复尝试无果，请回报 bug 给开发者。</div>
-              <el-link href="javascript:window.location.reload()" type="primary"
-                >点我前往日志界面</el-link
-              >
+            <div
+              v-else-if="
+                index === 2 &&
+                curConn.adapter?.loginState === goCqHttpStateCode.InLoginBar &&
+                curConn.adapter?.goCqHttpLoginDeviceLockUrl
+              ">
+              <template v-if="curConn.id === curCaptchaIdSet">
+                <div>已提交 ticket，正在等待 gocqhttp 回应</div>
+              </template>
+              <template v-else>
+                <div>滑条验证码流程，访问以下链接操作：</div>
+                <div style="line-break: anywhere">
+                  <div>
+                    <a
+                      style="line-break: anywhere"
+                      href="javascript:void(0)"
+                      @click="captchaUrlSet(curConn, curConn.adapter?.goCqHttpLoginDeviceLockUrl)"
+                      >{{ curConn.adapter?.goCqHttpLoginDeviceLockUrl }}</a
+                    >
+                  </div>
+                  <!-- <el-link :href="curConn.adapter?.goCqHttpLoginDeviceLockUrl" target="_blank">{{curConn.adapter?.goCqHttpLoginDeviceLockUrl}}</el-link> -->
+                </div>
+              </template>
             </div>
-          </div>
-        </el-timeline-item>
-      </el-timeline>
-    </template>
-    <template v-else-if="form.step === 3">
-      <el-result
-        icon="success"
-        title="成功啦!"
-        sub-title="现在账号状态应该是“已连接”了，去试一试骰子吧！">
-        <!-- <template #extra></template> -->
-      </el-result>
-    </template>
-    <template v-else-if="form.step === 4">
-      <el-result icon="success" title="成功啦!" sub-title="操作完成，现在可以进行下一步了">
-        <!-- <template #extra></template> -->
-      </el-result>
-    </template>
 
-    <template #footer>
-      <span class="dialog-footer">
-        <template v-if="form.step === 1">
-          <el-button @click="formClose">取消</el-button>
-          <el-button
-            type="primary"
-            :disabled="
-              form.accountType === ImConnectionTypeGocqLegacy ||
-              ((form.accountType === ImConnectionTypeDiscord ||
-                form.accountType === ImConnectionTypeKook ||
-                form.accountType === ImConnectionTypeTelegram) &&
-                form.token === '') ||
-              (form.accountType === ImConnectionTypeMinecraft && form.url === '') ||
-              (form.accountType === ImConnectionTypeDodo &&
-                (form.clientID === '' || form.token === '')) ||
-              (form.accountType === ImConnectionTypeDingTalk &&
-                (form.clientID === '' || form.token === '' || form.robotCode === '')) ||
-              (form.accountType === ImConnectionTypeOnebotSeparate &&
-                (form.account === '' || form.connectUrl === '')) ||
-              (form.accountType === ImConnectionTypeRed &&
-                (form.host === '' || form.port === '' || form.token === '')) ||
-              (form.accountType === ImConnectionTypeSlack &&
-                (form.botToken === '' || form.appToken === '')) ||
-              (form.accountType === ImConnectionTypeOnebotReverse &&
-                (form.account === '' || form.reverseAddr === '')) ||
-              (form.accountType === ImConnectionTypeSealChat &&
-                (form.token === '' || form.url === '')) ||
-              (form.accountType === ImConnectionTypeLagrangeOnebot &&
-                (form.account === '' ||
-                  form.signServerVersion === '' ||
-                  form.signServerName === '')) ||
-              (form.accountType === ImConnectionTypeMilkySeparate &&
-                (form.wsGateway === '' || form.restGateway === '')) ||
-              (isInternalMilkyAccountType(form.accountType) && form.account === '') ||
-              (form.accountType === ImConnectionTypeOfficialQQ &&
-                form.officialQQLoginMode === 'manual' &&
-                (!officialQQTestTested || !officialQQTestResult || officialQQTestResult.exists))
-            "
-            @click="goStepTwo">
-            下一步</el-button
-          >
-        </template>
-        <template v-else-if="!form.isEnd">
-          <el-button @click="formClose">关闭</el-button>
-        </template>
-        <template v-if="form.isEnd">
-          <el-button @click="formClose">确定</el-button>
-        </template>
-      </span>
-    </template>
-  </el-dialog>
+            <div
+              v-else-if="
+                index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.InLoginVerifyCode
+              ">
+              <!-- <div v-else-if="1"> -->
+              <div>短信验证码流程：</div>
+              <div style="line-break: anywhere">
+                <el-form label-width="5rem">
+                  <el-form-item label="手机号">
+                    <div>{{ curConn.adapter?.goCqHttpSmsNumberTip }}</div>
+                  </el-form-item>
+                  <el-form-item label="验证码">
+                    <el-input v-model="smsCode"></el-input>
+                  </el-form-item>
+                  <el-form-item label="">
+                    <el-button
+                      :disabled="smsCode == ''"
+                      type="primary"
+                      @click="submitSmsCode(curConn)"
+                      >提交</el-button
+                    >
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
 
-  <!-- 滑条验证，需要 3000 z-index 的原因是 element 的 overlay 是 2012，其移动端页面上是 2017，我不知道是不是累加的，所以给一个很大的值 -->
-  <div
-    v-show="dialogSlideVisible"
-    id="slide"
-    style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(1, 1, 1, 0.7);
-      z-index: 3000;
-    ">
-    <iframe
-      id="slideIframe"
-      ref="slideIframe"
-      src="about:blank"
-      rel="noreferrer"
-      style="width: 100%; height: 100%"></iframe>
+            <div
+              v-else-if="
+                index === 2 && curConn.adapter?.loginState === goCqHttpStateCode.LoginFailed
+              ">
+              <div>
+                <div>登录失败！可能是以下原因：</div>
+                <ul>
+                  <li>密码错误 (注意检查大小写)</li>
+                  <li>二维码获取失败 (日志中会有“二维码错误”)</li>
+                  <li>扫二维码超时过期 (约 2 分钟)</li>
+                  <li>余烬发生了故障</li>
+                </ul>
+                <div>具体请参见日志。如果不出现“确定”按钮，请直接刷新。</div>
+                <div>若删除账号重复尝试无果，请回报 bug 给开发者。</div>
+                <el-link href="javascript:window.location.reload()" type="primary"
+                  >点我前往日志界面</el-link
+                >
+              </div>
+            </div>
+          </el-timeline-item>
+        </el-timeline>
+      </template>
+      <template v-else-if="form.step === 3">
+        <el-result
+          icon="success"
+          title="成功啦!"
+          sub-title="现在账号状态应该是“已连接”了，去试一试骰子吧！">
+          <!-- <template #extra></template> -->
+        </el-result>
+      </template>
+      <template v-else-if="form.step === 4">
+        <el-result icon="success" title="成功啦!" sub-title="操作完成，现在可以进行下一步了">
+          <!-- <template #extra></template> -->
+        </el-result>
+      </template>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <template v-if="form.step === 1">
+            <el-button @click="formClose">取消</el-button>
+            <el-button
+              type="primary"
+              :disabled="
+                form.accountType === ImConnectionTypeGocqLegacy ||
+                ((form.accountType === ImConnectionTypeDiscord ||
+                  form.accountType === ImConnectionTypeKook ||
+                  form.accountType === ImConnectionTypeTelegram) &&
+                  form.token === '') ||
+                (form.accountType === ImConnectionTypeMinecraft && form.url === '') ||
+                (form.accountType === ImConnectionTypeDodo &&
+                  (form.clientID === '' || form.token === '')) ||
+                (form.accountType === ImConnectionTypeDingTalk &&
+                  (form.clientID === '' || form.token === '' || form.robotCode === '')) ||
+                (form.accountType === ImConnectionTypeOnebotSeparate &&
+                  (form.account === '' || form.connectUrl === '')) ||
+                (form.accountType === ImConnectionTypeRed &&
+                  (form.host === '' || form.port === '' || form.token === '')) ||
+                (form.accountType === ImConnectionTypeSlack &&
+                  (form.botToken === '' || form.appToken === '')) ||
+                (form.accountType === ImConnectionTypeOnebotReverse &&
+                  (form.account === '' ||
+                    form.reverseAddr === '' ||
+                    form.accessToken.trim() === '')) ||
+                (form.accountType === ImConnectionTypeSealChat &&
+                  (form.token === '' || form.url === '')) ||
+                (form.accountType === ImConnectionTypeLagrangeOnebot &&
+                  (form.account === '' ||
+                    form.signServerVersion === '' ||
+                    form.signServerName === '')) ||
+                (isInternalMilkyAccountType(form.accountType) && form.account === '') ||
+                (form.accountType === ImConnectionTypeMilkySeparate &&
+                  (form.wsGateway === '' || form.restGateway === '' || form.token.trim() === '')) ||
+                (form.accountType === ImConnectionTypeSatori &&
+                  (form.host === '' || form.port === '' || form.token.trim() === '')) ||
+                (form.accountType === ImConnectionTypeOfficialQQ &&
+                  (typeof form.appID !== 'number' ||
+                    !Number.isInteger(form.appID) ||
+                    form.appID <= 0 ||
+                    form.appSecret.trim() === '' ||
+                    form.token.trim() === ''))
+              "
+              @click="goStepTwo">
+              下一步</el-button
+            >
+          </template>
+          <template v-else-if="!form.isEnd">
+            <el-button @click="formClose">关闭</el-button>
+          </template>
+          <template v-if="form.isEnd">
+            <el-button @click="formClose">确定</el-button>
+          </template>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 滑条验证，需要 3000 z-index 的原因是 element 的 overlay 是 2012，其移动端页面上是 2017，我不知道是不是累加的，所以给一个很大的值 -->
     <div
-      v-show="slideBottomShow"
+      v-show="dialogSlideVisible"
+      id="slide"
       style="
-        position: absolute;
-        bottom: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
-        height: 100px;
-        z-index: 10;
-        display: flex;
-        justify-content: center;
-        flex-direction: column;
-        align-items: center;
+        height: 100%;
+        background: rgba(1, 1, 1, 0.7);
+        z-index: 3000;
       ">
-      <div style="margin-bottom: 0.5rem">
-        <a style="line-break: anywhere; font-size: 0.5rem" :href="slideLink" target="_blank"
-          >方式 2:新页面打开 (如无法验证)</a
-        >
+      <iframe
+        id="slideIframe"
+        ref="slideIframe"
+        src="about:blank"
+        rel="noreferrer"
+        style="width: 100%; height: 100%"></iframe>
+      <div
+        v-show="slideBottomShow"
+        style="
+          position: absolute;
+          bottom: 0;
+          width: 100%;
+          height: 100px;
+          z-index: 10;
+          display: flex;
+          justify-content: center;
+          flex-direction: column;
+          align-items: center;
+        ">
+        <div style="margin-bottom: 0.5rem">
+          <a style="line-break: anywhere; font-size: 0.5rem" :href="slideLink" target="_blank"
+            >方式 2:新页面打开 (如无法验证)</a
+          >
+        </div>
+        <el-button type="" @click="closeCaptchaFrame">关闭，滑条完成后点击</el-button>
       </div>
-      <el-button type="" @click="closeCaptchaFrame">关闭，滑条完成后点击</el-button>
     </div>
-  </div>
+  </section>
 </template>
 
 <script lang="ts" setup>
@@ -2182,7 +2173,7 @@ import {
   OfficialQQQRLoginState,
 } from '~/store';
 import type { DiceConnection } from '~/store';
-import { Plus, Edit, QuestionFilled, Delete } from '@element-plus/icons-vue';
+import { Plus, Edit, QuestionFilled, Delete, Refresh } from '@element-plus/icons-vue';
 import { sleep } from '~/utils';
 import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -2202,14 +2193,7 @@ import {
 } from '~/api/endpoints';
 import QRCode from 'qrcode';
 import { postToolOnebot } from '~/api/others';
-interface OfficialQQTestResult {
-  result: true;
-  testOnly: true;
-  userId: string;
-  uin: string;
-  nickname: string;
-  exists: boolean;
-}
+import EndpointDiagnostics from './EndpointDiagnostics.vue';
 
 interface SignInfo {
   version: string;
@@ -2229,6 +2213,7 @@ dayjs.extend(relativeTime);
 
 const connectionsLoading = ref(true);
 const connectionsLoadFailed = ref(false);
+const diagnosticTarget = ref<{ id: string; name: string } | null>(null);
 
 const fullActivities = [
   {
@@ -2283,12 +2268,6 @@ const officialQQQrUrl = ref('');
 const officialQQQrRendered = ref('');
 const officialQQQrReason = ref('');
 const officialQQQrSession = ref(0);
-
-const officialQQTestTesting = ref(false);
-const officialQQTestTested = ref(false);
-const officialQQTestResult = ref<OfficialQQTestResult | null>(null);
-const officialQQTestError = ref('');
-
 const slideIframe = ref(null);
 const slideLink = ref('');
 const slideBottomShow = ref(false);
@@ -2402,7 +2381,6 @@ const runEndpointAction = async (
     const operation =
       response.operation.status === 'succeeded' ||
       response.operation.status === 'failed' ||
-      response.operation.status === 'expired' ||
       response.operation.status === 'ambiguous'
         ? response.operation
         : await waitForOperation(response.operationId, { signal: controller.signal });
@@ -2428,6 +2406,9 @@ const revokeObjectUrl = (connectionId: string) => {
 };
 
 const loadEndpointQr = async (connection: DiceConnection) => {
+  if (!connection.endpointView.capabilities.actions.includes('request-qr')) {
+    throw new Error('当前端点不支持二维码登录');
+  }
   const { operation } = await runEndpointAction(connection, 'request-qr');
   const artifact = await getOperationArtifact(operation.operationId);
   if (
@@ -2436,6 +2417,9 @@ const loadEndpointQr = async (connection: DiceConnection) => {
   ) {
     const url = (await artifact.blob.text()).trim();
     if (/^https?:\/\//i.test(url)) {
+      officialQQQrImage.value = '';
+      officialQQQrUrl.value = url;
+      officialQQQrRendered.value = '';
       await renderOfficialQQQrFromUrl(url, officialQQQrSession.value, connection.id);
       return;
     }
@@ -2474,74 +2458,6 @@ const resetOfficialQQQrLogin = () => {
   officialQQQrReason.value = '';
 };
 
-const resetOfficialQQManualTestState = () => {
-  officialQQTestTesting.value = false;
-  officialQQTestTested.value = false;
-  officialQQTestResult.value = null;
-  officialQQTestError.value = '';
-};
-
-const isOfficialQQManualFormValid = computed(() => {
-  return (
-    form.accountType === ImConnectionTypeOfficialQQ &&
-    form.officialQQLoginMode === 'manual' &&
-    typeof form.appID === 'number' &&
-    Number.isInteger(form.appID) &&
-    form.appID > 0 &&
-    form.appSecret.trim() !== '' &&
-    form.token.trim() !== ''
-  );
-});
-
-const isOfficialQQTestResult = (value: unknown): value is OfficialQQTestResult => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  const candidate = value as Record<string, unknown>;
-  return (
-    candidate.result === true && candidate.testOnly === true && typeof candidate.uin === 'string'
-  );
-};
-
-const testOfficialQQManual = async () => {
-  if (!isOfficialQQManualFormValid.value || officialQQTestTesting.value) {
-    return;
-  }
-  officialQQTestTesting.value = true;
-  officialQQTestTested.value = false;
-  officialQQTestResult.value = null;
-  officialQQTestError.value = '';
-  try {
-    const connection = await store.addImConnection(form, true);
-    const { operation } = await runEndpointAction(connection, 'validate-credentials', {
-      confirm: true,
-    });
-    officialQQTestError.value = operation.resultCode
-      ? `凭据验证完成：${operation.resultCode}`
-      : '凭据验证完成';
-  } catch (e: unknown) {
-    const errMessage = e instanceof Error ? e.message : String(e);
-    officialQQTestError.value = errMessage || '请求失败';
-  } finally {
-    officialQQTestTesting.value = false;
-    officialQQTestTested.value = true;
-  }
-};
-
-watch(
-  [
-    () => form.accountType,
-    () => form.officialQQLoginMode,
-    () => form.appID,
-    () => form.appSecret,
-    () => form.token,
-    () => form.onlyQQGuild,
-  ],
-  () => {
-    resetOfficialQQManualTestState();
-  },
-);
-
 /** Core 仅返回 url 时，在前端把绑定链接画成可扫二维码 */
 const renderOfficialQQQrFromUrl = async (url: string, session: number, connectionId: string) => {
   try {
@@ -2563,9 +2479,11 @@ const renderOfficialQQQrFromUrl = async (url: string, session: number, connectio
 };
 
 const isOfficialQQQrWaiting = (connection: DiceConnection) => {
+  const observedState = connection.endpointView.observedState.toLowerCase();
   return (
     connection.protocolType === 'official' &&
-    connection.adapter?.qrLoginState === OfficialQQQRLoginState.WaitingForScan
+    (connection.adapter?.qrLoginState === OfficialQQQRLoginState.WaitingForScan ||
+      (connection.enable && observedState === 'starting'))
   );
 };
 
@@ -2606,6 +2524,9 @@ const openSocks = async () => {
 };
 
 type AddConnectionErrorResponse = {
+  code?: string;
+  message?: string;
+  requestId?: string;
   err?: string;
   error?: string;
   clientMode?: string;
@@ -2634,10 +2555,12 @@ const getAddConnectionFailureMessage = (error: unknown) => {
   }
 
   if (data && typeof data === 'object') {
-    const backendMessage = data.err || data.error;
+    const backendMessage = data.message || data.err || data.error;
     if (backendMessage) {
+      const code = data.code ? `[${data.code}] ` : '';
       const detail = data.clientMode ? `${backendMessage}: ${data.clientMode}` : backendMessage;
-      return `添加账号失败（HTTP ${status ?? '未知'}）：${detail}`;
+      const requestId = data.requestId ? `（请求号 ${data.requestId}）` : '';
+      return `添加账号失败（HTTP ${status ?? '未知'}）：${code}${detail}${requestId}`;
     }
   }
 
@@ -2655,20 +2578,9 @@ const goStepTwo = async () => {
   setRecentLogin();
   duringRelogin.value = false;
 
-  if (form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode') {
-    form.appID = 0;
-    form.appSecret = '';
-    form.token = '';
-  }
-
   store
-    .addImConnection(form as any)
+    .addImConnection(form)
     .then(conn => {
-      if (isOfficialQQTestResult(conn)) {
-        ElMessageBox.alert('测试响应不可用于添加账号，请重新尝试', '添加失败');
-        formClose();
-        return;
-      }
       if ((conn as any).testMode) {
         isTestMode.value = true;
       } else {
@@ -2679,17 +2591,19 @@ const goStepTwo = async () => {
       ElMessageBox.alert(getAddConnectionFailureMessage(e), '添加失败');
       formClose();
     });
-  if (
-    form.accountType > 0 &&
-    !(form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode')
-  ) {
+  const shouldShowQrFlow =
+    form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode'
+      ? true
+      : form.accountType === ImConnectionTypeLagrangeOnebot ||
+        isInternalMilkyAccountType(form.accountType);
+  if (form.accountType > 0 && !shouldShowQrFlow) {
     dialogFormVisible.value = false;
     form.account = '';
     form.step = 1;
     return;
   }
   activities.value = [];
-  if (form.accountType === ImConnectionTypeOfficialQQ && form.officialQQLoginMode === 'qrcode') {
+  if (shouldShowQrFlow) {
     activities.value.push(fullActivities[0], fullActivities[1], fullActivities[2]);
     return;
   }
@@ -2711,13 +2625,17 @@ const formClose = async () => {
   isTestMode.value = false;
   activities.value = [];
   resetOfficialQQQrLogin();
-  resetOfficialQQManualTestState();
 };
 
 const setEnable = async (i: DiceConnection, val: boolean) => {
   const input = { expectedAggregateVersion: i.endpointView.version, confirm: false };
   const response = val ? await enableEndpoint(i.id, input) : await disableEndpoint(i.id, input);
-  await waitForOperation(response.operationId);
+  const operation = await waitForOperation(response.operationId);
+  if (operation.status !== 'succeeded') {
+    throw new Error(
+      operation.status === 'ambiguous' ? '状态修改不明确，请刷新后确认' : '状态修改失败',
+    );
+  }
   i.enable = val;
   curCaptchaIdSet.value = '';
   await store.getImConnections();
@@ -2755,6 +2673,8 @@ const askSetDataGocq = async (i: DiceConnection) => {
   form.ignoreFriendRequest = i.adapter?.ignoreFriendRequest;
   form.useSignServer = i.adapter?.useSignServer;
   form.signServerConfig = i.adapter?.signServerConfig;
+  form.signServerVersion = i.adapter?.signServerVer || '';
+  form.signServerName = i.adapter?.signServerName || '';
   form.imageAssetBaseUrl = i.adapter?.imageAssetBaseUrl || '';
   form.imageAssetBaseUrlAuto = '';
   form.imageAssetBaseUrlCandidates = [];
@@ -2763,21 +2683,70 @@ const askSetDataGocq = async (i: DiceConnection) => {
 };
 
 const doSetData = async () => {
-  const current = form.endpoint.endpointView;
-  const payload = { ...current.config.payload };
-  payload.protocol = form.protocol;
-  payload.appVersion = form.appVersion;
-  payload.friendRequestPolicy = form.ignoreFriendRequest ? 'ignore' : 'accept';
-  payload.useSignServer = form.useSignServer;
-  payload.signServerConfig = form.signServerConfig;
-  if (form.endpoint.protocolType === 'pureonebot') {
-    payload.imageAssetBaseUrl = form.imageAssetBaseUrl || '';
+  const connection = form.endpoint;
+  const current = connection.endpointView;
+  const canonical = current.config.payload;
+  let payload: Record<string, unknown>;
+
+  if (current.adapterKey === 'milky') {
+    payload = canonical.built_in_mode
+      ? {
+          version: '1',
+          built_in_mode: canonical.built_in_mode,
+          account: canonical.account,
+          ignore_friend_request: form.ignoreFriendRequest,
+        }
+      : {
+          version: '1',
+          ws_gateway: canonical.ws_gateway,
+          rest_gateway: canonical.rest_gateway,
+          token: canonical.token,
+          ignore_friend_request: form.ignoreFriendRequest,
+        };
+  } else if (current.adapterKey === 'pureonebot') {
+    payload = {
+      ...canonical,
+      friendRequestPolicy: form.ignoreFriendRequest ? 'ignore' : 'accept',
+      imageAssetBaseUrl: form.imageAssetBaseUrl || '',
+    };
+  } else if (current.adapterKey === 'gocq' || current.adapterKey === 'lagrange') {
+    if (canonical.mode === 'builtin') {
+      payload = {
+        useInPackGoCqhttp: true,
+        builtinMode: canonical.builtinMode,
+        account: canonical.account,
+        protocol: form.protocol,
+        appVersion: form.appVersion,
+        signServerVersion: form.signServerVersion || canonical.signServerVersion,
+        signServerName: form.signServerName || canonical.signServerName,
+        ignoreFriendRequest: form.ignoreFriendRequest,
+        imageAssetBaseUrl: form.imageAssetBaseUrl || '',
+      };
+      if (canonical.password) payload.password = canonical.password;
+    } else {
+      payload = {
+        ...(canonical.mode === 'server'
+          ? { isReverse: true, reverseAddr: canonical.listenAddress || canonical.reverseUrl }
+          : { connectUrl: canonical.url }),
+        token: canonical.token,
+        insecureSkipVerify: canonical.insecureSkipVerify,
+        friendRequestPolicy: form.ignoreFriendRequest ? 'ignore' : 'accept',
+        accountHint: canonical.accountHint,
+        imageAssetBaseUrl: form.imageAssetBaseUrl || '',
+      };
+    }
+  } else {
+    throw new Error('当前端点不支持此配置编辑');
   }
-  const response = await patchEndpointConfig(form.endpoint.id, {
+
+  const response = await patchEndpointConfig(connection.id, {
     config: { version: current.config.version, payload },
     expectedAggregateVersion: current.version,
   });
-  await waitForOperation(response.operationId);
+  const operation = await waitForOperation(response.operationId);
+  if (operation.status !== 'succeeded') {
+    throw new Error(operation.status === 'ambiguous' ? '修改状态不明确，请刷新后确认' : '修改失败');
+  }
   await store.getImConnections();
   ElMessage.success('修改完成，请手动重新登录');
   dialogSetDataFormVisible.value = false;
@@ -2806,7 +2775,6 @@ const resolveAmbiguous = async (i: DiceConnection) => {
     throw new Error('操作解析失败，请刷新后确认');
   }
   await store.getImConnections();
-  ElMessage.success('不明确操作已解析');
 };
 
 const askResolveAmbiguous = (i: DiceConnection) => {
@@ -2820,14 +2788,15 @@ const askResolveAmbiguous = (i: DiceConnection) => {
     },
   ).then(() => resolveAmbiguous(i));
 };
-
 const askSetEnable = async (i: DiceConnection, val: boolean) => {
   ElMessageBox.confirm('确认修改此账号的在线状态吗？', '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
   }).then(async () => {
-    setEnable(i, val);
+    await setEnable(i, val).catch(error => {
+      ElMessage.error(error instanceof Error ? error.message : '状态修改失败');
+    });
   });
 };
 
@@ -2876,7 +2845,12 @@ const gocqhttpReLogin = async (i: DiceConnection) => {
   const response = await reloginEndpoint(i.id, {
     expectedAggregateVersion: i.endpointView.version,
   });
-  await waitForOperation(response.operationId);
+  const operation = await waitForOperation(response.operationId);
+  if (operation.status !== 'succeeded') {
+    throw new Error(
+      operation.status === 'ambiguous' ? '重登录状态不明确，请刷新后确认' : '重登录失败',
+    );
+  }
   curConnId.value = i.id;
   form.isEnd = true;
   activities.value = [];
@@ -3160,7 +3134,11 @@ const refreshLoginStates = async () => {
     connectionsLoadFailed.value = false;
 
     for (const i of store.curDice.conns || []) {
-      if (shouldShowMilkyQrcode(i.adapter?.loginState) && !store.curDice.qrcodes[i.id]) {
+      if (
+        i.protocolType !== 'official' &&
+        shouldShowMilkyQrcode(i.adapter?.loginState) &&
+        !store.curDice.qrcodes[i.id]
+      ) {
         await loadEndpointQr(i);
       }
       if (getMilkyTerminalLoginText(i.adapter?.loginState)) {
@@ -3173,16 +3151,23 @@ const refreshLoginStates = async () => {
 
         if (isOfficialQQQrWaiting(i)) {
           const session = officialQQQrSession.value;
-          if (!store.curDice.qrcodes[i.id]) {
+          if (
+            !store.curDice.qrcodes[i.id] &&
+            !officialQQQrUrl.value &&
+            !officialQQQrRendered.value
+          ) {
             await loadEndpointQr(i);
           }
           if (session !== officialQQQrSession.value || i.id !== curConnId.value) {
             return;
           }
-          officialQQQrImage.value = store.curDice.qrcodes[i.id] || '';
-          officialQQQrUrl.value = '';
+          const image = store.curDice.qrcodes[i.id];
+          if (image) {
+            officialQQQrImage.value = image;
+            officialQQQrUrl.value = '';
+            officialQQQrRendered.value = '';
+          }
           officialQQQrReason.value = '';
-          officialQQQrRendered.value = '';
         }
 
         // 登录失败
@@ -3206,7 +3191,11 @@ const refreshLoginStates = async () => {
         }
 
         // 登录成功
-        if (i.state === 1 && i.adapter?.loginState === goCqHttpStateCode.LoginSuccessed) {
+        if (
+          i.state === 1 &&
+          (i.adapter?.loginState === goCqHttpStateCode.LoginSuccessed ||
+            i.adapter?.loginState === goCqHttpStateCode.MilkyLoginConnected)
+        ) {
           activities.value.push(fullActivities[3]);
           await sleep(1000);
           form.step = 3;
@@ -3275,7 +3264,12 @@ const doRemove = async (i: DiceConnection) => {
       expectedAggregateVersion: i.endpointView.version,
       confirm: true,
     });
-    await waitForOperation(response.operationId);
+    const operation = await waitForOperation(response.operationId);
+    if (operation.status !== 'succeeded') {
+      throw new Error(
+        operation.status === 'ambiguous' ? '删除状态不明确，请刷新后确认' : '删除失败',
+      );
+    }
     revokeObjectUrl(i.id);
     delete store.curDice.qrcodes[i.id];
     await store.getImConnections();
@@ -3288,22 +3282,77 @@ const doRemove = async (i: DiceConnection) => {
 </script>
 
 <style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.connect-loading {
+  min-height: 8rem;
 }
 
-.btn-add {
-  width: 3rem !important;
-  height: 3rem !important;
-  font-size: 2rem;
-  font-weight: bold;
+.connect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.card-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.card-title strong {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.card-account {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.card-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.card-inline-action {
+  margin-inline-start: 12px;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--seal-border-color-light);
+}
+
+.card-actions .el-button + .el-button {
+  margin-inline-start: 0;
+}
+
+.card-delete {
+  margin-inline-start: auto !important;
 }
 
 :deep(.box-card > .el-card__body) {
   position: relative;
-  min-height: 18rem;
+  min-height: 16rem;
+}
+
+:deep(.box-card .el-form-item) {
+  margin-bottom: 6px;
 }
 
 .login-state-panel {

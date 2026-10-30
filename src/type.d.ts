@@ -18,6 +18,28 @@ export interface JsDangerousAPIOccurrence {
   memberDescription: string;
 }
 
+export interface JsMemoryAmount {
+  objects: number;
+  bytes: number;
+}
+
+/** 插件存活 JS 堆的估算值；小对象为采样估计，大对象逐个跟踪 */
+export interface JsMemoryUsage {
+  /** ok：已统计；pending：运行时尚未完成首次统计；unsupported：该运行时不支持统计 */
+  status: 'ok' | 'pending' | 'unsupported';
+  objects: number;
+  bytes: number;
+  object: JsMemoryAmount;
+  array: JsMemoryAmount;
+  arrayBuffer: JsMemoryAmount;
+  /** 逐个跟踪的大对象部分 */
+  large: JsMemoryAmount;
+  /** 支撑小对象估算的存活采样数 */
+  samples: number;
+  /** 统计时间（Unix 毫秒） */
+  sweptAt: number;
+}
+
 export interface JsScriptInfo {
   name: string;
   enable: boolean;
@@ -31,6 +53,7 @@ export interface JsScriptInfo {
   installTime: number;
   errText: string;
   filename: string;
+  extensionNames?: string[];
   updateUrls?: string[];
   official: boolean;
   builtin: boolean;
@@ -38,6 +61,8 @@ export interface JsScriptInfo {
   packageID?: string;
   hasDangerousApiUsage: boolean;
   dangerousApiUsages: JsDangerousAPIUsage[];
+  /** 未运行的插件为 null */
+  memory?: JsMemoryUsage | null;
 }
 
 export interface JsPluginConfigItem {

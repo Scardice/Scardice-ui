@@ -1,91 +1,89 @@
 <template>
-  <div class="flex flex-col gap-4">
-    <h2>性能分析</h2>
-    <div class="tip">
-      <el-collapse class="helptips">
-        <el-collapse-item name="1">
-          <template #title>
-            <el-text tag="strong">查看帮助</el-text>
-          </template>
-          <el-text tag="p">
-            <div>本页调用 <code>net/http/pprof</code> 提供的端点对海豹核心进行性能分析。</div>
-            <div>
-              采集得到的文件可以使用 Go 自带的 <code>go tool pprof</code> /
-              <code>go tool trace</code> 命令离线分析。
-            </div>
-            <div>长时间采样（如 CPU profile、trace）会持续占用资源，建议仅在排查问题时使用。</div>
-          </el-text>
-        </el-collapse-item>
-      </el-collapse>
+  <section class="workspace-page pprof-workspace" aria-labelledby="pprof-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="pprof-workspace-title" class="workspace-title">性能分析</h1>
+        <p class="workspace-subtitle">
+          采集余烬核心的 Go pprof / trace 数据，用于排查卡顿、内存或协程问题。
+        </p>
+      </div>
+    </header>
+
+    <div class="workspace-body workspace-scroll">
+      <el-alert type="info" :closable="false" show-icon title="如何使用">
+        <p class="pprof-help">
+          下载的文件可用 <code>go tool pprof</code> 或 <code>go tool trace</code> 离线分析。 CPU
+          profile 与 trace 会在采样期间持续占用资源，建议只在排查问题时使用。
+        </p>
+      </el-alert>
+
+      <div class="pprof-grid">
+        <article v-for="item in profiles" :key="item.key" class="workspace-panel profile-card">
+          <div class="profile-card-header">
+            <h2>{{ item.title }}</h2>
+            <el-tag v-if="item.supportsSeconds" type="info" size="small" effect="plain"
+              >需等待采样</el-tag
+            >
+          </div>
+
+          <p class="profile-desc">{{ item.desc }}</p>
+
+          <label v-if="item.secondsModel === 'profile'" class="profile-control">
+            <span>采样时长</span>
+            <el-input-number
+              v-model="profileSeconds"
+              :min="1"
+              :max="600"
+              :step="5"
+              size="small"
+              controls-position="right" />
+            <span>秒</span>
+          </label>
+          <label v-if="item.secondsModel === 'trace'" class="profile-control">
+            <span>采样时长</span>
+            <el-input-number
+              v-model="traceSeconds"
+              :min="1"
+              :max="60"
+              :step="1"
+              size="small"
+              controls-position="right" />
+            <span>秒</span>
+          </label>
+
+          <div class="profile-actions">
+            <el-button
+              size="small"
+              :icon="Download"
+              :loading="isPending(item.key)"
+              :disabled="isPending(item.key)"
+              @click="handleDownload(item)">
+              {{ isPending(item.key) ? '采样中…' : '下载' }}
+            </el-button>
+            <el-button
+              v-if="item.textPath"
+              size="small"
+              link
+              :icon="View"
+              :disabled="isPending(item.key)"
+              @click="handleView(item)">
+              在线查看
+            </el-button>
+          </div>
+        </article>
+      </div>
     </div>
 
-    <main>
-      <el-row :gutter="16">
-        <el-col v-for="item in profiles" :key="item.key" :xs="24" :sm="12" :md="8" class="mb-3">
-          <el-card shadow="hover" class="profile-card">
-            <template #header>
-              <div class="flex items-center justify-between">
-                <span class="font-semibold">{{ item.title }}</span>
-                <el-tag v-if="item.supportsSeconds" type="warning" size="small">需时长</el-tag>
-              </div>
-            </template>
-
-            <div class="profile-desc">{{ item.desc }}</div>
-
-            <div v-if="item.secondsModel === 'profile'" class="profile-control">
-              <el-text>采样时长（秒）：</el-text>
-              <el-input-number
-                v-model="profileSeconds"
-                :min="1"
-                :max="600"
-                :step="5"
-                size="small"
-                controls-position="right"
-                class="ml-2" />
-            </div>
-            <div v-if="item.secondsModel === 'trace'" class="profile-control">
-              <el-text>采样时长（秒）：</el-text>
-              <el-input-number
-                v-model="traceSeconds"
-                :min="1"
-                :max="60"
-                :step="1"
-                size="small"
-                controls-position="right"
-                class="ml-2" />
-            </div>
-
-            <div class="profile-actions">
-              <el-button
-                type="primary"
-                size="small"
-                :icon="Download"
-                :loading="isPending(item.key)"
-                :disabled="isPending(item.key)"
-                @click="handleDownload(item)">
-                下载
-              </el-button>
-              <el-button
-                v-if="item.textPath"
-                size="small"
-                :icon="View"
-                :loading="isPending(item.key)"
-                :disabled="isPending(item.key)"
-                @click="handleView(item)">
-                查看文本
-              </el-button>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </main>
-
-    <el-drawer v-model="previewVisible" :title="previewTitle" direction="rtl" size="60%">
+    <el-drawer
+      v-model="previewVisible"
+      :title="previewTitle"
+      direction="rtl"
+      size="min(960px, 92vw)">
       <div v-loading="previewLoading" class="profile-preview">
         <pre v-if="!previewLoading">{{ previewContent }}</pre>
       </div>
     </el-drawer>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -315,39 +313,58 @@ const handleView = async (entry: ProfileEntry) => {
 </script>
 
 <style scoped lang="css">
-.helptips {
-  background-color: #f3f5f7;
+.pprof-help {
+  margin: 4px 0 0;
+}
 
-  :deep(.el-collapse-item__header) {
-    background-color: #f3f5f7;
-  }
-
-  :deep(.el-collapse-item__wrap) {
-    background-color: #f3f5f7;
-  }
+.pprof-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
 }
 
 .profile-card {
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-card-header h2 {
+  margin: 0;
+  font-size: 15px;
 }
 
 .profile-desc {
-  color: #606266;
+  flex: 1;
+  margin: 0;
+  color: var(--seal-text-regular);
   font-size: 13px;
   line-height: 1.5;
-  min-height: 60px;
-  margin-bottom: 12px;
 }
 
 .profile-control {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--seal-text-secondary);
 }
 
 .profile-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.profile-actions .el-button + .el-button {
+  margin-inline-start: 0;
 }
 
 .profile-preview {

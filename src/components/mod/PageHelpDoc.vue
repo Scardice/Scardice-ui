@@ -1,130 +1,295 @@
 <template>
-  <header class="page-header">
-    <el-button
-      type="primary"
-      :icon="Refresh"
-      :loading="reloadLoading"
-      :disabled="reloadLoading"
-      @click="reload"
-      >重载帮助文档</el-button
-    >
-  </header>
+  <section class="workspace-page help-workspace">
+    <header class="workspace-header">
+      <div>
+        <h1 class="workspace-title">帮助文档</h1>
+        <p class="workspace-subtitle">浏览已加载的帮助词条，或管理帮助文件。</p>
+      </div>
+      <div class="help-header-actions">
+        <div class="help-mode-switch" role="group" aria-label="帮助文档工作区">
+          <button type="button" :aria-pressed="tab === 'item'" @click="tab = 'item'">
+            词条阅读
+          </button>
+          <button type="button" :aria-pressed="tab === 'file'" @click="tab = 'file'">
+            文件管理
+          </button>
+        </div>
+        <el-button
+          type="primary"
+          :icon="Refresh"
+          :loading="reloadLoading"
+          :disabled="reloadLoading"
+          @click="reload">
+          重载帮助文档
+        </el-button>
+      </div>
+    </header>
 
-  <el-affix v-if="needReload" :offset="70">
-    <div class="tip-danger">
-      <el-text type="danger" size="large" tag="strong">存在修改，需要重载后生效！</el-text>
+    <div v-if="needReload || configNeedSave" class="help-notices">
+      <el-alert
+        v-if="needReload"
+        title="帮助文件已修改，需要重载后生效。"
+        type="warning"
+        :closable="false"
+        show-icon />
+      <div v-if="configNeedSave" class="help-config-notice">
+        <el-alert title="设置存在修改，别忘记保存。" type="warning" :closable="false" show-icon />
+        <el-button
+          type="primary"
+          :icon="DocumentChecked"
+          :disabled="!configNeedSave"
+          @click="summitConfig">
+          保存设置
+        </el-button>
+      </div>
     </div>
-  </el-affix>
 
-  <el-affix v-if="configNeedSave" :offset="70">
-    <div class="tip-danger">
-      <el-text type="danger" size="large" tag="strong">设置存在修改，别忘记保存！</el-text>
-      <el-button
-        class="button"
-        type="primary"
-        :icon="DocumentChecked"
-        :disabled="!configNeedSave"
-        @click="summitConfig"
-        >点我保存</el-button
-      >
-    </div>
-  </el-affix>
+    <el-dialog v-model="uploadDialogVisible" title="上传帮助文档">
+      <el-alert
+        v-show="uploadForm.group === 'default'"
+        style="margin-bottom: 20px"
+        type="warning"
+        :closable="false">
+        更具体的分组能提供组内搜索命令
+        <el-tag size="small" type="info">.find#&lt;分组&gt; &lt;搜索内容&gt;</el-tag
+        >，是否一定要选择默认分组？
+      </el-alert>
+      <el-form ref="uploadFormRef" label-position="top" :model="uploadForm" :rules="uploadRules">
+        <el-form-item label="分组" prop="group">
+          <el-select
+            v-model="uploadForm.group"
+            name="upload-group"
+            placeholder="选择分组"
+            filterable
+            clearable
+            allow-create
+            aria-label="帮助文档分组">
+            <el-option
+              v-for="group in docGroups"
+              :key="group.key"
+              :label="group.label"
+              :value="group.key" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="帮助文档" prop="files">
+          <el-upload
+            :on-change="fileChange"
+            :file-list="uploadForm.files"
+            multiple
+            accept=".json,.jsonc,.hjson,.xlsx"
+            :auto-upload="false">
+            <template #trigger>
+              <el-button type="primary" :icon="Upload">选择文件</el-button>
+            </template>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-space>
+          <el-button @click="uploadDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitUpload(uploadFormRef)">上传</el-button>
+        </el-space>
+      </template>
+    </el-dialog>
 
-  <el-tabs v-model="tab" :stretch="true">
-    <el-tab-pane label="文件" name="file">
-      <el-space class="file-control">
-        <el-button v-show="showDeleteFile" type="danger" :icon="Delete" @click="deleteFiles"
-          >删除所选</el-button
-        >
-        <el-button type="primary" :icon="Upload" @click="uploadDialogVisible = true"
-          >上传</el-button
-        >
-        <el-button type="primary" :icon="Setting" @click="configDialogVisible = true"
-          >设置</el-button
-        >
-      </el-space>
+    <el-dialog v-model="configDialogVisible" title="设置帮助文档">
+      <el-alert
+        v-show="configNeedSave"
+        style="margin-bottom: 20px"
+        type="warning"
+        :closable="false">
+        设置存在修改，别忘记保存！
+      </el-alert>
+      <h3>分组别名</h3>
+      <el-form>
+        <el-form-item
+          v-for="group in docGroups"
+          :key="group.key"
+          :label="group.label"
+          label-width="50px">
+          <HelpConfigTags
+            :group="group"
+            :aliases="helpAliases"
+            @add-alias="addAlias"
+            @remove-alias="removeAlias" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-space>
+          <el-button @click="configDialogClose">取消</el-button>
+          <el-button type="primary" @click="summitConfig">保存</el-button>
+        </el-space>
+      </template>
+    </el-dialog>
 
-      <el-dialog v-model="uploadDialogVisible" title="上传帮助文档">
-        <el-alert
-          v-show="uploadForm.group === 'default'"
-          style="margin-bottom: 20px"
-          type="warning"
-          :closable="false">
-          更具体的分组能提供组内搜索命令
-          <el-tag size="small" type="info">.find#&lt;分组&gt; &lt;搜索内容&gt;</el-tag
-          >，是否一定要选择默认分组？
-        </el-alert>
-        <el-form ref="uploadFormRef" label-position="top" :model="uploadForm" :rules="uploadRules">
-          <el-form-item label="分组" prop="group">
-            <el-select
-              v-model="uploadForm.group"
-              placeholder="选择分组"
-              filterable
+    <section
+      v-show="tab === 'item'"
+      class="help-entry-workspace workspace-body"
+      aria-label="帮助词条">
+      <aside class="help-categories" aria-label="帮助文档分组">
+        <div class="help-section-label">按分组浏览</div>
+        <button
+          v-for="category in helpCategories"
+          :key="category.key || 'all'"
+          type="button"
+          :aria-pressed="selectedGroup === category.key"
+          :class="{ active: selectedGroup === category.key }"
+          @click="selectHelpGroup(category.key)">
+          {{ category.label }}
+        </button>
+      </aside>
+
+      <div class="help-entry-list" :class="{ 'mobile-hidden': mobileView === 'reader' }">
+        <div class="help-search">
+          <el-select
+            v-model="selectedGroup"
+            name="help-group"
+            class="help-mobile-category"
+            aria-label="帮助文档分组"
+            @change="selectHelpGroup">
+            <el-option
+              v-for="category in helpCategories"
+              :key="category.key || 'all'"
+              :label="category.label"
+              :value="category.key" />
+          </el-select>
+          <el-input
+            v-model="textItemQuery.title"
+            name="help-title"
+            aria-label="按词条名搜索"
+            placeholder="词条名"
+            clearable
+            @keyup.enter="searchHelpText" />
+          <div class="help-search-secondary">
+            <el-input
+              v-model="textItemQuery.id"
+              name="help-id"
+              aria-label="按序号搜索"
+              placeholder="序号"
               clearable
-              allow-create>
-              <el-option
-                v-for="group in docGroups"
-                :key="group.key"
-                :label="group.label"
-                :value="group.key" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="帮助文档" prop="files">
-            <el-upload
-              :on-change="fileChange"
-              :file-list="uploadForm.files"
-              multiple
-              accept=".json,.jsonc,.hjson,.xlsx"
-              :auto-upload="false">
-              <template #trigger>
-                <el-button type="primary" :icon="Upload">选择文件</el-button>
-              </template>
-            </el-upload>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-space>
-            <el-button @click="uploadDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="submitUpload(uploadFormRef)">上传</el-button>
-          </el-space>
-        </template>
-      </el-dialog>
+              @keyup.enter="searchHelpText" />
+            <el-input
+              v-model="textItemQuery.from"
+              name="help-source"
+              aria-label="按来源文件搜索"
+              placeholder="来源文件"
+              clearable
+              @keyup.enter="searchHelpText" />
+            <el-button type="primary" @click="searchHelpText">搜索</el-button>
+          </div>
+        </div>
 
-      <el-dialog v-model="configDialogVisible" title="设置帮助文档">
         <el-alert
-          v-show="configNeedSave"
-          style="margin-bottom: 20px"
-          type="warning"
-          :closable="false">
-          设置存在修改，别忘记保存！
-        </el-alert>
-        <h3>分组别名</h3>
-        <el-form>
-          <el-form-item
-            v-for="group in docGroups"
-            :key="group.key"
-            :label="group.label"
-            label-width="50px">
-            <HelpConfigTags
-              :group="group"
-              :aliases="helpAliases"
-              @add-alias="addAlias"
-              @remove-alias="removeAlias" />
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-space>
-            <el-button @click="configDialogClose">取消</el-button>
-            <el-button type="primary" @click="summitConfig">保存</el-button>
-          </el-space>
-        </template>
-      </el-dialog>
+          v-if="itemError"
+          class="help-inline-error"
+          :title="itemError"
+          type="error"
+          :closable="false"
+          show-icon />
+        <div class="help-results" v-loading="itemsLoading">
+          <div v-if="!itemsLoading && !itemError && textItems.length === 0" class="help-empty">
+            没有找到匹配的帮助词条。
+          </div>
+          <div class="help-results-scroll">
+            <button
+              v-for="item in textItems"
+              :key="item.id"
+              type="button"
+              class="help-item"
+              :class="{ active: selectedHelpItem?.id === item.id }"
+              :aria-current="selectedHelpItem?.id === item.id ? 'page' : undefined"
+              @click="selectHelpItem(item)">
+              <span class="help-item-heading">
+                <span class="help-item-title">{{ item.title }}</span>
+                <span class="help-item-id">#{{ item.id }}</span>
+              </span>
+              <span class="help-item-summary">{{ getHelpText(item.content) }}</span>
+              <span class="help-item-source">{{ item.group }} · {{ item.from }}</span>
+            </button>
+          </div>
+        </div>
+        <footer class="help-pagination">
+          <span v-if="itemsLoading">读取中…</span>
+          <span v-else>{{ textItemQuery.total }} 条词条</span>
+          <el-pagination
+            :page-size="textItemQuery.pageSize"
+            :current-page="textItemQuery.pageNum"
+            :total="textItemQuery.total"
+            :pager-count="5"
+            layout="prev, pager, next"
+            background
+            hide-on-single-page
+            @current-change="handleCurrentPageChange" />
+        </footer>
+      </div>
 
-      <main>
-        <header class="file-tree-title">
-          <el-text size="large" tag="b">文件名</el-text>
-          <el-text size="large" tag="b">分组</el-text>
-        </header>
+      <article class="help-reader" :class="{ 'mobile-hidden': mobileView === 'list' }">
+        <template v-if="selectedHelpItem">
+          <div class="help-reader-toolbar">
+            <el-button class="help-reader-back" @click="mobileView = 'list'"
+              >返回词条列表</el-button
+            >
+            <span>{{ selectedHelpItem.group }}</span>
+          </div>
+          <div class="help-reading-content">
+            <h2>{{ selectedHelpItem.title }}</h2>
+            <dl class="help-metadata">
+              <div>
+                <dt>序号</dt>
+                <dd>{{ selectedHelpItem.id }}</dd>
+              </div>
+              <div v-if="selectedHelpItem.from">
+                <dt>来源文件</dt>
+                <dd>{{ selectedHelpItem.from }}</dd>
+              </div>
+              <div v-if="selectedHelpItem.packageName">
+                <dt>分类</dt>
+                <dd>{{ selectedHelpItem.packageName }}</dd>
+              </div>
+              <div v-if="selectedHelpItem.keyWords">
+                <dt>关键词</dt>
+                <dd>{{ selectedHelpItem.keyWords }}</dd>
+              </div>
+            </dl>
+            <pre class="help-content">{{ selectedHelpItem.content }}</pre>
+          </div>
+        </template>
+        <div v-else class="help-empty help-reader-empty">
+          <span v-if="itemsLoading">正在读取帮助词条…</span>
+          <span v-else-if="itemError">帮助词条暂不可用。</span>
+          <span v-else>从列表中选择一个词条开始阅读。</span>
+        </div>
+      </article>
+    </section>
+
+    <section
+      v-show="tab === 'file'"
+      class="help-file-workspace workspace-body"
+      aria-label="文件管理">
+      <div class="help-file-toolbar">
+        <div>
+          <h2>帮助文件</h2>
+          <p>上传或删除文件后，需要重载帮助文档使变更生效。</p>
+        </div>
+        <div class="help-file-actions">
+          <el-button v-show="showDeleteFile" type="danger" :icon="Delete" @click="deleteFiles">
+            删除所选
+          </el-button>
+          <el-button :icon="Upload" @click="uploadDialogVisible = true">上传</el-button>
+          <el-button :icon="Setting" @click="configDialogVisible = true">设置</el-button>
+        </div>
+      </div>
+      <el-alert
+        v-if="fileTreeError"
+        :title="fileTreeError"
+        type="error"
+        :closable="false"
+        show-icon />
+      <div class="help-file-tree" v-loading="fileTreeLoading">
+        <div class="file-tree-heading">
+          <span>文件名</span>
+          <span>状态 / 分组</span>
+        </div>
         <el-tree
           ref="fileTreeRef"
           class="file-tree"
@@ -132,19 +297,19 @@
           :props="treeNodeProps"
           node-key="key"
           default-expand-all
-          show-checkbox>
+          show-checkbox
+          empty-text="没有可管理的帮助文件"
+          @check="updateCheckedFiles">
           <template #default="{ node, data }">
             <div class="file-line">
-              <div class="flex file-info">
-                <span class="mr-px">
-                  <i-bi-folder2 v-if="data.isDir" color="#303133" />
-                  <i-bi-filetype-json v-else-if="data.type === '.json'" color="#E6A23C" />
-                  <i-bi-filetype-xlsx v-else-if="data.type === '.xlsx'" color="#67C23A" />
+              <div class="file-info">
+                <span class="file-icon">
+                  <i-bi-folder2 v-if="data.isDir" />
+                  <i-bi-filetype-json v-else-if="data.type === '.json'" />
+                  <i-bi-filetype-xlsx v-else-if="data.type === '.xlsx'" />
                   <i-bi-file-break v-else />
                 </span>
-                <span :class="{ 'del-line': data.deleted }" truncated>
-                  {{ node.label }}
-                </span>
+                <span :class="{ 'del-line': data.deleted }">{{ node.label }}</span>
               </div>
               <div v-if="!data.isDir" class="file-tag">
                 <el-tag
@@ -157,81 +322,9 @@
             </div>
           </template>
         </el-tree>
-      </main>
-    </el-tab-pane>
-
-    <el-tab-pane label="词条" name="item">
-      <main class="item-list-container">
-        <header>
-          <el-form :inline="true" :model="textItemQuery">
-            <el-form-item label="序号">
-              <el-input v-model="textItemQuery.id" clearable />
-            </el-form-item>
-            <el-form-item label="分组" j>
-              <el-select
-                v-model="textItemQuery.group"
-                placeholder="选择分组"
-                filterable
-                clearable
-                style="width: 10rem">
-                <el-option
-                  v-for="group in [{ key: 'builtin', label: '内置' }, ...docGroups]"
-                  :key="group.key"
-                  :label="group.label"
-                  :value="group.key" />
-              </el-select>
-              <!-- <el-input v-model="textItemQuery.group" clearable /> -->
-            </el-form-item>
-            <el-form-item label="来源文件">
-              <el-input v-model="textItemQuery.from" clearable />
-            </el-form-item>
-            <el-form-item label="词条名">
-              <el-input v-model="textItemQuery.title" clearable />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="refreshTextItems">搜索</el-button>
-            </el-form-item>
-          </el-form>
-        </header>
-        <el-table
-          class="item-list"
-          table-layout="auto"
-          :header-cell-style="{ 'text-align': 'center' }"
-          :data="textItems">
-          <el-table-column prop="id" label="序号" />
-          <el-table-column prop="group" label="分组">
-            <template #default="scope">
-              <el-tag type="success" size="small" :disable-transitions="true">{{
-                scope.row.group
-              }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="from" label="来源文件" />
-          <el-table-column prop="title" label="词条名" />
-          <el-table-column prop="content" label="内容">
-            <template #default="scope">
-              <el-tooltip :content="getHelpTextTooltip(scope.row.content)" raw-content>
-                {{ getHelpText(scope.row.content) }}
-              </el-tooltip>
-            </template>
-          </el-table-column>
-          <el-table-column prop="packageName" label="分类" />
-        </el-table>
-        <footer>
-          <el-pagination
-            class="item-list-pagination"
-            :page-size="20"
-            :current-page="textItemQuery.pageNum"
-            :total="textItemQuery.total"
-            :pager-count="5"
-            layout="prev, pager, next"
-            background
-            hide-on-single-page
-            @current-change="handleCurrentPageChange" />
-        </footer>
-      </main>
-    </el-tab-pane>
-  </el-tabs>
+      </div>
+    </section>
+  </section>
 </template>
 
 <script lang="ts" setup>
@@ -257,7 +350,9 @@ interface Group {
   label: string;
 }
 
-const tab = ref('file');
+const tab = ref<'file' | 'item'>('item');
+const selectedGroup = ref('');
+const mobileView = ref<'list' | 'reader'>('list');
 
 const needReload = ref<boolean>(false);
 
@@ -272,6 +367,17 @@ const treeNodeProps = {
 };
 const docTree = ref<HelpDoc[]>([] as any);
 const docGroups = ref<Group[]>([]);
+const helpCategories = computed(() => [
+  { key: '', label: '全部' },
+  { key: 'builtin', label: '内置' },
+  ...docGroups.value.filter(group => group.key !== 'builtin'),
+]);
+const fileTreeLoading = ref(false);
+const fileTreeError = ref('');
+const selectedFileKeys = ref<string[]>([]);
+const itemsLoading = ref(false);
+const itemError = ref('');
+const selectedHelpItemId = ref<number>();
 const uploadDialogVisible = ref<boolean>(false);
 const uploadFormRef = ref<FormInstance>();
 const uploadForm = reactive<UploadForm>({
@@ -343,10 +449,10 @@ const submitUpload = async (formData: FormInstance | undefined) => {
 };
 
 const fileTreeRef = ref<InstanceType<typeof ElTree>>();
-const showDeleteFile = computed(() => {
-  const checkedFileKeys = fileTreeRef.value?.getCheckedKeys(false) as string[];
-  return checkedFileKeys?.length !== 0;
-});
+const showDeleteFile = computed(() => selectedFileKeys.value.length > 0);
+const updateCheckedFiles = () => {
+  selectedFileKeys.value = (fileTreeRef.value?.getCheckedKeys(false) ?? []) as string[];
+};
 const deleteFiles = async () => {
   const checkedFileKeys = fileTreeRef.value?.getCheckedKeys(false) as string[];
   if (checkedFileKeys && checkedFileKeys.length !== 0) {
@@ -364,7 +470,7 @@ const deleteFiles = async () => {
           refreshFileTree();
         } else {
           ElMessage({
-            type: 'success',
+            type: 'error',
             message: res.err ?? '删除文件失败',
           });
         }
@@ -411,37 +517,29 @@ const getHelpDocTag = (
 };
 
 const refreshFileTree = async () => {
-  const resp = await getHelpDocTree();
-  if (resp?.result) {
-    docTree.value = resp.data.map(entry => {
-      const e: any = { ...entry };
-      if (entry.loadStatus === 0) {
-        e.groupLabelType = 'warning';
-        e.groupLabel = '未加载';
-      } else if (entry.loadStatus === 2) {
-        e.groupLabelType = 'error';
-        e.groupLabel = '加载失败';
-      } else if (entry.deleted) {
-        e.groupLabelType = 'warning';
-        e.groupLabel = entry.group;
-      } else {
-        e.groupLabelType = 'success';
-        e.groupLabel = entry.group;
-      }
-      return e;
-    });
-    docGroups.value = [
-      { label: '默认', key: 'default' },
-      ...resp.data
-        .filter(entry => {
-          return entry.isDir;
-        })
-        .map(entry => {
-          return { label: entry.name, key: entry.name };
-        }),
-    ];
-  } else {
-    ElMessage.error('无法获取帮助文件信息');
+  fileTreeLoading.value = true;
+  fileTreeError.value = '';
+  try {
+    const resp = await getHelpDocTree();
+    if (resp?.result) {
+      docTree.value = resp.data;
+      selectedFileKeys.value = [];
+      docGroups.value = [
+        { label: '默认', key: 'default' },
+        ...resp.data
+          .filter(entry => entry.isDir)
+          .map(entry => ({ label: entry.name, key: entry.name })),
+      ];
+    } else {
+      fileTreeError.value = resp?.err ?? '无法获取帮助文件信息';
+      ElMessage.error(fileTreeError.value);
+    }
+  } catch (error) {
+    fileTreeError.value =
+      error instanceof Error ? `无法获取帮助文件信息：${error.message}` : '无法获取帮助文件信息';
+    ElMessage.error(fileTreeError.value);
+  } finally {
+    fileTreeLoading.value = false;
   }
 };
 
@@ -449,8 +547,11 @@ const textItems = ref<HelpTextItem[]>([]);
 const textItemQuery = ref<HelpTextItemQuery>({
   pageNum: 1,
   pageSize: 20,
-  total: 20,
+  total: 0,
 });
+const selectedHelpItem = computed(() =>
+  textItems.value.find(item => item.id === selectedHelpItemId.value),
+);
 const getHelpText = (row: string) => {
   const temp = trim(row);
   if (temp.length <= 200) {
@@ -459,37 +560,76 @@ const getHelpText = (row: string) => {
     return temp.substring(0, 151) + '...';
   }
 };
-const getHelpTextTooltip = (row: string) => {
-  return trim(row).replaceAll('\n', '<br />');
+const selectHelpItem = (item: HelpTextItem) => {
+  selectedHelpItemId.value = item.id;
+  mobileView.value = 'reader';
+};
+const selectHelpGroup = async (group: string) => {
+  selectedGroup.value = group;
+  textItemQuery.value.group = group || undefined;
+  textItemQuery.value.pageNum = 1;
+  mobileView.value = 'list';
+  await refreshTextItems();
+};
+const searchHelpText = async () => {
+  textItemQuery.value.pageNum = 1;
+  await refreshTextItems();
 };
 const handleCurrentPageChange = async (val: number) => {
   textItemQuery.value.pageNum = val;
   await refreshTextItems();
 };
 const refreshTextItems = async () => {
-  const resp = await getHelpDocPage(textItemQuery.value);
-  if (resp?.result) {
-    textItems.value = resp.data;
-    textItemQuery.value.total = resp.total;
-  } else {
-    ElMessage.error('无法获取帮助词条信息');
+  itemsLoading.value = true;
+  itemError.value = '';
+  try {
+    const resp = await getHelpDocPage(textItemQuery.value);
+    if (resp?.result) {
+      textItems.value = resp.data;
+      textItemQuery.value.total = resp.total;
+      if (!resp.data.some(item => item.id === selectedHelpItemId.value)) {
+        selectedHelpItemId.value = resp.data[0]?.id;
+      }
+    } else {
+      itemError.value = resp?.err ?? '无法获取帮助词条信息';
+      textItems.value = [];
+      selectedHelpItemId.value = undefined;
+      textItemQuery.value.total = 0;
+      ElMessage.error(itemError.value);
+    }
+  } catch (error) {
+    itemError.value =
+      error instanceof Error ? `无法获取帮助词条信息：${error.message}` : '无法获取帮助词条信息';
+    textItems.value = [];
+    selectedHelpItemId.value = undefined;
+    textItemQuery.value.total = 0;
+    ElMessage.error(itemError.value);
+  } finally {
+    itemsLoading.value = false;
   }
 };
 
 const reloadLoading = ref<boolean>(false);
 const reload = async () => {
   reloadLoading.value = true;
-  const resp = await reloadHelpDoc();
-  if (resp?.result) {
-    ElMessage.success('重载帮助文件成功');
-    needReload.value = false;
-    await refreshFileTree();
-    await refreshTextItems();
-    await refreshConfig();
-  } else {
-    ElMessage.error(resp.err ?? '重载帮助文件失败');
+  try {
+    const resp = await reloadHelpDoc();
+    if (resp?.result) {
+      ElMessage.success('重载帮助文件成功');
+      needReload.value = false;
+      await refreshFileTree();
+      await refreshTextItems();
+      await refreshConfig();
+    } else {
+      ElMessage.error(resp.err ?? '重载帮助文件失败');
+    }
+  } catch (error) {
+    ElMessage.error(
+      error instanceof Error ? `重载帮助文件失败：${error.message}` : '重载帮助文件失败',
+    );
+  } finally {
+    reloadLoading.value = false;
   }
-  reloadLoading.value = false;
 };
 
 const configDialogVisible = ref<boolean>(false);
@@ -532,7 +672,6 @@ const removeAlias = (groupKey: string, alias: string) => {
 
 const summitConfig = async () => {
   if (helpAliases.value) {
-    console.log('aliases=', helpAliases.value);
     const res = await postHelpDocConfig({
       aliases: Object.fromEntries(helpAliases.value),
     });
@@ -555,75 +694,576 @@ onBeforeMount(async () => {
 });
 </script>
 
-<style lang="css">
-@media screen and (max-width: 700px) {
-  .bak-item {
-    flex-direction: column;
-
-    & > span {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
+<style scoped>
+.help-workspace {
+  gap: 16px;
 }
 
-.file-control {
-  margin-bottom: 20px;
-  flex: 1;
-  display: flex;
-  justify-content: right;
+.workspace-header {
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.file-tree-title {
-  padding: 0 23px 6px 50px;
-  border-bottom: 1px solid var(--el-border-color);
-  margin-bottom: 10px;
-
-  flex: 1;
+.help-header-actions,
+.help-mode-switch {
   display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.help-header-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.help-mode-switch {
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--seal-border-color);
+  border-radius: 6px;
+  background: var(--seal-surface-soft);
+}
+
+.help-mode-switch button {
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--seal-text-secondary);
+  cursor: pointer;
+}
+
+.help-mode-switch button[aria-pressed='true'] {
+  background: var(--seal-surface-bg);
+  color: var(--seal-text-color);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--seal-text-color) 12%, transparent);
+}
+
+.help-mode-switch button:focus-visible,
+.help-categories button:focus-visible,
+.help-item:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.help-notices,
+.help-config-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.help-notices {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.help-config-notice :deep(.el-alert) {
+  flex: 1;
+}
+
+.help-entry-workspace {
+  display: grid;
+  grid-template-columns: minmax(155px, 190px) minmax(280px, 340px) minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--seal-border-color-light);
+  border-radius: 6px;
+  background: var(--seal-panel-bg);
+}
+
+.help-categories,
+.help-entry-list {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.help-categories {
+  padding: 12px 8px;
+  border-inline-end: 1px solid var(--seal-border-color-light);
+  background: var(--seal-surface-soft);
+}
+
+.help-section-label {
+  padding: 4px 10px 10px;
+  color: var(--seal-text-secondary);
+  font-size: 12px;
+}
+
+.help-categories button {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--seal-text-regular);
+  cursor: pointer;
+  text-align: start;
+}
+
+.help-categories button:hover,
+.help-item:hover {
+  background: var(--seal-surface-muted);
+}
+
+.help-categories button.active,
+.help-item.active {
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+
+.help-entry-list {
+  display: flex;
+  flex-direction: column;
+  border-inline-end: 1px solid var(--seal-border-color-light);
+}
+
+.help-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--seal-border-color-light);
+}
+
+.help-search-secondary {
+  display: grid;
+  grid-template-columns: minmax(64px, 0.5fr) minmax(90px, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.help-mobile-category {
+  display: none;
+}
+
+.help-results {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.help-results-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.help-results > .help-empty {
+  position: absolute;
+  inset: 0;
+}
+
+.help-item {
+  display: block;
+  width: 100%;
+  min-height: 68px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--seal-border-color-light);
+  background: transparent;
+  color: var(--seal-text-color);
+  cursor: pointer;
+  text-align: start;
+}
+
+.help-item-heading {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
+  gap: 8px;
 }
 
-.file-tree {
-  background-color: var(--seal-surface-soft);
+.help-item-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.help-item-id,
+.help-item-source {
+  color: var(--seal-text-secondary);
+  font-size: 12px;
+}
+
+.help-item-id {
+  flex-shrink: 0;
+}
+
+.help-item-summary {
+  display: -webkit-box;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--seal-text-regular);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.help-item-source {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.help-inline-error {
+  flex-shrink: 0;
+}
+
+.help-empty {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  padding: 20px;
+  color: var(--seal-text-secondary);
+  text-align: center;
+}
+
+.help-pagination {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 10px;
+  border-top: 1px solid var(--seal-border-color-light);
+  color: var(--seal-text-secondary);
+  font-size: 12px;
+}
+
+.help-pagination :deep(.el-pagination) {
+  min-width: 0;
+}
+
+.help-reader {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px clamp(16px, 3vw, 40px);
+}
+
+.help-reading-content {
+  max-width: 76ch;
+  margin-inline: auto;
+}
+
+.help-reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 76ch;
+  margin: 0 auto 20px;
+  color: var(--seal-text-secondary);
+  font-size: 13px;
+}
+
+.help-reader-back {
+  display: none;
+}
+
+.help-reading-content h2 {
+  margin: 0 0 16px;
+  color: var(--seal-text-color);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.help-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0 0 20px;
+  padding: 12px 0;
+  border-block: 1px solid var(--seal-border-color-light);
+}
+
+.help-metadata > div {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.help-metadata dt {
+  flex-shrink: 0;
+  color: var(--seal-text-secondary);
+}
+
+.help-metadata dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--seal-text-color);
+  overflow-wrap: anywhere;
+}
+
+.help-content {
+  margin: 0;
+  color: var(--seal-text-color);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.help-reader-empty {
+  height: 100%;
+}
+
+.help-file-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.help-file-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.help-file-toolbar h2 {
+  margin: 0;
+  color: var(--seal-text-color);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.help-file-toolbar p {
+  margin: 4px 0 0;
+  color: var(--seal-text-secondary);
+  font-size: 13px;
+}
+
+.help-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.help-file-tree {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.file-tree-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 180px);
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 16px 8px 40px;
+  border-bottom: 1px solid var(--seal-border-color-light);
+  color: var(--seal-text-secondary);
+  font-size: 12px;
+}
+
+.file-tree-heading span:last-child {
+  text-align: end;
+}
+
+.help-file-tree :deep(.file-tree) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--seal-surface-soft);
+}
+
+.help-file-tree :deep(.el-tree-node__content) {
+  height: auto;
+  min-height: var(--workspace-row-height, 40px);
+  padding-block: 5px;
+}
+
+.help-file-tree :deep(.el-tree-node__content:hover) {
+  background: var(--seal-surface-muted);
 }
 
 .file-line {
-  flex: auto;
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
 .file-info {
-  flex: auto;
-  width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--seal-text-color);
 }
 
-.item-list-container {
-  display: flex;
-  flex-direction: column;
+.file-info > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-icon {
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
 }
 
-.item-list {
-  background-color: var(--seal-surface-soft);
-}
-
-.el-table .cell {
-  white-space: pre-line;
-}
-
-.item-list-pagination {
-  margin-top: 10px;
-  background-color: var(--seal-surface-soft);
+.file-tag {
+  flex-shrink: 0;
 }
 
 .del-line {
   text-decoration: line-through;
+}
+
+@media (max-width: 1099px) {
+  .help-entry-workspace {
+    grid-template-columns: minmax(260px, 40%) minmax(0, 1fr);
+  }
+
+  .help-categories {
+    display: none;
+  }
+
+  .help-mobile-category {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .workspace-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .help-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .help-mode-switch button,
+  .help-header-actions > :deep(.el-button),
+  .help-file-actions > :deep(.el-button) {
+    min-height: 44px;
+  }
+
+  .help-entry-workspace {
+    display: flex;
+  }
+
+  .help-entry-list,
+  .help-reader {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    border-inline-end: 0;
+  }
+
+  .help-entry-list.mobile-hidden,
+  .help-reader.mobile-hidden {
+    display: none;
+  }
+
+  .help-search {
+    padding: 10px;
+  }
+
+  .help-search-secondary {
+    grid-template-columns: minmax(64px, 0.55fr) minmax(0, 1fr) auto;
+  }
+
+  .help-search :deep(.el-input__wrapper),
+  .help-search :deep(.el-select__wrapper) {
+    min-height: 44px;
+  }
+  .help-search :deep(.el-input__inner) {
+    font-size: 16px;
+  }
+  .help-search-secondary :deep(.el-button) {
+    min-height: 44px;
+  }
+  .help-pagination :deep(.el-pager) {
+    display: none;
+  }
+  .help-pagination :deep(.btn-prev),
+  .help-pagination :deep(.btn-next) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .help-file-tree :deep(.el-tree-node__content) {
+    min-height: 44px;
+  }
+
+  .help-item {
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  .help-reader {
+    padding: 12px 16px 20px;
+  }
+
+  .help-reader-toolbar {
+    margin-bottom: 16px;
+  }
+
+  .help-reader-back {
+    display: inline-flex;
+    min-height: 44px;
+  }
+
+  .help-reading-content h2 {
+    font-size: 20px;
+  }
+
+  .help-content {
+    font-size: 16px;
+  }
+
+  .help-file-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .help-file-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .file-tree-heading {
+    grid-template-columns: minmax(0, 1fr) minmax(82px, auto);
+    gap: 6px;
+    padding-inline: 36px 8px;
+  }
+
+  .file-line {
+    gap: 6px;
+  }
 }
 </style>

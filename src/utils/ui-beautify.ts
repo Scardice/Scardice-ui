@@ -1,17 +1,20 @@
+import { testWebUIBypass } from '~/utils/test-webui-bypass';
+import {
+  buildUiTheme,
+  buildUiThemeFromColor,
+  onSolidColor,
+  type UiThemeMode,
+} from '~/utils/theme-palette';
 export type UiThemeId =
   | 'classic'
+  | 'mint'
+  | 'purple'
   | 'pink'
+  | 'amberBrown'
   | 'gray'
   | 'dark'
-  | 'purple'
-  | 'blueWhite'
-  | 'mint'
-  | 'sandGold'
   | 'starry'
   | 'deepSea'
-  | 'rose'
-  | 'amberBrown'
-  | 'khaki'
   | 'custom';
 export type UiFontId = 'default' | 'noto' | 'lxgw' | 'sourceHan' | 'systemSerif' | 'mono';
 export type UiBackgroundFit = 'cover' | 'contain' | 'stretch' | 'auto';
@@ -59,6 +62,9 @@ export interface UiBeautifyConfig {
   themeId: UiThemeId;
   fontId: UiFontId;
   customColors: UiThemeColors;
+  /** 自定义主题的基准主色与明暗模式；其余颜色由它们生成 */
+  customAccent?: string;
+  customMode?: UiThemeMode;
   backgroundEnabled: boolean;
   backgroundPath: string;
   backgroundFit: UiBackgroundFit;
@@ -76,6 +82,8 @@ export interface UiBeautifyConfig {
 export interface UiThemeOption {
   id: UiThemeId;
   name: string;
+  description: string;
+  mode: UiThemeMode;
   colors: UiThemeColors;
 }
 
@@ -85,60 +93,16 @@ export interface UiFontOption {
   family: string;
 }
 
-const classicColors: UiThemeColors = {
-  primary: '#409eff',
-  success: '#21ba45',
-  warning: '#f2711c',
-  danger: '#db2828',
-  info: '#42b8dd',
-  nav: '#545c64',
-  navHover: '#434a50',
-  navActive: '#fcd34d',
-  page: '#f3f4f6',
-  panel: '#ffffff',
-  surface: '#ffffff',
-  surfaceSoft: '#f3f5f7',
-  surfaceMuted: '#e9eef5',
-  input: '#ffffff',
-  border: '#dcdfe6',
-  borderLight: '#ebeef5',
-  text: '#2c3e50',
-  textRegular: '#606266',
-  textSecondary: '#74787f',
-  textMuted: '#a8abb2',
-  codeBg: '#ecf5ff',
-  tableHeader: '#f3f5f7',
-};
+const classicColors = buildUiTheme({ accentHue: 255, accentChroma: 0.17 });
 
-export const defaultCustomUiThemeColors: UiThemeColors = {
-  primary: '#2f73f6',
-  success: '#21ba45',
-  warning: '#f2711c',
-  danger: '#db2828',
-  info: '#42b8dd',
-  nav: '#42526a',
-  navHover: '#4f6078',
-  navActive: '#fcd34d',
-  page: '#f2f5f9',
-  panel: '#ffffff',
-  surface: '#ffffff',
-  surfaceSoft: '#eef3f8',
-  surfaceMuted: '#e3ebf5',
-  input: '#ffffff',
-  border: '#d5deea',
-  borderLight: '#e5ebf3',
-  text: '#213047',
-  textRegular: '#4b5b72',
-  textSecondary: '#6f7f95',
-  textMuted: '#94a3b8',
-  codeBg: '#e9f2ff',
-  tableHeader: '#edf3fa',
-};
+export const defaultCustomUiThemeColors: UiThemeColors = classicColors;
 
 export const defaultUiBeautifyConfig: UiBeautifyConfig = {
   themeId: 'classic',
   fontId: 'default',
   customColors: defaultCustomUiThemeColors,
+  customAccent: classicColors.primary,
+  customMode: 'light',
   backgroundEnabled: false,
   backgroundPath: '',
   backgroundFit: 'cover',
@@ -155,351 +119,81 @@ export const defaultUiBeautifyConfig: UiBeautifyConfig = {
 export const uiThemeOptions: UiThemeOption[] = [
   {
     id: 'classic',
-    name: '原本配色',
+    name: '经典蓝',
+    description: '冷静的蓝色，默认主题',
+    mode: 'light',
     colors: classicColors,
   },
   {
-    id: 'pink',
-    name: '樱粉',
-    colors: {
-      primary: '#e84d8a',
-      success: '#25a863',
-      warning: '#f59e0b',
-      danger: '#e5484d',
-      info: '#4aa3df',
-      nav: '#6b3f57',
-      navHover: '#7d4d68',
-      navActive: '#ffd166',
-      page: '#fff4f8',
-      panel: '#ffffff',
-      surface: '#fffafd',
-      surfaceSoft: '#fff7fb',
-      surfaceMuted: '#fdeaf2',
-      input: '#ffffff',
-      border: '#efc7d8',
-      borderLight: '#f6dbe7',
-      text: '#3e2534',
-      textRegular: '#684657',
-      textSecondary: '#926b7c',
-      textMuted: '#b48a9e',
-      codeBg: '#ffe5f0',
-      tableHeader: '#fdeaf2',
-    },
-  },
-  {
-    id: 'gray',
-    name: '雾灰',
-    colors: {
-      primary: '#5b728f',
-      success: '#2f9e72',
-      warning: '#c9792b',
-      danger: '#c94d4d',
-      info: '#4a98b5',
-      nav: '#454b54',
-      navHover: '#555d68',
-      navActive: '#f2c94c',
-      page: '#f2f3f5',
-      panel: '#ffffff',
-      surface: '#fbfbfc',
-      surfaceSoft: '#f6f7f9',
-      surfaceMuted: '#e9ecef',
-      input: '#ffffff',
-      border: '#ccd2d9',
-      borderLight: '#dde2e8',
-      text: '#272b30',
-      textRegular: '#4d5660',
-      textSecondary: '#747e89',
-      textMuted: '#9aa3ad',
-      codeBg: '#e7edf4',
-      tableHeader: '#e9ecef',
-    },
-  },
-  {
-    id: 'dark',
-    name: '夜航',
-    colors: {
-      primary: '#6ca8ff',
-      success: '#3dd68c',
-      warning: '#f9b44c',
-      danger: '#ff6b7a',
-      info: '#5fd4e8',
-      nav: '#111827',
-      navHover: '#1f2937',
-      navActive: '#facc15',
-      page: '#151b24',
-      panel: '#303b50',
-      surface: '#273244',
-      surfaceSoft: '#202938',
-      surfaceMuted: '#3a465a',
-      input: '#273244',
-      border: '#65758c',
-      borderLight: '#53647b',
-      text: '#e6edf7',
-      textRegular: '#cbd5e1',
-      textSecondary: '#9fb0c6',
-      textMuted: '#8090a8',
-      codeBg: '#142033',
-      tableHeader: '#22314b',
-    },
+    id: 'mint',
+    name: '青碧',
+    description: '清爽的青绿色',
+    mode: 'light',
+    colors: buildUiTheme({ accentHue: 190, accentChroma: 0.12, neutralHue: 210 }),
   },
   {
     id: 'purple',
     name: '藤紫',
-    colors: {
-      primary: '#8064d9',
-      success: '#20a67a',
-      warning: '#e29b31',
-      danger: '#e14f6a',
-      info: '#5b9adf',
-      nav: '#4d456f',
-      navHover: '#5f5485',
-      navActive: '#f6d365',
-      page: '#f6f3ff',
-      panel: '#ffffff',
-      surface: '#fffaff',
-      surfaceSoft: '#faf7ff',
-      surfaceMuted: '#e6def8',
-      input: '#ffffff',
-      border: '#d5c9ef',
-      borderLight: '#e7def8',
-      text: '#302b45',
-      textRegular: '#5a5271',
-      textSecondary: '#7f7498',
-      textMuted: '#a096b8',
-      codeBg: '#eee8ff',
-      tableHeader: '#ece6fb',
-    },
+    description: '柔和的紫色',
+    mode: 'light',
+    colors: buildUiTheme({ accentHue: 295, accentChroma: 0.17, neutralHue: 290 }),
   },
   {
-    id: 'blueWhite',
-    name: '蓝白',
-    colors: {
-      primary: '#2563eb',
-      success: '#0f9f6e',
-      warning: '#d9841f',
-      danger: '#dc3e64',
-      info: '#0ea5c6',
-      nav: '#2f5f9c',
-      navHover: '#3b70b2',
-      navActive: '#fcd34d',
-      page: '#eef6ff',
-      panel: '#ffffff',
-      surface: '#fbfdff',
-      surfaceSoft: '#f3f9ff',
-      surfaceMuted: '#e1efff',
-      input: '#ffffff',
-      border: '#c5d8ee',
-      borderLight: '#d9e8f8',
-      text: '#1d2f4c',
-      textRegular: '#45617f',
-      textSecondary: '#6a829c',
-      textMuted: '#91a4bb',
-      codeBg: '#e2efff',
-      tableHeader: '#e1efff',
-    },
+    id: 'pink',
+    name: '樱粉',
+    description: '温柔的玫瑰粉',
+    mode: 'light',
+    colors: buildUiTheme({
+      accentHue: 355,
+      accentChroma: 0.17,
+      neutralHue: 350,
+      neutralChroma: 0.01,
+    }),
   },
   {
-    id: 'mint',
-    name: '浅绿',
-    colors: {
-      primary: '#14a99a',
-      success: '#2aa857',
-      warning: '#c98a16',
-      danger: '#de4d4d',
-      info: '#318fb5',
-      nav: '#2f6f66',
-      navHover: '#3d8177',
-      navActive: '#f5d56b',
-      page: '#effaf4',
-      panel: '#ffffff',
-      surface: '#fbfffd',
-      surfaceSoft: '#f3fbf7',
-      surfaceMuted: '#e1f4ea',
-      input: '#ffffff',
-      border: '#bddbcf',
-      borderLight: '#d5eadf',
-      text: '#18332d',
-      textRegular: '#3f6158',
-      textSecondary: '#66867c',
-      textMuted: '#8da9a0',
-      codeBg: '#dff6ef',
-      tableHeader: '#e1f4ea',
-    },
+    id: 'amberBrown',
+    name: '琥珀',
+    description: '温暖的琥珀棕，背景微暖',
+    mode: 'light',
+    colors: buildUiTheme({ accentHue: 55, accentChroma: 0.13, neutralHue: 70 }),
   },
   {
-    id: 'sandGold',
-    name: '砂金',
-    colors: {
-      primary: '#d4a017',
-      success: '#2f9f6f',
-      warning: '#f2b84b',
-      danger: '#c8574d',
-      info: '#2f9c95',
-      nav: '#3f4a2f',
-      navHover: '#50613a',
-      navActive: '#f5cf5b',
-      page: '#f7f3dc',
-      panel: '#fffefa',
-      surface: '#fffdf0',
-      surfaceSoft: '#fbf6dc',
-      surfaceMuted: '#eee7bd',
-      input: '#fffefa',
-      border: '#cfc174',
-      borderLight: '#e6dca9',
-      text: '#2f301d',
-      textRegular: '#586034',
-      textSecondary: '#777b4b',
-      textMuted: '#969662',
-      codeBg: '#f3e7a5',
-      tableHeader: '#eee7bd',
-    },
+    id: 'gray',
+    name: '石墨',
+    description: '低饱和蓝灰，几乎无彩色',
+    mode: 'light',
+    colors: buildUiTheme({ accentHue: 250, accentChroma: 0.07, neutralChroma: 0.006 }),
+  },
+  {
+    id: 'dark',
+    name: '夜航',
+    description: '深色背景配蓝色',
+    mode: 'dark',
+    colors: buildUiTheme({ accentHue: 255, accentChroma: 0.14, mode: 'dark' }),
   },
   {
     id: 'starry',
-    name: '星空',
-    colors: {
-      primary: '#a78bfa',
-      success: '#5ee6b3',
-      warning: '#f7c66a',
-      danger: '#ff78a6',
-      info: '#c084fc',
-      nav: '#24143f',
-      navHover: '#33205d',
-      navActive: '#fde68a',
-      page: '#160d2a',
-      panel: '#3c2864',
-      surface: '#30204f',
-      surfaceSoft: '#25183f',
-      surfaceMuted: '#4a3474',
-      input: '#30204f',
-      border: '#8b72bf',
-      borderLight: '#71599f',
-      text: '#f3ebff',
-      textRegular: '#ddd0f6',
-      textSecondary: '#bda8e6',
-      textMuted: '#9b85c2',
-      codeBg: '#21133d',
-      tableHeader: '#2b1d50',
-    },
+    name: '星夜',
+    description: '深色背景配紫色',
+    mode: 'dark',
+    colors: buildUiTheme({ accentHue: 295, accentChroma: 0.14, neutralHue: 290, mode: 'dark' }),
   },
   {
     id: 'deepSea',
     name: '深海',
-    colors: {
-      primary: '#2dd4bf',
-      success: '#42d392',
-      warning: '#f3b64d',
-      danger: '#ff6b7a',
-      info: '#38bdf8',
-      nav: '#092236',
-      navHover: '#0d314d',
-      navActive: '#f8d36a',
-      page: '#071923',
-      panel: '#1b465b',
-      surface: '#15384a',
-      surfaceSoft: '#102b3a',
-      surfaceMuted: '#24546a',
-      input: '#15384a',
-      border: '#4d8fa4',
-      borderLight: '#37748a',
-      text: '#e4f7fb',
-      textRegular: '#bddce4',
-      textSecondary: '#91bdca',
-      textMuted: '#6f9dac',
-      codeBg: '#0d2e43',
-      tableHeader: '#10354d',
-    },
-  },
-  {
-    id: 'rose',
-    name: '玫红',
-    colors: {
-      primary: '#c0185b',
-      success: '#0f8f79',
-      warning: '#c47b16',
-      danger: '#9f1239',
-      info: '#1d8394',
-      nav: '#4a0f2e',
-      navHover: '#64123f',
-      navActive: '#f8c350',
-      page: '#f3e8ea',
-      panel: '#fffdfb',
-      surface: '#fbf1f1',
-      surfaceSoft: '#f7e7e8',
-      surfaceMuted: '#e7c8cf',
-      input: '#fffdfb',
-      border: '#bd8897',
-      borderLight: '#dec1c9',
-      text: '#2f0d1f',
-      textRegular: '#593040',
-      textSecondary: '#785260',
-      textMuted: '#987581',
-      codeBg: '#ecd1d8',
-      tableHeader: '#e7c8cf',
-    },
-  },
-  {
-    id: 'amberBrown',
-    name: '琥珀棕',
-    colors: {
-      primary: '#b96f23',
-      success: '#4f8f4d',
-      warning: '#d1912c',
-      danger: '#bf5848',
-      info: '#4f8fb0',
-      nav: '#4b3324',
-      navHover: '#5f422f',
-      navActive: '#f0bd58',
-      page: '#f3ede5',
-      panel: '#fffaf4',
-      surface: '#fff5ea',
-      surfaceSoft: '#f8ecdd',
-      surfaceMuted: '#ead8c4',
-      input: '#fffaf4',
-      border: '#cdb49a',
-      borderLight: '#e4d2bf',
-      text: '#312217',
-      textRegular: '#5a4030',
-      textSecondary: '#7d604c',
-      textMuted: '#9c8069',
-      codeBg: '#efdcc4',
-      tableHeader: '#ead8c4',
-    },
-  },
-  {
-    id: 'khaki',
-    name: '卡其色',
-    colors: {
-      primary: '#a9965b',
-      success: '#6aa978',
-      warning: '#d1a652',
-      danger: '#c8796e',
-      info: '#78a8b8',
-      nav: '#746d54',
-      navHover: '#837b61',
-      navActive: '#f3da84',
-      page: '#f7f5ec',
-      panel: '#fffefa',
-      surface: '#fffdf5',
-      surfaceSoft: '#fbf8ec',
-      surfaceMuted: '#eee8d1',
-      input: '#fffefa',
-      border: '#d6cdae',
-      borderLight: '#e8e0ca',
-      text: '#373426',
-      textRegular: '#665f49',
-      textSecondary: '#867e63',
-      textMuted: '#a69d81',
-      codeBg: '#f0e8cd',
-      tableHeader: '#eee8d1',
-    },
-  },
-  {
-    id: 'custom',
-    name: '自定义配色',
-    colors: defaultCustomUiThemeColors,
+    description: '深色背景配青色',
+    mode: 'dark',
+    colors: buildUiTheme({ accentHue: 205, accentChroma: 0.11, neutralHue: 220, mode: 'dark' }),
   },
 ];
+
+/** 已下线的旧主题映射到最接近的新主题，避免老用户的设置失效。 */
+const legacyThemeAliases: Record<string, UiThemeId> = {
+  blueWhite: 'classic',
+  sandGold: 'amberBrown',
+  khaki: 'amberBrown',
+  rose: 'pink',
+};
 
 export const uiFontOptions: UiFontOption[] = [
   {
@@ -567,10 +261,17 @@ export const uiBackgroundPositionOptions: Array<{ label: string; value: UiBackgr
   { label: '右下', value: 'rightBottom' },
 ];
 
-export const useUiBeautifyConfig = () =>
-  useStorage<UiBeautifyConfig>('seal-ui-beautify-config', defaultUiBeautifyConfig, localStorage, {
-    mergeDefaults: true,
-  });
+export const useUiBeautifyConfig = () => {
+  const config = useStorage<UiBeautifyConfig>(
+    'seal-ui-beautify-config',
+    defaultUiBeautifyConfig,
+    localStorage,
+    { mergeDefaults: true },
+  );
+  const migrated = legacyThemeAliases[config.value.themeId as string];
+  if (migrated) config.value.themeId = migrated;
+  return config;
+};
 
 const colorKeys: UiThemeColorKey[] = [
   'primary',
@@ -645,7 +346,8 @@ export const getUiThemeColors = (config: Partial<UiBeautifyConfig>) => {
   if (config.themeId === 'custom') {
     return sanitizeThemeColors(config.customColors, defaultCustomUiThemeColors);
   }
-  return uiThemeOptions.find(item => item.id === config.themeId)?.colors || classicColors;
+  const id = legacyThemeAliases[config.themeId as string] ?? config.themeId;
+  return uiThemeOptions.find(item => item.id === id)?.colors || classicColors;
 };
 
 const hexToRgb = (hex: string) => {
@@ -690,67 +392,8 @@ const backgroundPositionMap: Record<UiBackgroundPosition, string> = {
   rightBottom: 'right bottom',
 };
 
-export const deriveThemeFromPrimary = (value: string): UiThemeColors => {
-  const primary = normalizeColorInput(value) || defaultCustomUiThemeColors.primary;
-  const luminance = getLuminance(primary);
-  const dark = luminance < 0.28;
-  const accentText = luminance > 0.55 ? '#1f2937' : '#f8fafc';
-
-  if (dark) {
-    const panel = mix(primary, '#172033', 62);
-    const surface = mix(primary, '#111827', 58);
-    const muted = mix(primary, '#334155', 42);
-    return {
-      primary,
-      success: mix(primary, '#22c55e', 72),
-      warning: mix(primary, '#f59e0b', 74),
-      danger: mix(primary, '#ef4444', 70),
-      info: mix(primary, '#38bdf8', 72),
-      nav: mix(primary, '#020617', 38),
-      navHover: mix(primary, '#1e293b', 42),
-      navActive: mix(primary, '#f8d36a', 78),
-      page: mix(primary, '#020617', 72),
-      panel,
-      surface,
-      surfaceSoft: mix(primary, '#0f172a', 70),
-      surfaceMuted: muted,
-      input: surface,
-      border: mix(primary, '#94a3b8', 48),
-      borderLight: mix(primary, '#cbd5e1', 56),
-      text: '#f8fafc',
-      textRegular: '#dbe4f0',
-      textSecondary: '#b7c4d6',
-      textMuted: '#8fa0b8',
-      codeBg: mix(primary, '#0b1220', 74),
-      tableHeader: mix(panel, '#020617', 18),
-    };
-  }
-
-  return {
-    primary,
-    success: mix(primary, '#16a34a', 72),
-    warning: mix(primary, '#d97706', 72),
-    danger: mix(primary, '#dc2626', 70),
-    info: mix(primary, '#0891b2', 70),
-    nav: mix(primary, '#1f2937', 36),
-    navHover: mix(primary, '#334155', 42),
-    navActive: mix(primary, '#facc15', 78),
-    page: mix(primary, '#f8fafc', 90),
-    panel: mix(primary, '#ffffff', 96),
-    surface: mix(primary, '#ffffff', 94),
-    surfaceSoft: mix(primary, '#f8fafc', 86),
-    surfaceMuted: mix(primary, '#e2e8f0', 78),
-    input: mix(primary, '#ffffff', 97),
-    border: mix(primary, '#94a3b8', 66),
-    borderLight: mix(primary, '#cbd5e1', 78),
-    text: mix(accentText, '#0f172a', 86),
-    textRegular: mix(primary, '#334155', 34),
-    textSecondary: mix(primary, '#64748b', 50),
-    textMuted: mix(primary, '#94a3b8', 62),
-    codeBg: mix(primary, '#eff6ff', 80),
-    tableHeader: mix(primary, '#e2e8f0', 78),
-  };
-};
+export const deriveThemeFromPrimary = (value: string, mode: UiThemeMode = 'light'): UiThemeColors =>
+  buildUiThemeFromColor(normalizeColorInput(value) || classicColors.primary, mode);
 
 const setColorScale = (root: HTMLElement, name: string, color: string, surface: string) => {
   root.style.setProperty(`--el-color-${name}`, color);
@@ -805,7 +448,10 @@ const getBackgroundSize = (fit: UiBackgroundFit | undefined) => {
 };
 
 const getResourceDataPath = (path: string) => {
-  const token = typeof localStorage === 'undefined' ? '' : (localStorage.getItem('t') ?? '').trim();
+  const token =
+    !testWebUIBypass.skipStoredToken && typeof localStorage !== 'undefined'
+      ? (localStorage.getItem('t') ?? '').trim()
+      : '';
   const params = new URLSearchParams({ path });
   if (token) {
     params.set('token', token);
@@ -858,6 +504,9 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
   setColorScale(root, 'danger', colors.danger, colors.surface);
   setColorScale(root, 'info', colors.info, colors.surface);
 
+  for (const name of ['primary', 'success', 'warning', 'danger'] as const) {
+    setRootVar(root, `--seal-on-${name}`, onSolidColor(colors[name]));
+  }
   setRootVar(root, '--seal-nav-bg', colors.nav);
   setRootVar(root, '--seal-nav-hover-bg', colors.navHover);
   setRootVar(root, '--seal-nav-active', colors.navActive);

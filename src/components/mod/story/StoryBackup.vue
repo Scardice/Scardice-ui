@@ -1,73 +1,75 @@
 <template>
-  <div class="tip">
-    <el-text>
-      每次向染色器上传跑团日志之前，都会在本地先保留一份备份，再进行上传。<br />
-      确定不再需要时，你可以在此处删除这些备份文件。<br />
-      <br />
-      <strong>删除此处的备份文件不会使日志丢失。</strong>
-    </el-text>
-  </div>
+  <el-alert
+    type="info"
+    :closable="false"
+    show-icon
+    title="每次把日志上传到染色器之前，都会先在本地保存一份备份。删除这些备份不会丢失日志本身。" />
 
-  <header
-    style="
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 1rem 0;
-      padding: 0 1rem;
-    ">
-    <el-space size="large" alignment="center">
-      <el-checkbox
-        v-model="checkAllBackups"
-        :indeterminate="isIndeterminate"
-        :disabled="!(backups && backups.length > 0)"
-        @change="handleCheckAllChange"
-        >{{ checkAllBackups ? '取消全选' : '全选' }}
-      </el-checkbox>
-      <el-text type="info" size="small"
-        >已勾选 {{ selectedBackups.length }} 个备份，共
-        {{ filesize(selectedBackups.map(bak => bak.fileSize).reduce((a, b) => a + b, 0)) }}
-      </el-text>
-    </el-space>
-    <el-button
-      type="danger"
-      :disabled="!(selectedBackups && selectedBackups.length > 0)"
-      @click="backupBatchDeleteConfirm"
-      >删除所选
-    </el-button>
-  </header>
-
-  <main class="backup-list">
-    <el-checkbox-group v-model="selectedBackups" @change="handleCheckedBackupChange">
-      <div v-for="backup in backups" :key="backup.name" class="backup-line">
-        <el-checkbox :label="backup" size="large">
-          <template #default>{{ backup.name }}</template>
-        </el-checkbox>
-        <el-space size="small" wrap style="margin-left: 1px; justify-content: flex-end">
-          <el-button
-            size="small"
-            tag="a"
-            style="text-decoration: none; width: 8rem"
-            :href="`${urlBase}/sd-api/story/backup/download?name=${encodeURIComponent(backup.name)}&token=${encodeURIComponent(store.token)}`">
-            下载 - {{ filesize(backup.fileSize) }}
-          </el-button>
-          <el-button
-            type="danger"
-            size="small"
-            :icon="Delete"
-            plain
-            @click="bakDeleteConfirm(backup.name)"
-            >删除
-          </el-button>
-        </el-space>
+  <section class="workspace-panel story-backup-panel">
+    <div v-if="backups.length === 0" class="workspace-empty">
+      <strong>还没有日志备份</strong>
+      <p>提取日志后，备份会出现在这里。</p>
+    </div>
+    <template v-else>
+      <div class="story-backup-bar">
+        <el-checkbox
+          v-model="checkAllBackups"
+          :indeterminate="isIndeterminate && selectedBackups.length > 0"
+          @change="handleCheckAllChange"
+          >全选</el-checkbox
+        >
+        <el-text type="info" size="small">
+          已选 {{ selectedBackups.length }} 个，共
+          {{ filesize(selectedBackups.map(bak => bak.fileSize).reduce((a, b) => a + b, 0)) }}
+        </el-text>
+        <el-button
+          class="story-backup-delete"
+          type="danger"
+          plain
+          :icon="Delete"
+          :disabled="selectedBackups.length === 0"
+          @click="backupBatchDeleteConfirm"
+          >{{
+            selectedBackups.length ? `删除所选（${selectedBackups.length}）` : '删除所选'
+          }}</el-button
+        >
       </div>
-    </el-checkbox-group>
-  </main>
+
+      <el-checkbox-group
+        v-model="selectedBackups"
+        class="backup-list"
+        @change="handleCheckedBackupChange">
+        <div v-for="backup in backups" :key="backup.name" class="backup-line">
+          <el-checkbox :value="backup">
+            <span class="backup-name">{{ backup.name }}</span>
+          </el-checkbox>
+          <div class="backup-actions">
+            <el-button
+              size="small"
+              tag="a"
+              :icon="Download"
+              class="backup-download"
+              :href="`${urlBase}/sd-api/story/backup/download?name=${encodeURIComponent(backup.name)}&token=${encodeURIComponent(store.token)}`">
+              下载（{{ filesize(backup.fileSize) }}）
+            </el-button>
+            <el-button
+              type="danger"
+              size="small"
+              :icon="Delete"
+              plain
+              @click="bakDeleteConfirm(backup.name)"
+              >删除
+            </el-button>
+          </div>
+        </div>
+      </el-checkbox-group>
+    </template>
+  </section>
 </template>
 
 <script setup lang="ts">
 import type { CheckboxValueType } from 'element-plus';
-import { Delete } from '@element-plus/icons-vue';
+import { Delete, Download } from '@element-plus/icons-vue';
 import { filesize } from 'filesize';
 import { useStore } from '~/store';
 import type { Backup } from '~/api/story';
@@ -96,15 +98,15 @@ const refreshList = async () => {
 // };
 
 const bakDeleteConfirm = async (name: string) => {
-  const ret = await ElMessageBox.confirm('确认删除？', '提示', {
-    confirmButtonText: '确定',
+  const ret = await ElMessageBox.confirm(`确定删除备份 ${name} 吗？`, '删除备份', {
+    confirmButtonText: '删除',
     cancelButtonText: '取消',
     type: 'warning',
   });
   if (ret) {
     const res = await postStoryBatchDel([name]);
     if (res?.result) {
-      ElMessage.success('已删除');
+      ElMessage.success('备份已删除');
     } else {
       ElMessage.error('删除失败');
     }
@@ -128,11 +130,15 @@ const handleCheckedBackupChange = (value: CheckboxValueType[]) => {
 };
 
 const backupBatchDeleteConfirm = async () => {
-  const ret = await ElMessageBox.confirm('确认删除选择的所有跑团日志备份？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  });
+  const ret = await ElMessageBox.confirm(
+    `确定删除选中的 ${selectedBackups.value.length} 个日志备份吗？`,
+    '删除备份',
+    {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  );
   if (ret) {
     const res = await postStoryBatchDel(selectedBackups.value.map(bak => bak.name));
     if (res.result) {
@@ -150,19 +156,56 @@ onBeforeMount(async () => {
 </script>
 
 <style scoped lang="css">
+.story-backup-panel {
+  margin-top: 16px;
+}
+
+.story-backup-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--seal-border-color-light);
+}
+
+.story-backup-delete {
+  margin-inline-start: auto;
+}
+
 .backup-list {
   display: flex;
   flex-direction: column;
+}
 
-  .backup-line {
-    padding: 3px 1rem;
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
+.backup-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 0;
+}
 
-  .backup-line:not(:first-child) {
-    border-top: 1px solid var(--el-border-color);
-  }
+.backup-line + .backup-line {
+  border-top: 1px solid var(--seal-border-color-light);
+}
+
+.backup-name {
+  font-family: var(--workspace-mono);
+  font-size: 13px;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.backup-actions .el-button + .el-button {
+  margin-inline-start: 0;
+}
+
+.backup-download {
+  text-decoration: none;
 }
 </style>

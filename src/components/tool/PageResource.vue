@@ -34,17 +34,17 @@ const refreshResources = async () => {
 
 const deleteResource = async (resource: Resource) => {
   ElMessageBox.confirm(
-    `确认删除「${resource.name}（${resource.path}）」吗？删除后将无法找回`,
-    '删除',
+    `确定删除「${resource.name}（${resource.path}）」吗？删除后无法恢复，引用它的回复将无法显示图片。`,
+    '删除图片',
     {
-      confirmButtonText: '确定',
+      confirmButtonText: '删除',
       cancelButtonText: '取消',
       type: 'warning',
     },
   ).then(async () => {
     const res = await deleteResourceApi(resource.path);
     if (res.result) {
-      ElMessage.success('删除成功');
+      ElMessage.success('图片已删除');
     } else {
       ElMessage.error(res.err);
     }
@@ -62,7 +62,7 @@ const handleShow = async (resource: Resource) => {
 const beforeUpload = async (file: any) => {
   // UploadRawFile
   if (file.type !== 'image/jpeg' && file.type !== 'image/png' && file.type !== 'image/gif') {
-    ElMessage.error('上传的文件不是图片！');
+    ElMessage.error('只能上传 PNG、JPG 或 GIF 图片');
     return false;
   }
   try {
@@ -83,7 +83,7 @@ const beforeUpload = async (file: any) => {
 };
 
 const copySealCode = async () => {
-  ElMessage.success('复制余烬码成功！');
+  ElMessage.success('已复制余烬码，可直接粘贴到回复或文案中');
 };
 
 onBeforeMount(async () => {
@@ -94,106 +94,121 @@ onBeforeMount(async () => {
 </script>
 
 <template>
-  <h2>资源管理</h2>
-  <seal-help-card>
-    <el-text tag="p">
-      <div>此处可以上传图片等资源，方便引用。</div>
-    </el-text>
-  </seal-help-card>
-
-  <main>
-    <h3 class="flex items-center justify-between">
-      <span>图片列表</span>
-      <el-upload
-        action=""
-        multiple
-        accept=".png, .jpg, jpeg, .gif"
-        :before-upload="beforeUpload"
-        :file-list="fileList"
-        :show-file-list="false">
-        <el-button type="primary" :icon="Upload">上传图片</el-button>
-      </el-upload>
-    </h3>
-    <el-table v-loading="loading" :data="images" table-layout="auto">
-      <el-table-column align="center" min-width="64px">
-        <template #default="scope">
-          <resource-render
-            :key="scope.row.path"
-            class="min-w-10"
-            :data="scope.row as Resource"
-            mini />
-        </template>
-      </el-table-column>
-      <el-table-column prop="path" label="路径" />
-      <el-table-column align="center" prop="size" label="大小">
-        <template #default="scope">
-          {{ filesize(scope.row.size) }}
-        </template>
-      </el-table-column>
-      <el-table-column fixed="right">
-        <template #default="scope">
-          <el-space size="small" direction="vertical">
-            <el-button
-              v-if="scope.row.type === 'image'"
-              type="primary"
-              link
-              size="small"
-              :icon="CopyDocument"
-              plain
-              class="resource-seal-code-copy-btn"
-              :data-clipboard-text="`[图:${scope.row.path}]`"
-              @click="copySealCode()">
-              复制余烬码
-            </el-button>
-            <el-button
-              type="primary"
-              link
-              size="small"
-              :icon="Search"
-              plain
-              @click="handleShow(scope.row as Resource)">
-              详情
-            </el-button>
-            <el-button
-              type="success"
-              link
-              size="small"
-              :icon="Download"
-              plain
-              tag="a"
-              style="text-decoration: none"
-              :href="`${urlBase}/sd-api/resource/download?path=${encodeURIComponent(scope.row.path)}&token=${encodeURIComponent(store.token)}`">
-              下载
-            </el-button>
-            <el-button
-              type="danger"
-              link
-              size="small"
-              :icon="Delete"
-              plain
-              @click="deleteResource(scope.row as Resource)">
-              删除
-            </el-button>
-          </el-space>
-        </template>
-      </el-table-column>
-    </el-table>
-  </main>
-
-  <el-drawer v-model="drawer" title="详情" class="resource-detail-drawer" direction="rtl">
-    <el-space class="mx-auto" size="large" direction="vertical" alignment="center">
-      <div class="max-w-xs">
-        <resource-render :key="currentResource.path" :data="currentResource" />
+  <section class="workspace-page resource-workspace" aria-labelledby="resource-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="resource-workspace-title" class="workspace-title">资源管理</h1>
+        <p class="workspace-subtitle">
+          上传图片后复制“余烬码”（如
+          <code>[图:data/images/xxx.png]</code>），即可在回复和文案中引用。
+        </p>
       </div>
-      <el-descriptions title="" :column="1">
-        <el-descriptions-item label="文件名">{{ currentResource.name }}</el-descriptions-item>
-        <el-descriptions-item label="路径">{{ currentResource.path }}</el-descriptions-item>
-        <el-descriptions-item label="大小">{{
-          filesize(currentResource.size)
-        }}</el-descriptions-item>
-      </el-descriptions>
-    </el-space>
-  </el-drawer>
+      <div class="workspace-actions">
+        <el-upload
+          action=""
+          multiple
+          accept=".png,.jpg,.jpeg,.gif"
+          :before-upload="beforeUpload"
+          :file-list="fileList"
+          :show-file-list="false">
+          <el-button type="primary" :icon="Upload">上传图片</el-button>
+        </el-upload>
+      </div>
+    </header>
+
+    <div class="workspace-body workspace-scroll">
+      <section class="workspace-panel" aria-labelledby="resource-images-title">
+        <div class="workspace-panel-header">
+          <div>
+            <h2 id="resource-images-title">图片</h2>
+            <p>支持 PNG、JPG、GIF，共 {{ images.length }} 张。</p>
+          </div>
+        </div>
+        <el-table
+          v-loading="loading"
+          :data="images"
+          table-layout="auto"
+          empty-text="还没有上传图片">
+          <el-table-column label="预览" align="center" min-width="64px">
+            <template #default="scope">
+              <resource-render
+                :key="scope.row.path"
+                class="min-w-10"
+                :data="scope.row as Resource"
+                mini />
+            </template>
+          </el-table-column>
+          <el-table-column prop="path" label="路径" />
+          <el-table-column align="center" prop="size" label="大小">
+            <template #default="scope">
+              {{ filesize(scope.row.size) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" fixed="right">
+            <template #default="scope">
+              <div class="resource-actions">
+                <el-button
+                  v-if="scope.row.type === 'image'"
+                  type="primary"
+                  link
+                  size="small"
+                  :icon="CopyDocument"
+                  class="resource-seal-code-copy-btn"
+                  :data-clipboard-text="`[图:${scope.row.path}]`"
+                  @click="copySealCode()">
+                  复制余烬码
+                </el-button>
+                <el-button
+                  link
+                  size="small"
+                  :icon="Search"
+                  @click="handleShow(scope.row as Resource)">
+                  详情
+                </el-button>
+                <el-button
+                  link
+                  size="small"
+                  :icon="Download"
+                  tag="a"
+                  class="resource-download"
+                  :href="`${urlBase}/sd-api/resource/download?path=${encodeURIComponent(scope.row.path)}&token=${encodeURIComponent(store.token)}`">
+                  下载
+                </el-button>
+                <el-button
+                  type="danger"
+                  link
+                  size="small"
+                  :icon="Delete"
+                  @click="deleteResource(scope.row as Resource)">
+                  删除
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </section>
+    </div>
+
+    <el-drawer
+      v-model="drawer"
+      title="图片详情"
+      size="min(420px, 92vw)"
+      class="resource-detail-drawer"
+      direction="rtl">
+      <el-space class="mx-auto" size="large" direction="vertical" alignment="center">
+        <div class="max-w-xs">
+          <resource-render :key="currentResource.path" :data="currentResource" />
+        </div>
+        <el-descriptions title="" :column="1">
+          <el-descriptions-item label="文件名">{{ currentResource.name }}</el-descriptions-item>
+          <el-descriptions-item label="路径">{{ currentResource.path }}</el-descriptions-item>
+          <el-descriptions-item label="大小">{{
+            filesize(currentResource.size)
+          }}</el-descriptions-item>
+        </el-descriptions>
+      </el-space>
+    </el-drawer>
+  </section>
 </template>
 
 <style scoped lang="css">
@@ -201,26 +216,17 @@ onBeforeMount(async () => {
   z-index: 9;
 }
 
-.el-drawer__body {
+.resource-actions {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
-@media screen and (max-width: 700px) {
-  .resource-detail-drawer {
-    width: 50% !important;
-  }
+.resource-actions .el-button + .el-button {
+  margin-inline-start: 0;
 }
 
-@media screen and (min-width: 700px) and (max-width: 1100px) {
-  .resource-detail-drawer {
-    width: 40% !important;
-  }
-}
-
-@media screen and (min-width: 1100px) {
-  .resource-detail-drawer {
-    width: 30% !important;
-  }
+.resource-download {
+  text-decoration: none;
 }
 </style>

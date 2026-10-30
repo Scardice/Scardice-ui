@@ -1,27 +1,34 @@
 <template>
-  <el-space class="flex justify-between" alignment="flex-end">
-    <h4>敏感词列表</h4>
-    <el-space>
-      <el-text v-if="filterCount > 0" size="small" type="info">已过滤 {{ filterCount }} 条</el-text>
-      <el-input v-model="filter" size="small" clearable />
-    </el-space>
-  </el-space>
-
-  <main style="margin-top: 1rem">
-    <div class="w-full">
-      <el-auto-resizer>
-        <template #default="{ width }">
-          <el-table-v2
-            class="w-full"
-            :width="width"
-            :height="430"
-            :columns="columns"
-            :data="filteredWords">
-          </el-table-v2>
-        </template>
-      </el-auto-resizer>
+  <section class="workspace-panel censor-words">
+    <div class="workspace-panel-header">
+      <div>
+        <h2>敏感词</h2>
+        <p v-if="filterCount > 0">已隐藏 {{ filterCount }} 条不匹配的词</p>
+      </div>
+      <el-input
+        v-model="filter"
+        class="censor-word-search"
+        clearable
+        aria-label="搜索敏感词"
+        placeholder="搜索敏感词" />
     </div>
-  </main>
+
+    <main>
+      <div class="w-full">
+        <el-auto-resizer>
+          <template #default="{ width }">
+            <el-table-v2
+              class="w-full"
+              :width="width"
+              :height="430"
+              :columns="columns"
+              :data="filteredWords">
+            </el-table-v2>
+          </template>
+        </el-auto-resizer>
+      </div>
+    </main>
+  </section>
 </template>
 <script setup lang="tsx">
 import { useCensorStore } from '~/components/mod/censor/censor';
@@ -148,3 +155,13 @@ const refreshWords = async () => {
   }
 };
 </script>
+
+<style scoped>
+.censor-words {
+  margin-top: 16px;
+}
+
+.censor-word-search {
+  width: min(240px, 100%);
+}
+</style>

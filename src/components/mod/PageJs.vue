@@ -1,73 +1,130 @@
 <template>
-  <header class="page-header">
-    <el-switch v-model="jsEnable" active-text="启用" inactive-text="关闭" />
-    <el-button
-      v-show="jsEnable"
-      type="primary"
-      :icon="Refresh"
-      :loading="jsReloading"
-      :disabled="jsReloading"
-      @click="jsReload"
-      >重载 JS</el-button
-    >
-  </header>
-
-  <el-affix v-if="needReload" :offset="70">
-    <div class="tip-danger">
-      <el-text type="danger" size="large" tag="strong">存在修改，需要重载后生效！</el-text>
-    </div>
-  </el-affix>
-  <el-affix v-if="jsConfigEdited" :offset="70">
-    <div v-if="jsConfigFormatErrKeys.length > 0">
-      <div class="tip-danger">
-        <el-text type="danger" size="large" tag="strong"
-          >配置内容已修改，但存在格式错误，无法保存！</el-text
-        >
+  <section class="workspace-page plugin-workspace" aria-labelledby="js-plugin-title">
+    <header class="workspace-header plugin-header">
+      <div class="plugin-heading">
+        <h1 id="js-plugin-title" class="workspace-title">JS 扩展</h1>
+        <p class="workspace-subtitle">启用、配置、更新 JS 插件；修改后需重载才会生效。</p>
       </div>
-    </div>
-    <div v-else>
-      <div class="tip-danger">
-        <el-text type="danger" size="large" tag="strong">配置内容已修改，不要忘记保存！</el-text>
+      <div class="workspace-toolbar plugin-global-actions">
+        <label class="workspace-toggle">
+          <el-switch v-model="jsEnable" aria-label="启用 JS 扩展" />
+          <span>启用 JS 扩展</span>
+        </label>
         <el-button
-          class="button"
+          v-show="jsEnable"
+          plain
+          :icon="Refresh"
+          :loading="jsReloading"
+          :disabled="jsReloading"
+          @click="jsReload">
+          重载 JS
+        </el-button>
+      </div>
+    </header>
+
+    <div v-if="needReload" class="plugin-notice plugin-notice-warning" role="status">
+      <el-text type="warning" tag="strong">有改动尚未生效，重载 JS 后生效。</el-text>
+      <el-button
+        v-if="jsEnable"
+        type="primary"
+        size="small"
+        :loading="jsReloading"
+        :disabled="jsReloading"
+        @click="jsReload">
+        立即重载
+      </el-button>
+    </div>
+    <div v-if="jsConfigEdited" class="plugin-notice plugin-notice-danger" role="status">
+      <el-text v-if="jsConfigFormatErrKeys.length > 0" type="danger" tag="strong">
+        配置内容已修改，但存在格式错误，无法保存！
+      </el-text>
+      <template v-else>
+        <el-text type="danger" tag="strong">配置已修改，请保存。</el-text>
+        <el-button
           type="primary"
-          :icon="DocumentChecked"
+          size="small"
           :disabled="!jsConfigEdited"
           :loading="saveButtonLoading"
-          @click="doJsConfigSave()"
-          >点我保存</el-button
-        >
-      </div>
+          @click="doJsConfigSave()">
+          保存配置
+        </el-button>
+      </template>
     </div>
-  </el-affix>
-  <el-row>
-    <el-col :span="24">
-      <el-tabs v-model="mode" class="demo-tabs" :stretch="true">
-        <el-tab-pane label="控制台" name="console">
-          <div>
-            <div ref="editorBox"></div>
-            <div>
-              <div style="margin-top: 1rem">
-                <el-button
-                  type="success"
-                  :icon="CaretRight"
-                  :disabled="!jsEnable"
-                  @click="doExecute"
-                  >执行代码</el-button
-                >
-              </div>
-            </div>
-            <el-text type="danger" tag="p" style="padding: 1rem 0"
-              >注意：延迟执行的代码，其输出不会立即出现</el-text
-            >
-            <div style="word-break: break-all; margin-bottom: 1rem; white-space: pre-line">
-              <div :key="i" v-for="i in jsLines">{{ i }}</div>
+
+    <el-tabs v-model="mode" class="plugin-mode-tabs">
+      <el-tab-pane label="插件列表" name="list">
+        <header class="plugin-list-toolbar">
+          <div class="plugin-search-controls">
+            <el-input
+              type="search"
+              v-model="jsFilter"
+              class="plugin-search"
+              :prefix-icon="Search"
+              clearable
+              aria-label="搜索插件名称、版本、介绍或作者"
+              placeholder="搜索插件名称、版本、介绍或作者" />
+            <div class="plugin-status-filters" role="group" aria-label="按启用状态筛选插件">
+              <el-button
+                size="small"
+                :type="jsStatusFilter === 'all' ? 'primary' : 'default'"
+                :aria-pressed="jsStatusFilter === 'all'"
+                @click="jsStatusFilter = 'all'">
+                全部
+              </el-button>
+              <el-button
+                size="small"
+                :type="jsStatusFilter === 'enabled' ? 'primary' : 'default'"
+                :aria-pressed="jsStatusFilter === 'enabled'"
+                @click="jsStatusFilter = 'enabled'">
+                已启用
+              </el-button>
+              <el-button
+                size="small"
+                :type="jsStatusFilter === 'disabled' ? 'primary' : 'default'"
+                :aria-pressed="jsStatusFilter === 'disabled'"
+                @click="jsStatusFilter = 'disabled'">
+                已关闭
+              </el-button>
             </div>
           </div>
-        </el-tab-pane>
-        <el-tab-pane label="插件列表" name="list">
-          <header class="js-list-header">
-            <el-space>
+          <div class="plugin-list-actions">
+            <span class="plugin-result-count" aria-live="polite">
+              {{ filteredJsList.length }} / {{ jsList.length }} 个插件
+            </span>
+            <el-upload
+              action=""
+              multiple
+              accept="*"
+              class="upload"
+              :before-upload="beforeUpload"
+              :file-list="uploadFileList">
+              <el-button type="primary" :icon="Upload">上传插件</el-button>
+            </el-upload>
+            <el-link
+              type="primary"
+              :icon="Link"
+              href="https://github.com/sealdice/javascript"
+              target="_blank"
+              rel="noopener noreferrer">
+              浏览插件仓库
+            </el-link>
+          </div>
+        </header>
+
+        <main
+          class="plugin-list-content"
+          v-loading="listLoading"
+          aria-label="已安装的 JavaScript 插件">
+          <div v-if="listLoadError" class="plugin-empty-state" role="alert">
+            <el-icon class="plugin-empty-icon"><WarningFilled /></el-icon>
+            <strong>插件列表加载失败</strong>
+            <span>请检查连接后重试；已有插件文件不会因此被修改。</span>
+            <el-button type="primary" plain @click="refreshList">重新加载</el-button>
+          </div>
+          <div v-else-if="!listLoading && jsList.length === 0" class="plugin-empty-state">
+            <strong>尚未安装 JS 插件</strong>
+            <span>上传本地插件，或前往插件仓库获取。</span>
+            <div class="plugin-empty-actions">
               <el-upload
                 action=""
                 multiple
@@ -75,869 +132,1061 @@
                 class="upload"
                 :before-upload="beforeUpload"
                 :file-list="uploadFileList">
-                <el-button type="primary" :icon="Upload">上传插件</el-button>
+                <el-button :icon="Upload">上传插件</el-button>
               </el-upload>
-              <el-input v-model="jsFilter" :prefix-icon="Search" size="small" clearable />
-              <el-button
-                type="info"
-                :icon="Link"
-                size="small"
-                link
-                tag="a"
-                target="_blank"
-                style="text-decoration: none"
+              <el-link
+                type="primary"
                 href="https://github.com/sealdice/javascript"
-                >获取插件</el-button
-              >
-            </el-space>
-          </header>
-          <aside v-if="jsFilterCount > 0" class="mb-4">
-            <el-text size="small" type="info">已过滤 {{ jsFilterCount }} 条</el-text>
-          </aside>
-          <main class="js-list-main">
-            <foldable-card
-              v-for="(i, index) of filteredJsList"
-              :key="index"
-              class="js-item"
-              :err-title="i.filename"
-              :err-text="i.errText">
-              <template #title>
-                <el-space class="js-item-header">
-                  <el-switch
-                    v-model="i.enable"
-                    :disabled="i.errText !== ''"
-                    style="
-                      --el-switch-on-color: var(--el-color-success);
-                      --el-switch-off-color: var(--el-color-danger);
-                    "
-                    @change="changejsScriptStatus(i.name, i.enable)" />
-                  <el-text size="large" tag="b">{{ i.name }}</el-text>
-                  <el-text>{{ i.version || '&lt;未定义>' }}</el-text>
-                  <el-tag v-if="i.official" size="small" type="success">官方</el-tag>
+                target="_blank"
+                rel="noopener noreferrer">
+                浏览插件仓库
+              </el-link>
+            </div>
+          </div>
+          <div v-else-if="!listLoading && filteredJsList.length === 0" class="plugin-empty-state">
+            <strong>没有找到匹配的插件</strong>
+            <span>试试调整搜索词或状态筛选。</span>
+            <el-button
+              plain
+              @click="
+                jsFilter = '';
+                jsStatusFilter = 'all';
+              ">
+              清除筛选
+            </el-button>
+          </div>
+          <div v-else class="plugin-list" role="list">
+            <div class="plugin-list-head" aria-hidden="true">
+              <span>插件 / 简介</span>
+              <span>内存占用（估算）</span>
+              <span>最近更新</span>
+              <span class="plugin-list-actions-heading">操作</span>
+            </div>
+            <article
+              v-for="plugin in filteredJsList"
+              :key="plugin.filename"
+              class="plugin-row"
+              role="listitem">
+              <button
+                type="button"
+                class="plugin-row-main"
+                :aria-label="`查看 ${plugin.name} 详情，${
+                  plugin.errText ? '加载错误' : plugin.enable ? '已启用' : '已关闭'
+                }`"
+                @click="openPluginDetails(plugin)">
+                <span class="plugin-row-heading">
+                  <span
+                    class="plugin-status-indicator"
+                    :class="{
+                      'is-error': plugin.errText,
+                      'is-enabled': !plugin.errText && plugin.enable,
+                      'is-disabled': !plugin.errText && !plugin.enable,
+                    }">
+                    {{ plugin.errText ? '加载错误' : plugin.enable ? '已启用' : '已关闭' }}
+                  </span>
+                  <strong class="plugin-name">{{ plugin.name }}</strong>
+                  <code class="plugin-version">{{ plugin.version || '未定义版本' }}</code>
+                  <el-tag v-if="plugin.official" size="small" type="success">官方</el-tag>
+                  <el-tag
+                    v-if="plugin.filename.toLowerCase().endsWith('.ts')"
+                    size="small"
+                    type="primary">
+                    TypeScript
+                  </el-tag>
                   <el-tooltip
-                    v-if="i.hasDangerousApiUsage"
+                    v-if="plugin.hasDangerousApiUsage"
                     placement="top"
-                    :content="formatDangerousApiUsageSummary(i)">
+                    :content="formatDangerousApiUsageSummary(plugin)">
                     <el-tag size="small" type="danger">高权限 API</el-tag>
                   </el-tooltip>
-                  <el-button
-                    v-for="usage in i.dangerousApiUsages"
-                    :key="`${i.filename}-${usage.id}-header`"
-                    type="danger"
-                    link
-                    size="small"
-                    class="dangerous-api-link"
-                    @click.stop="openDangerousApiUsageDialog(i, usage)">
-                    {{ usage.name }}
-                  </el-button>
-
-                  <el-tooltip content="该插件使用 TypeScript 编写">
-                    <el-tag
-                      v-if="i.filename.toLowerCase().endsWith('.ts')"
-                      size="small"
-                      type="primary"
-                      >TS</el-tag
-                    >
-                  </el-tooltip>
-                </el-space>
-              </template>
-
-              <template #title-extra>
+                </span>
+                <span class="plugin-description">{{ plugin.desc || '暂无介绍' }}</span>
+              </button>
+              <div class="plugin-row-meta">
+                <el-tooltip placement="top" :content="formatMemoryTooltip(plugin.memory)">
+                  <span
+                    class="plugin-memory"
+                    :class="{ 'is-measured': plugin.memory?.status === 'ok' }"
+                    tabindex="0"
+                    :aria-label="`内存占用 ${formatMemoryValue(plugin.memory)}，${formatMemoryTooltip(plugin.memory)}`">
+                    <span class="plugin-memory-label" aria-hidden="true">内存</span>
+                    {{ formatMemoryValue(plugin.memory) }}
+                  </span>
+                </el-tooltip>
+                <div class="plugin-update-summary">
+                  <span>{{
+                    plugin.updateTime ? dayjs.unix(plugin.updateTime).fromNow() : '暂无记录'
+                  }}</span>
+                  <el-tag v-if="plugin.updateUrls?.length" size="small" type="info">
+                    可检查更新
+                  </el-tag>
+                </div>
+              </div>
+              <div class="plugin-row-actions">
+                <el-switch
+                  v-model="plugin.enable"
+                  :aria-label="`${plugin.enable ? '禁用' : '启用'}插件 ${plugin.name}`"
+                  :disabled="plugin.errText !== ''"
+                  style="
+                    --el-switch-on-color: var(--el-color-success);
+                    --el-switch-off-color: var(--el-color-danger);
+                  "
+                  @change="changejsScriptStatus(plugin.name, plugin.enable)" />
                 <el-button
-                  v-if="i.official && i.updateUrls && i.updateUrls.length > 0"
-                  :icon="Download"
-                  type="success"
+                  v-if="plugin.updateUrls?.length"
+                  class="plugin-update-button"
                   size="small"
-                  plain
-                  :loading="diffLoading">
+                  text
+                  :icon="Download"
+                  :loading="diffLoading"
+                  :disabled="diffLoading"
+                  :aria-label="`检查 ${plugin.name} 更新`"
+                  @click="requestPluginUpdate(plugin)">
                   更新
                 </el-button>
-                <el-popconfirm
-                  v-else-if="i.updateUrls && i.updateUrls.length > 0"
-                  confirm-button-text="确认"
-                  cancel-button-text="取消"
-                  title="更新地址由插件作者提供，是否确认要检查该插件更新？"
-                  @confirm="doCheckUpdate(i)">
-                  <template #reference>
-                    <el-button
-                      :icon="Download"
-                      type="success"
-                      size="small"
-                      plain
-                      :loading="diffLoading">
-                      更新
-                    </el-button>
+                <el-dropdown
+                  trigger="click"
+                  popper-class="js-plugin-action-menu"
+                  @command="handlePluginAction">
+                  <el-button
+                    class="plugin-more-button"
+                    text
+                    :icon="MoreFilled"
+                    :aria-label="`${plugin.name} 更多操作`" />
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item :command="{ action: 'details', filename: plugin.filename }">
+                        查看详情
+                      </el-dropdown-item>
+                      <el-dropdown-item :command="{ action: 'config', filename: plugin.filename }">
+                        打开插件设置
+                      </el-dropdown-item>
+                      <el-dropdown-item
+                        v-if="(plugin.builtin && plugin.builtinUpdated) || !plugin.builtin"
+                        divided
+                        :command="{ action: 'delete', filename: plugin.filename }">
+                        {{ plugin.builtin ? '卸载更新' : '删除插件' }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
                   </template>
-                </el-popconfirm>
-                <!--                    <el-button :icon="Setting" type="primary" size="small" plain @click="showSettingDialog = true">设置</el-button>-->
-                <el-button
-                  v-if="i.builtin && i.builtinUpdated"
-                  :icon="Delete"
-                  type="danger"
-                  size="small"
-                  plain
-                  @click="doDelete(i)">
-                  卸载更新
-                </el-button>
-                <el-button
-                  v-if="!i.builtin"
-                  :icon="Delete"
-                  type="danger"
-                  size="small"
-                  plain
-                  @click="doDelete(i)">
-                  删除
-                </el-button>
-              </template>
+                </el-dropdown>
+              </div>
+            </article>
+          </div>
+        </main>
+        <el-dialog v-model="showDiff" title="插件内容对比" class="diff-dialog">
+          <diff-viewer lang="javascript" :old="jsCheck.old" :new="jsCheck.new" />
+          <template #footer>
+            <el-space wrap>
+              <el-button @click="showDiff = false">取消</el-button>
+              <el-button
+                v-if="!(jsCheck.old === jsCheck.new)"
+                type="success"
+                :icon="DocumentChecked"
+                @click="jsUpdate"
+                >确认更新</el-button
+              >
+            </el-space>
+          </template>
+        </el-dialog>
 
-              <template #title-extra-error>
-                <el-space>
-                  <el-button
-                    v-if="i.builtin && i.builtinUpdated"
-                    :icon="Delete"
-                    type="danger"
-                    size="small"
-                    plain
-                    @click="doDelete(i)">
-                    卸载更新
-                  </el-button>
-                  <el-button
-                    v-else-if="!i.builtin"
-                    :icon="Delete"
-                    type="danger"
-                    size="small"
-                    plain
-                    @click="doDelete(i)">
-                    删除
-                  </el-button>
-                </el-space>
+        <el-dialog
+          v-model="dangerousApiDialogVisible"
+          class="dangerous-api-dialog-window"
+          width="72rem"
+          align-center
+          :title="dangerousApiDialogTitle">
+          <div v-if="selectedDangerousApiUsage" class="dangerous-api-dialog">
+            <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
+              <template #title>
+                {{ selectedDangerousApiUsage.name }}：
+                {{ selectedDangerousApiUsage.risk || '风险说明未提供' }}
               </template>
+              <template #default>
+                <p v-if="selectedDangerousApiUsage.description">
+                  {{ selectedDangerousApiUsage.description }}
+                </p>
+                <p>
+                  这里只能列出源码里直接写出的调用位置和直接成员访问，无法完整追踪经变量别名转手后的所有调用。
+                </p>
+              </template>
+            </el-alert>
+            <el-descriptions :column="1" border style="margin-bottom: 16px">
+              <el-descriptions-item label="插件">
+                {{ selectedDangerousApiScript?.name || '&lt;未知>' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="危险 API">
+                {{ selectedDangerousApiUsage.name }}
+              </el-descriptions-item>
+              <el-descriptions-item label="检测到的直接成员">
+                {{
+                  (selectedDangerousApiUsage.referencedMembers ?? []).length > 0
+                    ? (selectedDangerousApiUsage.referencedMembers ?? []).join('、')
+                    : '未检测到直接成员访问'
+                }}
+              </el-descriptions-item>
+            </el-descriptions>
+            <el-table
+              :data="selectedDangerousApiUsage.occurrences ?? []"
+              border
+              max-height="520"
+              empty-text="未检测到调用位置">
+              <el-table-column label="位置" width="120">
+                <template #default="{ row }">
+                  <div class="dangerous-api-position">
+                    <div>第 {{ row.line }} 行</div>
+                    <div>第 {{ row.column }} 列</div>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="access" label="访问形式" min-width="220" />
+              <el-table-column prop="kind" label="类型" width="110">
+                <template #default="{ row }">
+                  {{ formatDangerousApiOccurrenceKind(row.kind) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="member" label="成员" min-width="160">
+                <template #default="{ row }">{{ row.member || '直接引用' }}</template>
+              </el-table-column>
+              <el-table-column prop="memberDescription" label="说明" min-width="320">
+                <template #default="{ row }">
+                  <div class="dangerous-api-description">
+                    {{ getDangerousApiOccurrenceDescription(selectedDangerousApiUsage, row) }}
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-dialog>
+        <el-drawer
+          v-model="pluginDetailsVisible"
+          class="js-plugin-detail-drawer"
+          direction="rtl"
+          size="min(520px, 92vw)"
+          :with-header="false"
+          :destroy-on-close="false"
+          aria-labelledby="plugin-detail-title"
+          :title="selectedPlugin ? `${selectedPlugin.name} 插件详情` : '插件详情'">
+          <template v-if="selectedPlugin">
+            <header class="plugin-drawer-header">
+              <div>
+                <p class="plugin-drawer-eyebrow">插件详情</p>
+                <h2 id="plugin-detail-title">{{ selectedPlugin.name }}</h2>
+                <div class="plugin-drawer-version">
+                  <code>{{ selectedPlugin.version || '未定义版本' }}</code>
+                  <el-tag v-if="selectedPlugin.official" size="small" type="success"> 官方 </el-tag>
+                  <el-tag
+                    :type="
+                      selectedPlugin.errText ? 'danger' : selectedPlugin.enable ? 'success' : 'info'
+                    "
+                    size="small">
+                    {{
+                      selectedPlugin.errText
+                        ? '加载错误'
+                        : selectedPlugin.enable
+                          ? '已启用'
+                          : '已关闭'
+                    }}
+                  </el-tag>
+                </div>
+              </div>
+              <el-button
+                class="plugin-drawer-close"
+                text
+                aria-label="关闭插件详情"
+                @click="pluginDetailsVisible = false">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </header>
 
-              <el-descriptions style="white-space: pre-line">
-                <el-descriptions-item v-if="!i.official" :span="3" label="作者">{{
-                  i.author || '&lt;佚名>'
-                }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="介绍">{{
-                  i.desc || '&lt;暂无>'
-                }}</el-descriptions-item>
-                <el-descriptions-item v-if="!i.official" :span="3" label="主页">{{
-                  i.homepage || '&lt;暂无>'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="许可协议">{{
-                  i.license || '&lt;暂无>'
-                }}</el-descriptions-item>
-                <el-descriptions-item label="安装时间">{{
-                  dayjs.unix(i.installTime).fromNow()
-                }}</el-descriptions-item>
+            <div class="plugin-drawer-content">
+              <p class="plugin-drawer-description">
+                {{ selectedPlugin.desc || '暂无介绍' }}
+              </p>
+              <el-alert
+                v-if="selectedPlugin.errText"
+                class="plugin-error-detail"
+                type="error"
+                title="插件加载错误"
+                :description="selectedPlugin.errText"
+                :closable="false"
+                show-icon />
+              <el-descriptions :column="1" border>
+                <el-descriptions-item label="作者">
+                  {{ selectedPlugin.author || '未提供' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="许可协议">
+                  {{ selectedPlugin.license || '未提供' }}
+                </el-descriptions-item>
+                <el-descriptions-item label="主页">
+                  <span class="plugin-breakable-value">
+                    {{ selectedPlugin.homepage || '未提供' }}
+                  </span>
+                </el-descriptions-item>
+                <el-descriptions-item label="文件">
+                  <code class="plugin-breakable-value">{{ selectedPlugin.filename }}</code>
+                </el-descriptions-item>
+                <el-descriptions-item label="安装时间">
+                  {{
+                    selectedPlugin.installTime
+                      ? dayjs.unix(selectedPlugin.installTime).format('YYYY-MM-DD HH:mm')
+                      : '暂无记录'
+                  }}
+                </el-descriptions-item>
                 <el-descriptions-item label="更新时间">
-                  {{ dayjs.unix(i.updateTime).fromNow() || '&lt;暂无>' }}
+                  {{
+                    selectedPlugin.updateTime
+                      ? dayjs.unix(selectedPlugin.updateTime).format('YYYY-MM-DD HH:mm')
+                      : '暂无记录'
+                  }}
+                </el-descriptions-item>
+                <el-descriptions-item v-if="selectedPlugin.grant" label="声明权限">
+                  <span class="plugin-breakable-value">{{ selectedPlugin.grant }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="selectedPlugin.updateUrls?.length" label="更新来源">
+                  <div class="plugin-update-sources">
+                    <code v-for="url in selectedPlugin.updateUrls ?? []" :key="url">{{ url }}</code>
+                  </div>
                 </el-descriptions-item>
               </el-descriptions>
 
-              <template #unfolded-extra>
-                <el-text truncated>{{ i.desc || '&lt;暂无>' }}</el-text>
-              </template>
-            </foldable-card>
-
-            <el-dialog v-model="showDiff" title="插件内容对比" class="diff-dialog">
-              <diff-viewer lang="javascript" :old="jsCheck.old" :new="jsCheck.new" />
-              <template #footer>
-                <el-space wrap>
-                  <el-button @click="showDiff = false">取消</el-button>
-                  <el-button
-                    v-if="!(jsCheck.old === jsCheck.new)"
-                    type="success"
-                    :icon="DocumentChecked"
-                    @click="jsUpdate"
-                    >确认更新</el-button
-                  >
-                </el-space>
-              </template>
-            </el-dialog>
-
-            <el-dialog
-              v-model="dangerousApiDialogVisible"
-              class="dangerous-api-dialog-window"
-              width="72rem"
-              align-center
-              :title="dangerousApiDialogTitle">
-              <div v-if="selectedDangerousApiUsage" class="dangerous-api-dialog">
-                <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
-                  <!--<template #title>{{ selectedDangerousApiUsage.risk }}</template>-->
-                  <template #default>
-                    <!--{{ selectedDangerousApiUsage.description }}-->
-                    这里只能列出源码里直接写出的调用位置和直接成员访问，无法完整追踪经变量别名转手后的所有调用。
-                  </template>
-                </el-alert>
-                <el-descriptions :column="1" border style="margin-bottom: 16px">
-                  <el-descriptions-item label="插件">
-                    {{ selectedDangerousApiScript?.name || '&lt;未知>' }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="危险 API">
-                    {{ selectedDangerousApiUsage.name }}
-                  </el-descriptions-item>
-                  <el-descriptions-item label="检测到的直接成员">
-                    {{
-                      (selectedDangerousApiUsage.referencedMembers ?? []).length > 0
-                        ? (selectedDangerousApiUsage.referencedMembers ?? []).join('、')
-                        : '未检测到直接成员访问'
-                    }}
-                  </el-descriptions-item>
-                </el-descriptions>
-                <el-table
-                  :data="selectedDangerousApiUsage.occurrences ?? []"
-                  border
-                  max-height="520"
-                  empty-text="未检测到调用位置">
-                  <el-table-column label="位置" width="120">
-                    <template #default="{ row }">
-                      <div class="dangerous-api-position">
-                        <div>第 {{ row.line }} 行</div>
-                        <div>第 {{ row.column }} 列</div>
-                      </div>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="access" label="访问形式" min-width="220" />
-                  <el-table-column prop="kind" label="类型" width="110">
-                    <template #default="{ row }">
-                      {{ formatDangerousApiOccurrenceKind(row.kind) }}
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="member" label="成员" min-width="160">
-                    <template #default="{ row }">{{ row.member || '直接引用' }}</template>
-                  </el-table-column>
-                  <el-table-column prop="memberDescription" label="说明" min-width="320">
-                    <template #default="{ row }">
-                      <div class="dangerous-api-description">
-                        {{ getDangerousApiOccurrenceDescription(selectedDangerousApiUsage, row) }}
-                      </div>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </div>
-            </el-dialog>
-          </main>
-        </el-tab-pane>
-
-        <el-tab-pane label="插件设置" name="config">
-          <main v-loading="configLoading">
-            <div v-if="size(jsConfig) === 0" style="display: flex; justify-content: center">
-              <el-text size="large" tag="strong">暂无设置项</el-text>
-            </div>
-            <el-collapse v-else class="js-list-main" style="margin-top: 0.5rem">
-              <el-collapse-item v-for="(config, i) in jsConfig" :key="i" class="js-item">
-                <template #title>
-                  <div class="js-item-header">
-                    <el-space>
-                      <el-text size="large" tag="strong" style="margin-left: 1rem">{{
-                        (config as unknown as JsPluginConfig)['pluginName']
-                      }}</el-text>
-                    </el-space>
-                    <el-space>
-                      <template
-                        v-if="getDeprecatedKeys(config as unknown as JsPluginConfig).length > 0">
-                        <el-tooltip
-                          content="移除 - 当前插件存在暂未使用的配置项，<br />点击以移除此插件全部暂未使用的配置项。"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfigs(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                getDeprecatedKeys(config as unknown as JsPluginConfig),
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                    </el-space>
-                  </div>
+              <section
+                v-if="selectedPlugin.memory"
+                class="plugin-memory-section"
+                aria-labelledby="plugin-memory-title">
+                <h3 id="plugin-memory-title">内存占用（估算）</h3>
+                <p v-if="selectedPlugin.memory.status !== 'ok'">
+                  {{ formatMemoryTooltip(selectedPlugin.memory) }}
+                </p>
+                <template v-else>
+                  <p>
+                    统计插件代码创建且仍存活的普通对象、数组与
+                    ArrayBuffer，以及它们直接持有的字符串和数字；小对象为采样估计，大对象逐个跟踪。统计于
+                    {{ dayjs.unix(selectedPlugin.memory.sweptAt / 1000).fromNow() }}。
+                  </p>
+                  <el-descriptions :column="1" border>
+                    <el-descriptions-item label="合计">
+                      {{ filesize(selectedPlugin.memory.bytes) }} ·
+                      {{ formatObjectCount(selectedPlugin.memory.objects) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="普通对象">
+                      {{ formatMemoryAmount(selectedPlugin.memory.object) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="数组">
+                      {{ formatMemoryAmount(selectedPlugin.memory.array) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="ArrayBuffer">
+                      {{ formatMemoryAmount(selectedPlugin.memory.arrayBuffer) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="其中大对象">
+                      {{ formatMemoryAmount(selectedPlugin.memory.large) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="小对象采样">
+                      {{ selectedPlugin.memory.samples.toLocaleString() }} 个存活样本
+                    </el-descriptions-item>
+                  </el-descriptions>
                 </template>
-                <el-card shadow="never" style="border: 0">
-                  <el-tabs
-                    v-if="hasSecondLevelGroupByAny(config)"
-                    v-model="jsConfigGroupActive[getPluginNameByAny(config)]"
-                    style="margin-bottom: 0.75rem">
-                    <el-tab-pane
-                      v-for="group in getConfigGroupsByAny(config)"
-                      :key="group.key"
-                      :label="group.label"
-                      :name="group.key" />
-                  </el-tabs>
-                  <el-form v-for="c in getDisplayConfigsByAny(config)" :key="c.key">
-                    <template #header>
-                      <div class="js-item-header">
-                        <el-space>
-                          <el-text size="large">{{
-                            (c as unknown as JsPluginConfigItem).key
-                          }}</el-text>
-                        </el-space>
-                      </div>
-                    </template>
-                    <el-form-item
-                      v-if="(c as unknown as JsPluginConfigItem).type == 'string'"
-                      style="width: 100%; margin-bottom: 0.5rem">
-                      <el-form-item label="字符串配置项:">{{
-                        (c as unknown as JsPluginConfigItem).key
-                      }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <div style="width: 100%; margin-bottom: 0.5rem">
-                        <el-input
-                          v-model="(c as unknown as JsPluginConfigItem).value"
-                          type="textarea"
-                          @change="
-                            doJsConfigChanged(
-                              (config as unknown as JsPluginConfig).pluginName,
-                              (c as unknown as JsPluginConfigItem).key,
+              </section>
+
+              <section
+                v-if="selectedPlugin.hasDangerousApiUsage"
+                class="plugin-security-section"
+                aria-labelledby="plugin-security-title">
+                <h3 id="plugin-security-title">高权限 API 检查</h3>
+                <p>检测结果仅覆盖源码中可识别的直接调用；详情会列出位置与成员访问。</p>
+                <el-button
+                  v-for="usage in selectedPlugin.dangerousApiUsages"
+                  :key="`${selectedPlugin.filename}-${usage.id}-detail`"
+                  class="dangerous-api-link"
+                  type="danger"
+                  plain
+                  @click="openDangerousApiUsageDialog(selectedPlugin, usage)">
+                  {{ usage.name }}
+                </el-button>
+              </section>
+            </div>
+
+            <footer class="plugin-drawer-footer">
+              <el-switch
+                v-model="selectedPlugin.enable"
+                :aria-label="`${selectedPlugin.enable ? '禁用' : '启用'}插件 ${selectedPlugin.name}`"
+                :disabled="selectedPlugin.errText !== ''"
+                active-text="启用"
+                inactive-text="关闭"
+                @change="changejsScriptStatus(selectedPlugin.name, selectedPlugin.enable)" />
+              <el-button @click="openPluginConfig(selectedPlugin)">插件设置</el-button>
+              <el-button
+                v-if="selectedPlugin.updateUrls?.length"
+                :icon="Download"
+                :loading="diffLoading"
+                :disabled="diffLoading"
+                @click="requestPluginUpdate(selectedPlugin)">
+                检查更新
+              </el-button>
+              <el-dropdown
+                trigger="click"
+                popper-class="js-plugin-action-menu"
+                @command="handlePluginAction">
+                <el-button type="primary" :icon="MoreFilled">更多操作</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-if="
+                        (selectedPlugin.builtin && selectedPlugin.builtinUpdated) ||
+                        !selectedPlugin.builtin
+                      "
+                      divided
+                      :command="{ action: 'delete', filename: selectedPlugin.filename }">
+                      {{ selectedPlugin.builtin ? '卸载更新' : '删除插件' }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </footer>
+          </template>
+        </el-drawer>
+      </el-tab-pane>
+
+      <el-tab-pane label="控制台" name="console">
+        <main class="plugin-console">
+          <div ref="editorBox" class="plugin-console-editor"></div>
+          <div class="plugin-console-actions">
+            <el-button type="success" :icon="CaretRight" :disabled="!jsEnable" @click="doExecute">
+              执行代码
+            </el-button>
+            <el-text type="danger" tag="p"> 注意：延迟执行的代码，其输出不会立即出现 </el-text>
+          </div>
+          <div class="plugin-console-output" aria-live="polite">
+            <div v-for="(line, index) in jsLines" :key="index">{{ line }}</div>
+          </div>
+        </main>
+      </el-tab-pane>
+      <el-tab-pane label="插件设置" name="config">
+        <main class="plugin-config-content" v-loading="configLoading">
+          <div v-if="size(jsConfig) === 0" style="display: flex; justify-content: center">
+            <el-text size="large" tag="strong">暂无设置项</el-text>
+          </div>
+          <el-collapse
+            v-else
+            v-model="expandedConfigPlugins"
+            class="js-list-main plugin-config-list"
+            style="margin-top: 0.5rem">
+            <el-collapse-item
+              v-for="(config, i) in jsConfig"
+              :key="i"
+              :name="(config as unknown as JsPluginConfig).pluginName"
+              :data-plugin-name="(config as unknown as JsPluginConfig).pluginName"
+              class="js-item">
+              <template #title>
+                <div class="js-item-header">
+                  <el-space>
+                    <el-text size="large" tag="strong" style="margin-left: 1rem">{{
+                      (config as unknown as JsPluginConfig)['pluginName']
+                    }}</el-text>
+                  </el-space>
+                  <el-space>
+                    <template
+                      v-if="getDeprecatedKeys(config as unknown as JsPluginConfig).length > 0">
+                      <el-tooltip
+                        content="移除 - 当前插件存在暂未使用的配置项，<br />点击以移除此插件全部暂未使用的配置项。"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfigs(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              getDeprecatedKeys(config as unknown as JsPluginConfig),
                             )
-                          "></el-input>
-                      </div>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                false,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                    </el-form-item>
-                    <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'int'">
-                      <el-form-item label="整数配置项:">{{
-                        (c as unknown as JsPluginConfigItem).key
-                      }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <el-form-item :span="30">
-                        <div style="margin-left: 1rem">
-                          <el-input-number
-                            v-model="(c as unknown as JsPluginConfigItem).value"
-                            type="number"
-                            @change="
-                              doJsConfigChanged(
-                                (config as unknown as JsPluginConfig).pluginName,
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            "></el-input-number>
-                        </div>
-                      </el-form-item>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                false,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                    </el-form-item>
-                    <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'float'">
-                      <el-form-item label="浮点数配置项:">{{
-                        (c as unknown as JsPluginConfigItem).key
-                      }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <el-form-item :span="30">
-                        <div style="margin-left: 1rem">
-                          <el-input-number
-                            v-model="(c as unknown as JsPluginConfigItem).value"
-                            type="number"
-                            @change="
-                              doJsConfigChanged(
-                                (config as unknown as JsPluginConfig).pluginName,
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            "></el-input-number>
-                        </div>
-                      </el-form-item>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                false,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                    </el-form-item>
-                    <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'bool'">
-                      <el-form-item label="布尔配置项:">{{
-                        (c as unknown as JsPluginConfigItem).key
-                      }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <el-form-item :span="30">
-                        <div style="margin-left: 1rem">
-                          <el-switch
-                            v-model="(c as unknown as JsPluginConfigItem).value"
-                            @change="
-                              doJsConfigChanged(
-                                (config as unknown as JsPluginConfig).pluginName,
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            "></el-switch>
-                        </div>
-                      </el-form-item>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                false,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                    </el-form-item>
-                    <el-form-item
-                      v-if="(c as unknown as JsPluginConfigItem).type == 'template'"
-                      style="width: 100%; margin-bottom: 0.5rem">
-                      <el-form-item
-                        label="模板配置项:"
-                        style="width: 100%; margin-bottom: 0.5rem"
-                        >{{ (c as unknown as JsPluginConfigItem).key }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <template
-                        v-if="
-                          !isEqual(
-                            (c as unknown as JsPluginConfigItem).value,
-                            (c as unknown as JsPluginConfigItem).defaultValue,
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-space>
+                </div>
+              </template>
+              <el-card shadow="never" style="border: 0">
+                <el-tabs
+                  v-if="hasSecondLevelGroupByAny(config)"
+                  v-model="jsConfigGroupActive[getPluginNameByAny(config)]"
+                  style="margin-bottom: 0.75rem">
+                  <el-tab-pane
+                    v-for="group in getConfigGroupsByAny(config)"
+                    :key="group.key"
+                    :label="group.label"
+                    :name="group.key" />
+                </el-tabs>
+                <el-form v-for="c in getDisplayConfigsByAny(config)" :key="c.key">
+                  <template #header>
+                    <div class="js-item-header">
+                      <el-space>
+                        <el-text size="large">{{
+                          (c as unknown as JsPluginConfigItem).key
+                        }}</el-text>
+                      </el-space>
+                    </div>
+                  </template>
+                  <el-form-item
+                    v-if="(c as unknown as JsPluginConfigItem).type == 'string'"
+                    style="width: 100%; margin-bottom: 0.5rem">
+                    <el-form-item label="字符串配置项:">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <div style="width: 100%; margin-bottom: 0.5rem">
+                      <el-input
+                        v-model="(c as unknown as JsPluginConfigItem).value"
+                        type="textarea"
+                        @change="
+                          doJsConfigChanged(
+                            (config as unknown as JsPluginConfig).pluginName,
+                            (c as unknown as JsPluginConfigItem).key,
                           )
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                false,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <el-form-item style="width: 100%; margin-bottom: 0.5rem">
-                        <div
-                          v-for="(d, index) in (c as unknown as JsPluginConfigItem).value"
-                          :key="index"
-                          style="width: 100%; margin-bottom: 0.5rem">
-                          <!-- 这里面是单条修改项 -->
-                          <el-row>
-                            <el-col style="width: 100%; margin-bottom: 0.5rem">
-                              <span style="width: 100%">
-                                <el-input
-                                  v-model="(c as unknown as JsPluginConfigItem).value[index]"
-                                  type="textarea"
-                                  :autosize="true"
-                                  @change="
-                                    doJsConfigChanged(
-                                      (config as unknown as JsPluginConfig).pluginName,
-                                      (c as unknown as JsPluginConfigItem).key,
-                                    )
-                                  "></el-input>
-                              </span>
-                            </el-col>
-                            <el-col :span="5">
-                              <div
-                                style="
-                                  display: flex;
-                                  align-items: center;
-                                  width: 1.3rem;
-                                  margin-left: 1rem;
-                                  margin-top: 0.5rem;
-                                ">
-                                <el-tooltip
-                                  :content="
-                                    index === 0 ? '点击添加一项' : '点击删除你不想要的配置项'
-                                  "
-                                  placement="bottom-start">
-                                  <el-icon>
-                                    <circle-plus-filled
-                                      v-if="index == 0"
-                                      @click="
-                                        doJsConfigAddItem(
-                                          (c as unknown as JsPluginConfigItem).value,
-                                          (config as unknown as JsPluginConfig).pluginName,
-                                          (c as unknown as JsPluginConfigItem).key,
-                                        )
-                                      " />
-                                    <circle-close
-                                      v-else
-                                      @click="
-                                        doJsConfigRemoveItemAt(
-                                          (c as unknown as JsPluginConfigItem).value,
-                                          index as number,
-                                          (config as unknown as JsPluginConfig).pluginName,
-                                          (c as unknown as JsPluginConfigItem).key,
-                                        )
-                                      " />
-                                  </el-icon>
-                                </el-tooltip>
-                              </div>
-                            </el-col>
-                          </el-row>
-                        </div>
-                      </el-form-item>
-                    </el-form-item>
-                    <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'option'">
-                      <el-form-item
-                        label="选项配置项:"
-                        style="width: 100%; margin-bottom: 0.5rem"
-                        >{{ (c as unknown as JsPluginConfigItem).key }}</el-form-item
-                      >
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                false,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <div style="width: 100%; margin-bottom: 0.5rem">
-                        <el-select
-                          v-model="(c as unknown as JsPluginConfigItem).value"
-                          @change="
-                            doJsConfigChanged(
-                              (config as unknown as JsPluginConfig).pluginName,
+                        "></el-input>
+                    </div>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
                               (c as unknown as JsPluginConfigItem).key,
                             )
                           ">
-                          <el-option
-                            v-for="s in (c as unknown as JsPluginConfigItem).option"
-                            :key="s"
-                            :value="s"
-                            >{{ s }}</el-option
-                          >
-                        </el-select>
-                      </div>
-                    </el-form-item>
-                    <el-form-item
-                      v-if="(c as unknown as JsPluginConfigItem).type == 'task:cron'"
-                      style="width: 100%; margin-bottom: 0.5rem">
-                      <el-form-item label="Cron 型定时任务:">{{
-                        (c as unknown as JsPluginConfigItem).key
-                      }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <div style="width: 100%; margin-bottom: 0.5rem">
-                        <el-input
-                          v-model="(c as unknown as JsPluginConfigItem).value"
-                          type="textarea"
-                          @change="
-                            doTaskCronFormatCheck(
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
                               (config as unknown as JsPluginConfig)['pluginName'],
                               (c as unknown as JsPluginConfigItem).key,
-                              (c as unknown as JsPluginConfigItem).value,
+                              false,
                             )
-                          "></el-input>
-                        <el-text
-                          v-if="
-                            jsConfigFormatErrKeys.indexOf(
-                              (config as unknown as JsPluginConfig)['pluginName'] +
-                                '/' +
-                                (c as unknown as JsPluginConfigItem).key,
-                            ) !== -1
-                          "
-                          type="danger">
-                          格式错误！
-                        </el-text>
-                      </div>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个定时任务在当前版本中不被使用，<br />但未来版本中仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                true,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                    </el-form-item>
-                    <el-form-item
-                      v-if="(c as unknown as JsPluginConfigItem).type == 'task:daily'"
-                      style="width: 100%; margin-bottom: 0.5rem">
-                      <el-form-item label="每日定时任务:">{{
-                        (c as unknown as JsPluginConfigItem).key
-                      }}</el-form-item
-                      ><br />
-                      <div style="width: 100%">
-                        <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
-                      </div>
-                      <div style="width: 100%; margin-bottom: 0.5rem">
-                        <el-input
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-form-item>
+                  <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'int'">
+                    <el-form-item label="整数配置项:">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <el-form-item :span="30">
+                      <div style="margin-left: 1rem">
+                        <el-input-number
                           v-model="(c as unknown as JsPluginConfigItem).value"
-                          type="textarea"
+                          type="number"
                           @change="
-                            doTaskDailyFormatCheck(
+                            doJsConfigChanged(
+                              (config as unknown as JsPluginConfig).pluginName,
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          "></el-input-number>
+                      </div>
+                    </el-form-item>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
                               (config as unknown as JsPluginConfig)['pluginName'],
                               (c as unknown as JsPluginConfigItem).key,
-                              (c as unknown as JsPluginConfigItem).value,
                             )
-                          "></el-input>
-                        <el-text
-                          v-if="
-                            jsConfigFormatErrKeys.indexOf(
-                              (config as unknown as JsPluginConfig)['pluginName'] +
-                                '/' +
-                                (c as unknown as JsPluginConfigItem).key,
-                            ) !== -1
-                          "
-                          type="danger">
-                          格式错误！
-                        </el-text>
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              false,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-form-item>
+                  <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'float'">
+                    <el-form-item label="浮点数配置项:">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <el-form-item :span="30">
+                      <div style="margin-left: 1rem">
+                        <el-input-number
+                          v-model="(c as unknown as JsPluginConfigItem).value"
+                          type="number"
+                          @change="
+                            doJsConfigChanged(
+                              (config as unknown as JsPluginConfig).pluginName,
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          "></el-input-number>
                       </div>
-                      <template
-                        v-if="
-                          (c as unknown as JsPluginConfigItem).value !==
-                          (c as unknown as JsPluginConfigItem).defaultValue
-                        ">
-                        <el-tooltip content="重置为初始值" placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doResetJsConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                              )
-                            ">
-                            <brush-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
-                      <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
-                        <el-tooltip
-                          content="移除 - 这个定时任务在当前版本中不被使用，<br />但未来版本中仍可能被使用，请确认无用后删除"
-                          raw-content
-                          placement="bottom-end">
-                          <el-icon
-                            style="float: right; margin-left: 1rem"
-                            @click="
-                              doDeleteUnusedConfig(
-                                (config as unknown as JsPluginConfig)['pluginName'],
-                                (c as unknown as JsPluginConfigItem).key,
-                                true,
-                              )
-                            ">
-                            <delete-filled />
-                          </el-icon>
-                        </el-tooltip>
-                      </template>
                     </el-form-item>
-                  </el-form>
-                </el-card>
-              </el-collapse-item>
-            </el-collapse>
-          </main>
-        </el-tab-pane>
-      </el-tabs>
-    </el-col>
-  </el-row>
-  <teleport to="body">
-    <el-tooltip v-if="mode === 'list'" content="回到顶部" placement="left">
-      <button class="js-backtop" type="button" aria-label="回到顶部" @click="scrollJsListTop">
-        <el-icon><ArrowUp /></el-icon>
-      </button>
-    </el-tooltip>
-  </teleport>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              false,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-form-item>
+                  <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'bool'">
+                    <el-form-item label="布尔配置项:">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <el-form-item :span="30">
+                      <div style="margin-left: 1rem">
+                        <el-switch
+                          v-model="(c as unknown as JsPluginConfigItem).value"
+                          @change="
+                            doJsConfigChanged(
+                              (config as unknown as JsPluginConfig).pluginName,
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          "></el-switch>
+                      </div>
+                    </el-form-item>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              false,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-form-item>
+                  <el-form-item
+                    v-if="(c as unknown as JsPluginConfigItem).type == 'template'"
+                    style="width: 100%; margin-bottom: 0.5rem">
+                    <el-form-item label="模板配置项:" style="width: 100%; margin-bottom: 0.5rem">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <template
+                      v-if="
+                        !isEqual(
+                          (c as unknown as JsPluginConfigItem).value,
+                          (c as unknown as JsPluginConfigItem).defaultValue,
+                        )
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              false,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <el-form-item style="width: 100%; margin-bottom: 0.5rem">
+                      <div
+                        v-for="(d, index) in (c as unknown as JsPluginConfigItem).value"
+                        :key="index"
+                        style="width: 100%; margin-bottom: 0.5rem">
+                        <!-- 这里面是单条修改项 -->
+                        <el-row>
+                          <el-col style="width: 100%; margin-bottom: 0.5rem">
+                            <span style="width: 100%">
+                              <el-input
+                                v-model="(c as unknown as JsPluginConfigItem).value[index]"
+                                type="textarea"
+                                :autosize="true"
+                                @change="
+                                  doJsConfigChanged(
+                                    (config as unknown as JsPluginConfig).pluginName,
+                                    (c as unknown as JsPluginConfigItem).key,
+                                  )
+                                "></el-input>
+                            </span>
+                          </el-col>
+                          <el-col :span="5">
+                            <div
+                              style="
+                                display: flex;
+                                align-items: center;
+                                width: 1.3rem;
+                                margin-left: 1rem;
+                                margin-top: 0.5rem;
+                              ">
+                              <el-tooltip
+                                :content="index === 0 ? '点击添加一项' : '点击删除你不想要的配置项'"
+                                placement="bottom-start">
+                                <el-icon>
+                                  <circle-plus-filled
+                                    v-if="index == 0"
+                                    @click="
+                                      doJsConfigAddItem(
+                                        (c as unknown as JsPluginConfigItem).value,
+                                        (config as unknown as JsPluginConfig).pluginName,
+                                        (c as unknown as JsPluginConfigItem).key,
+                                      )
+                                    " />
+                                  <circle-close
+                                    v-else
+                                    @click="
+                                      doJsConfigRemoveItemAt(
+                                        (c as unknown as JsPluginConfigItem).value,
+                                        index as number,
+                                        (config as unknown as JsPluginConfig).pluginName,
+                                        (c as unknown as JsPluginConfigItem).key,
+                                      )
+                                    " />
+                                </el-icon>
+                              </el-tooltip>
+                            </div>
+                          </el-col>
+                        </el-row>
+                      </div>
+                    </el-form-item>
+                  </el-form-item>
+                  <el-form-item v-if="(c as unknown as JsPluginConfigItem).type == 'option'">
+                    <el-form-item label="选项配置项:" style="width: 100%; margin-bottom: 0.5rem">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item>
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个配置在新版的默认配置中不被使用，<br />但升级而来时仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              false,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <div style="width: 100%; margin-bottom: 0.5rem">
+                      <el-select
+                        v-model="(c as unknown as JsPluginConfigItem).value"
+                        @change="
+                          doJsConfigChanged(
+                            (config as unknown as JsPluginConfig).pluginName,
+                            (c as unknown as JsPluginConfigItem).key,
+                          )
+                        ">
+                        <el-option
+                          v-for="s in (c as unknown as JsPluginConfigItem).option"
+                          :key="s"
+                          :value="s"
+                          >{{ s }}</el-option
+                        >
+                      </el-select>
+                    </div>
+                  </el-form-item>
+                  <el-form-item
+                    v-if="(c as unknown as JsPluginConfigItem).type == 'task:cron'"
+                    style="width: 100%; margin-bottom: 0.5rem">
+                    <el-form-item label="Cron 型定时任务:">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <div style="width: 100%; margin-bottom: 0.5rem">
+                      <el-input
+                        v-model="(c as unknown as JsPluginConfigItem).value"
+                        type="textarea"
+                        @change="
+                          doTaskCronFormatCheck(
+                            (config as unknown as JsPluginConfig)['pluginName'],
+                            (c as unknown as JsPluginConfigItem).key,
+                            (c as unknown as JsPluginConfigItem).value,
+                          )
+                        "></el-input>
+                      <el-text
+                        v-if="
+                          jsConfigFormatErrKeys.indexOf(
+                            (config as unknown as JsPluginConfig)['pluginName'] +
+                              '/' +
+                              (c as unknown as JsPluginConfigItem).key,
+                          ) !== -1
+                        "
+                        type="danger">
+                        格式错误！
+                      </el-text>
+                    </div>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个定时任务在当前版本中不被使用，<br />但未来版本中仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              true,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-form-item>
+                  <el-form-item
+                    v-if="(c as unknown as JsPluginConfigItem).type == 'task:daily'"
+                    style="width: 100%; margin-bottom: 0.5rem">
+                    <el-form-item label="每日定时任务:">{{
+                      (c as unknown as JsPluginConfigItem).key
+                    }}</el-form-item
+                    ><br />
+                    <div style="width: 100%">
+                      <el-text>{{ (c as unknown as JsPluginConfigItem).description }}</el-text>
+                    </div>
+                    <div style="width: 100%; margin-bottom: 0.5rem">
+                      <el-input
+                        v-model="(c as unknown as JsPluginConfigItem).value"
+                        type="textarea"
+                        @change="
+                          doTaskDailyFormatCheck(
+                            (config as unknown as JsPluginConfig)['pluginName'],
+                            (c as unknown as JsPluginConfigItem).key,
+                            (c as unknown as JsPluginConfigItem).value,
+                          )
+                        "></el-input>
+                      <el-text
+                        v-if="
+                          jsConfigFormatErrKeys.indexOf(
+                            (config as unknown as JsPluginConfig)['pluginName'] +
+                              '/' +
+                              (c as unknown as JsPluginConfigItem).key,
+                          ) !== -1
+                        "
+                        type="danger">
+                        格式错误！
+                      </el-text>
+                    </div>
+                    <template
+                      v-if="
+                        (c as unknown as JsPluginConfigItem).value !==
+                        (c as unknown as JsPluginConfigItem).defaultValue
+                      ">
+                      <el-tooltip content="重置为初始值" placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doResetJsConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                            )
+                          ">
+                          <brush-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                    <template v-if="(c as unknown as JsPluginConfigItem).deprecated">
+                      <el-tooltip
+                        content="移除 - 这个定时任务在当前版本中不被使用，<br />但未来版本中仍可能被使用，请确认无用后删除"
+                        raw-content
+                        placement="bottom-end">
+                        <el-icon
+                          style="float: right; margin-left: 1rem"
+                          @click="
+                            doDeleteUnusedConfig(
+                              (config as unknown as JsPluginConfig)['pluginName'],
+                              (c as unknown as JsPluginConfigItem).key,
+                              true,
+                            )
+                          ">
+                          <delete-filled />
+                        </el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+            </el-collapse-item>
+          </el-collapse>
+        </main>
+      </el-tab-pane>
+    </el-tabs>
+    <teleport to="body">
+      <el-tooltip v-if="mode === 'list'" content="回到顶部" placement="left">
+        <button
+          class="js-backtop"
+          type="button"
+          aria-label="回到插件列表顶部"
+          @click="scrollJsListTop">
+          <el-icon><ArrowUp /></el-icon>
+        </button>
+      </el-tooltip>
+    </teleport>
+  </section>
 </template>
 
 <script lang="ts" setup>
@@ -947,22 +1196,27 @@ import {
   CaretRight,
   CircleClose,
   CirclePlusFilled,
-  Delete,
+  Close,
   DeleteFilled,
   DocumentChecked,
   Download,
   Link,
+  MoreFilled,
   Refresh,
   Search,
   Upload,
+  WarningFilled,
 } from '@element-plus/icons-vue';
 import * as dayjs from 'dayjs';
 import { basicSetup, EditorView } from 'codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { isEqual, size } from 'lodash-es';
+import { filesize } from 'filesize';
 import type {
   JsDangerousAPIOccurrence,
   JsDangerousAPIUsage,
+  JsMemoryAmount,
+  JsMemoryUsage,
   JsPluginConfig,
   JsPluginConfigItem,
   JsScriptInfo,
@@ -994,7 +1248,7 @@ import { runJsReloadWithProgress } from '~/utils/js-reload-progress';
 
 const jsEnable = ref(false);
 const editorBox = ref(null);
-const mode = ref('console');
+const mode = ref('list');
 const needReload = ref(false);
 const jsReloading = ref(false);
 let editor: EditorView;
@@ -1339,9 +1593,10 @@ onMounted(async () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {}
 
-  await refreshJsData();
-  if (jsList.value.length > 0) {
-    mode.value = 'list';
+  try {
+    await refreshJsData();
+  } catch {
+    // The list surface exposes the failed request and lets the user retry.
   }
 
   timerId = setInterval(async () => {
@@ -1363,9 +1618,74 @@ onBeforeUnmount(() => {
 
 const jsList = ref<JsScriptInfo[]>([]);
 const jsFilter = ref<string>('');
+const jsStatusFilter = ref<'all' | 'enabled' | 'disabled'>('all');
+const listLoading = ref(false);
+const listLoadError = ref(false);
+const pluginDetailsVisible = ref(false);
+const selectedPluginFilename = ref('');
+const selectedPlugin = computed(
+  () => jsList.value.find(plugin => plugin.filename === selectedPluginFilename.value) ?? null,
+);
 const dangerousApiDialogVisible = ref(false);
 const selectedDangerousApiScript = ref<JsScriptInfo | null>(null);
 const selectedDangerousApiUsage = ref<JsDangerousAPIUsage | null>(null);
+
+const openPluginDetails = (plugin: JsScriptInfo) => {
+  selectedPluginFilename.value = plugin.filename;
+  pluginDetailsVisible.value = true;
+};
+
+const selectedConfigPlugin = ref('');
+const selectedConfigScript = ref<JsScriptInfo | null>(null);
+const expandedConfigPlugins = ref<string[]>([]);
+const isConfigLoaded = ref(false);
+const configLoading = ref(false);
+const focusPluginConfig = async (pluginName: string) => {
+  await nextTick();
+  const panel = document.querySelector<HTMLElement>('.plugin-config-content');
+  const item = Array.from(
+    panel?.querySelectorAll<HTMLElement>('.plugin-config-list > .el-collapse-item') ?? [],
+  ).find(element => element.dataset.pluginName === pluginName);
+  if (!panel || !item) {
+    return;
+  }
+  const panelTop = panel.getBoundingClientRect().top;
+  panel.scrollTo({
+    top: panel.scrollTop + item.getBoundingClientRect().top - panelTop,
+    behavior: 'auto',
+  });
+  item.querySelector<HTMLElement>('.el-collapse-item__header')?.focus({ preventScroll: true });
+};
+
+const focusPluginConfigForScript = async (script: JsScriptInfo | string) => {
+  const candidates =
+    typeof script === 'string' ? [script] : (script.extensionNames ?? [script.name]);
+  const pluginNames = [
+    ...new Set(
+      candidates
+        .map(name => jsConfig.value[name]?.pluginName)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ];
+  const firstName = pluginNames[0];
+  if (!firstName) {
+    selectedConfigPlugin.value = '';
+    expandedConfigPlugins.value = [];
+    ElMessage.info('未找到此脚本对应的扩展设置项，请在插件设置列表中手动查找。');
+    return;
+  }
+  selectedConfigPlugin.value = firstName;
+  expandedConfigPlugins.value = pluginNames;
+  await focusPluginConfig(firstName);
+};
+
+const openPluginConfig = (plugin: JsScriptInfo) => {
+  selectedConfigScript.value = plugin;
+  selectedConfigPlugin.value = '';
+  expandedConfigPlugins.value = [];
+  pluginDetailsVisible.value = false;
+  mode.value = 'config';
+};
 
 const normalizeDangerousApiOccurrence = (
   occurrence: Partial<JsDangerousAPIOccurrence> | null | undefined,
@@ -1406,6 +1726,9 @@ const normalizeJsScriptInfo = (script: Partial<JsScriptInfo> | null | undefined)
   installTime: script?.installTime ?? 0,
   errText: script?.errText ?? '',
   filename: script?.filename ?? '',
+  extensionNames: Array.isArray(script?.extensionNames)
+    ? script.extensionNames.filter((name): name is string => typeof name === 'string')
+    : undefined,
   updateUrls: Array.isArray(script?.updateUrls) ? script.updateUrls : [],
   official: Boolean(script?.official),
   builtin: Boolean(script?.builtin),
@@ -1414,59 +1737,67 @@ const normalizeJsScriptInfo = (script: Partial<JsScriptInfo> | null | undefined)
   dangerousApiUsages: Array.isArray(script?.dangerousApiUsages)
     ? script.dangerousApiUsages.map(item => normalizeDangerousApiUsage(item))
     : [],
+  memory: script?.memory ?? null,
 });
 
-const jsFilterCount = computed(() => jsList.value.length - filteredJsList.value.length);
-const filteredJsList = computed(() =>
-  jsList.value.filter(js => {
-    if (jsFilter.value === '') {
-      return true;
+const filteredJsList = computed(() => {
+  const query = jsFilter.value.trim().toLocaleLowerCase();
+  return jsList.value.filter(plugin => {
+    const matchesStatus =
+      jsStatusFilter.value === 'all' ||
+      (jsStatusFilter.value === 'enabled' && plugin.enable) ||
+      (jsStatusFilter.value === 'disabled' && !plugin.enable);
+    if (!matchesStatus) {
+      return false;
     }
-    const val = jsFilter.value.toLowerCase();
     return (
-      js.name?.toLowerCase()?.includes(val) ||
-      js.desc?.toLowerCase()?.includes(val) ||
-      js.author?.toLowerCase()?.includes(val)
+      !query ||
+      [plugin.name, plugin.version, plugin.desc, plugin.author, plugin.filename].some(value =>
+        value.toLocaleLowerCase().includes(query),
+      )
     );
-  }),
-);
-
-const getJsScrollContainer = () => {
-  const active = document.activeElement as HTMLElement | null;
-  const candidates = [
-    active?.closest<HTMLElement>('.seal-content'),
-    document.querySelector<HTMLElement>('.seal-content'),
-    document.querySelector<HTMLElement>('.main-container'),
-    document.querySelector<HTMLElement>('#root > .flex-grow'),
-    document.scrollingElement as HTMLElement | null,
-    document.documentElement,
-    document.body,
-  ].filter(Boolean) as HTMLElement[];
-  return (
-    candidates.find(item => item.scrollHeight > item.clientHeight + 1) || document.documentElement
-  );
-};
+  });
+});
 
 const scrollJsListTop = () => {
-  const targets = new Set<HTMLElement>();
-  for (const target of [
-    getJsScrollContainer(),
-    document.querySelector<HTMLElement>('.seal-content'),
-    document.querySelector<HTMLElement>('.main-container'),
-    document.querySelector<HTMLElement>('#root > .flex-grow'),
-    document.scrollingElement as HTMLElement | null,
-    document.documentElement,
-    document.body,
-  ]) {
-    if (target) {
-      targets.add(target);
-    }
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ? 'auto'
+    : 'smooth';
+  document
+    .querySelector<HTMLElement>('.plugin-list-content')
+    ?.scrollTo({ top: 0, left: 0, behavior });
+};
+
+const formatObjectCount = (objects: number) => `约 ${objects.toLocaleString()} 个对象`;
+
+const formatMemoryAmount = (amount: JsMemoryAmount) =>
+  `${filesize(amount.bytes)} · ${formatObjectCount(amount.objects)}`;
+
+const formatMemoryValue = (memory?: JsMemoryUsage | null) => {
+  switch (memory?.status) {
+    case 'ok':
+      // 小对象按 1/64 采样，没有采到存活对象时只能说明占用低于统计精度。
+      return memory.bytes > 0 ? filesize(memory.bytes) : '极少';
+    case 'pending':
+      return '统计中';
+    default:
+      return '—';
   }
-  for (const target of targets) {
-    target.scrollTop = 0;
-    target.scrollTo?.({ top: 0, left: 0, behavior: 'smooth' });
+};
+
+const formatMemoryTooltip = (memory?: JsMemoryUsage | null) => {
+  switch (memory?.status) {
+    case 'ok':
+      return memory.bytes > 0
+        ? `${formatObjectCount(memory.objects)}，统计于 ${dayjs.unix(memory.sweptAt / 1000).fromNow()}`
+        : `未采样到存活对象，占用低于统计精度，统计于 ${dayjs.unix(memory.sweptAt / 1000).fromNow()}`;
+    case 'pending':
+      return '运行时尚未完成首次统计，请稍后刷新';
+    case 'unsupported':
+      return '该插件所在的运行时暂不支持内存统计';
+    default:
+      return '插件未运行';
   }
-  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
 };
 
 const formatDangerousApiUsageSummary = (js: JsScriptInfo) =>
@@ -1592,7 +1923,7 @@ const sealInstDangerousMemberDescriptions: Record<string, string> = {
   Save: '将当前配置和高级配置落盘保存。',
   CanSendMail: '检查邮件配置是否完整可用。',
   SendMail: '按当前邮件配置发送通知邮件。',
-  SendMailRow: '直接发送邮件，可指定主题、收件人、正文和附件。',
+  SendMailRow: '直接发送邮件，可指定主题、收件人、正文和附件，并返回投递错误。',
   GetBanList: '获取当前黑名单/信任列表。',
   NewCensorManager: '初始化敏感词审查管理器。',
   CensorMsg: '执行一条消息的敏感词审查。',
@@ -1671,8 +2002,17 @@ const jsStatus = async () => {
 };
 
 const refreshList = async () => {
-  const lst = await getJsList();
-  jsList.value = Array.isArray(lst) ? lst.map(item => normalizeJsScriptInfo(item)) : [];
+  listLoading.value = true;
+  listLoadError.value = false;
+  try {
+    const lst = await getJsList();
+    jsList.value = Array.isArray(lst) ? lst.map(item => normalizeJsScriptInfo(item)) : [];
+  } catch (err) {
+    console.error('refresh js list failed:', err);
+    listLoadError.value = true;
+  } finally {
+    listLoading.value = false;
+  }
 };
 
 const initConfigGroupActive = () => {
@@ -1701,21 +2041,28 @@ const refreshJsData = async () => {
   await refreshList();
 };
 
-const isConfigLoaded = ref(false);
-const configLoading = ref(false);
-
 watch(mode, async newMode => {
-  if (newMode === 'config' && !isConfigLoaded.value) {
-    configLoading.value = true;
-    try {
+  if (newMode !== 'config') {
+    return;
+  }
+  configLoading.value = true;
+  try {
+    if (!isConfigLoaded.value) {
       await refreshConfig();
       isConfigLoaded.value = true;
-    } catch (err) {
-      console.error('refresh js config failed:', err);
-      ElMessage.warning('插件配置刷新失败，请手动刷新界面');
-    } finally {
-      configLoading.value = false;
     }
+    const script = selectedConfigScript.value;
+    selectedConfigScript.value = null;
+    if (script) {
+      await focusPluginConfigForScript(script);
+    } else if (selectedConfigPlugin.value) {
+      await focusPluginConfigForScript(selectedConfigPlugin.value);
+    }
+  } catch (err) {
+    console.error('refresh js config failed:', err);
+    ElMessage.warning('插件配置刷新失败，请手动刷新界面');
+  } finally {
+    configLoading.value = false;
   }
 });
 
@@ -1757,10 +2104,29 @@ const beforeUpload = async (file: UploadRawFile) => {
   }
 
   try {
-    await uploadJs(file);
+    const uploaded = await uploadJs(file);
     await refreshList();
-    ElMessage.success('上传完成，请在全部操作完成后，手动重载插件');
-    needReload.value = true;
+    if ('incremental' in uploaded && uploaded.incremental) {
+      const loaded = uploaded.loaded ?? [];
+      const rejected = uploaded.rejected ?? [];
+      if (loaded.length > 0) {
+        ElMessage.success(`上传完成，已局部加载：${loaded.join('、')}，无需重载`);
+      } else if (uploaded.disabled) {
+        ElMessage.success('上传完成，该插件已被禁用，未加载');
+      } else if (rejected.length === 0) {
+        ElMessage.success('上传完成');
+      }
+      for (const issue of rejected) {
+        ElMessage.warning(`《${issue.name}》未能加载：${issue.reason}`);
+      }
+      for (const warning of uploaded.warnings ?? []) {
+        ElMessage.warning(warning);
+      }
+    } else {
+      const reason = 'reason' in uploaded && uploaded.reason ? `（${uploaded.reason}）` : '';
+      ElMessage.success(`上传完成${reason}，请在全部操作完成后，手动重载插件`);
+      needReload.value = true;
+    }
   } catch (err) {
     console.error('upload js plugin failed:', err);
     ElMessage.error(formatUploadFailureMessage(err));
@@ -1782,6 +2148,9 @@ const doDelete = async (data: JsScriptInfo) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ).then(async _data => {
     await deleteJs(data.filename);
+    if (selectedPluginFilename.value === data.filename) {
+      pluginDetailsVisible.value = false;
+    }
     setTimeout(() => {
       // 稍等等再重载，以免出现没删掉
       refreshList();
@@ -1846,15 +2215,57 @@ const jsCheck = ref<JsCheckResult>({
   tempFileName: '',
 });
 
-const doCheckUpdate = async (data: any) => {
+const doCheckUpdate = async (plugin: JsScriptInfo) => {
+  if (diffLoading.value) {
+    return;
+  }
   diffLoading.value = true;
-  const checkResult = await checkJsUpdate(data.filename);
-  diffLoading.value = false;
-  if (checkResult.result) {
-    jsCheck.value = { ...checkResult, filename: data.filename };
-    showDiff.value = true;
+  try {
+    const checkResult = await checkJsUpdate(plugin.filename);
+    if (checkResult.result) {
+      jsCheck.value = { ...checkResult, filename: plugin.filename };
+      showDiff.value = true;
+    } else {
+      ElMessage.error('检查更新失败！' + checkResult.err);
+    }
+  } catch (err) {
+    ElMessage.error(`检查更新失败！${String(err)}`);
+  } finally {
+    diffLoading.value = false;
+  }
+};
+
+const requestPluginUpdate = async (plugin: JsScriptInfo) => {
+  if (!plugin.official) {
+    try {
+      await ElMessageBox.confirm('更新地址由插件作者提供，是否确认要检查该插件更新？', '检查更新', {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: 'warning',
+      });
+    } catch {
+      return;
+    }
+  }
+  await doCheckUpdate(plugin);
+};
+
+type JsPluginAction = {
+  action: 'details' | 'config' | 'delete';
+  filename: string;
+};
+
+const handlePluginAction = ({ action, filename }: JsPluginAction) => {
+  const plugin = jsList.value.find(item => item.filename === filename);
+  if (!plugin) {
+    return;
+  }
+  if (action === 'details') {
+    openPluginDetails(plugin);
+  } else if (action === 'config') {
+    openPluginConfig(plugin);
   } else {
-    ElMessage.error('检查更新失败！' + checkResult.err);
+    void doDelete(plugin);
   }
 };
 
@@ -1926,14 +2337,6 @@ const jsUpdate = async () => {
   }
 }
 
-.js-list-header {
-  margin-bottom: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
 .js-list-main {
   display: flex;
   flex-wrap: wrap;
@@ -1990,7 +2393,7 @@ const jsUpdate = async () => {
   justify-content: center;
   border: 1px solid var(--el-color-primary-light-5);
   border-radius: 999px;
-  color: #fff;
+  color: var(--seal-on-primary);
   background: color-mix(in srgb, var(--el-color-primary) 92%, var(--seal-panel-bg));
   box-shadow: var(--el-box-shadow);
   cursor: pointer;
@@ -2009,6 +2412,712 @@ const jsUpdate = async () => {
   .js-backtop {
     right: 0.8rem;
     bottom: 0.8rem;
+  }
+}
+.plugin-workspace {
+  min-width: 0;
+  gap: var(--workspace-gap, 16px);
+}
+
+.plugin-header {
+  flex: 0 0 auto;
+  gap: 16px;
+}
+
+.plugin-heading {
+  min-width: 0;
+}
+
+.plugin-global-actions,
+.plugin-list-actions,
+.plugin-empty-actions,
+.plugin-drawer-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-mode-tabs {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.plugin-workspace .plugin-mode-tabs > .el-tabs__header {
+  flex: 0 0 auto;
+}
+
+.plugin-workspace .plugin-mode-tabs > .el-tabs__content {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.plugin-workspace .plugin-mode-tabs .el-tab-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.plugin-notice {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--el-color-danger-light-5);
+  border-radius: 6px;
+  background: var(--el-color-danger-light-9);
+}
+
+.plugin-notice-warning {
+  border-color: var(--el-color-warning-light-5);
+  background: var(--el-color-warning-light-9);
+}
+
+.plugin-list-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 4px 0 12px;
+}
+
+.plugin-search-controls,
+.plugin-status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-search {
+  width: min(360px, 100%);
+}
+
+.plugin-list-actions {
+  justify-content: flex-end;
+}
+
+.plugin-result-count {
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.plugin-list-content {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  border: 1px solid var(--seal-border-color, var(--el-border-color));
+  border-radius: 6px;
+  background: var(--seal-panel-bg, var(--el-bg-color));
+  overscroll-behavior: contain;
+}
+
+.plugin-list {
+  min-width: 0;
+}
+
+.plugin-list-head,
+.plugin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.2fr) minmax(132px, 0.33fr) 100px;
+  align-items: center;
+  column-gap: 12px;
+  padding-inline: 12px;
+}
+
+.plugin-list-head {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  min-height: 34px;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  background: var(--seal-surface-soft, var(--el-fill-color-light));
+  border-bottom: 1px solid var(--seal-border-color, var(--el-border-color));
+  font-size: 12px;
+}
+
+.plugin-list-actions-heading {
+  text-align: end;
+}
+
+.plugin-row {
+  min-height: var(--workspace-plugin-row-height, 64px);
+  border-bottom: 1px solid var(--seal-border-color, var(--el-border-color));
+}
+
+.plugin-row:last-child {
+  border-bottom: 0;
+}
+
+.plugin-row-main {
+  display: grid;
+  min-width: 0;
+  min-height: inherit;
+  grid-template-columns: minmax(210px, 0.95fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 12px;
+  padding-block: 8px;
+  color: var(--seal-text-color, var(--el-text-color-primary));
+  text-align: start;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.plugin-row-heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.plugin-name {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugin-version {
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 11px;
+}
+
+.plugin-status-indicator {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.plugin-status-indicator.is-enabled {
+  color: var(--el-color-success);
+  background: var(--el-color-success-light-9);
+}
+
+.plugin-status-indicator.is-disabled {
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  background: var(--seal-surface-soft, var(--el-fill-color-light));
+}
+
+.plugin-status-indicator.is-error {
+  color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
+}
+
+.plugin-description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* 桌面端内存与更新时间各占一列；窄屏下合并为一行。 */
+.plugin-row-meta {
+  display: contents;
+}
+
+.plugin-memory {
+  justify-self: start;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.plugin-memory.is-measured {
+  color: var(--seal-text-color, var(--el-text-color-primary));
+}
+
+/* 桌面端由表头说明含义，窄屏没有表头时才显示。 */
+.plugin-memory-label {
+  display: none;
+  margin-inline-end: 4px;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+}
+
+.plugin-update-summary {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+}
+
+.plugin-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.plugin-row-actions .el-switch {
+  min-height: 40px;
+}
+.plugin-update-button {
+  min-height: 40px;
+  padding-inline: 8px;
+}
+
+.plugin-more-button {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+.js-plugin-action-menu .el-dropdown-menu__item {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+}
+
+.plugin-empty-state {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  text-align: center;
+}
+
+.plugin-empty-state strong {
+  color: var(--seal-text-color, var(--el-text-color-primary));
+  font-size: 15px;
+}
+
+.plugin-empty-state .plugin-empty-icon {
+  color: var(--el-color-danger);
+  font-size: 24px;
+}
+
+.plugin-empty-actions {
+  justify-content: center;
+}
+
+.plugin-console {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  padding-inline-end: 12px;
+}
+
+.plugin-console-editor {
+  min-width: 0;
+}
+
+.plugin-console-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-block: 12px;
+}
+
+.plugin-console-actions p {
+  margin: 0;
+}
+
+.plugin-console-output {
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+}
+
+.plugin-config-content {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.plugin-config-list {
+  min-width: 0;
+}
+
+.plugin-row-main:focus-visible,
+.plugin-workspace .el-button:focus-visible,
+.plugin-workspace .el-link:focus-visible,
+.plugin-workspace .el-input__wrapper:focus-within,
+.plugin-workspace .el-switch:focus-within .el-switch__core,
+.plugin-drawer-close:focus-visible,
+.js-backtop:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.plugin-drawer-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--seal-border-color, var(--el-border-color));
+}
+
+.plugin-drawer-header h2 {
+  margin: 4px 0 8px;
+  color: var(--seal-text-color, var(--el-text-color-primary));
+  font-size: 20px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.plugin-drawer-eyebrow {
+  margin: 0;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+}
+
+.plugin-drawer-version {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+}
+
+.js-plugin-detail-drawer .el-drawer__body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.plugin-drawer-close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+.plugin-drawer-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding-block: 16px;
+  overscroll-behavior: contain;
+}
+
+.plugin-drawer-description {
+  margin: 0 0 16px;
+  color: var(--seal-text-color, var(--el-text-color-primary));
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.plugin-error-detail {
+  margin-bottom: 16px;
+}
+
+.plugin-error-detail .el-alert__description {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.plugin-breakable-value {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.plugin-update-sources {
+  display: grid;
+  gap: 6px;
+}
+
+.plugin-update-sources code {
+  overflow-wrap: anywhere;
+}
+
+.plugin-security-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--el-color-danger-light-5);
+  border-radius: 6px;
+  background: var(--el-color-danger-light-9);
+}
+
+.plugin-memory-section {
+  margin-top: 16px;
+}
+
+.plugin-memory-section h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.plugin-memory-section p {
+  margin: 0 0 8px;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.plugin-security-section h3 {
+  width: 100%;
+  margin: 0;
+  font-size: 14px;
+}
+
+.plugin-security-section p {
+  width: 100%;
+  margin: 0;
+  color: var(--seal-text-muted, var(--el-text-color-secondary));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.plugin-drawer-footer {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--seal-border-color, var(--el-border-color));
+}
+
+.plugin-drawer-footer .el-switch {
+  margin-inline-end: auto;
+}
+
+.js-backtop {
+  width: 44px;
+  height: 44px;
+}
+
+@media (hover: hover) {
+  .plugin-row:hover {
+    background: var(--seal-surface-soft, var(--el-fill-color-light));
+  }
+}
+
+@media (max-width: 1050px) {
+  .plugin-list-head,
+  .plugin-row {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    column-gap: 10px;
+    padding-inline: 10px;
+  }
+
+  .plugin-list-head > span:nth-child(2),
+  .plugin-list-head > span:nth-child(3) {
+    display: none;
+  }
+
+  .plugin-row-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .plugin-row-meta {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    grid-column: 1;
+  }
+
+  .plugin-memory-label {
+    display: inline;
+  }
+
+  .plugin-row-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .plugin-header {
+    align-items: flex-start;
+  }
+
+  .plugin-global-actions {
+    justify-content: flex-end;
+  }
+
+  .plugin-list-toolbar,
+  .plugin-search-controls {
+    align-items: stretch;
+  }
+
+  .plugin-search-controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .plugin-search {
+    width: 100%;
+  }
+
+  .plugin-search input {
+    font-size: 16px;
+  }
+
+  .plugin-status-filters .el-button {
+    min-height: 44px;
+    margin: 0;
+  }
+
+  .plugin-list-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .plugin-list-actions > .el-upload,
+  .plugin-empty-actions > .el-upload {
+    display: flex;
+  }
+
+  .plugin-list-head {
+    display: none;
+  }
+
+  .plugin-row {
+    min-height: var(--workspace-plugin-row-height, 64px);
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 4px 8px;
+    padding: 8px 10px;
+  }
+
+  .plugin-row-main {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 5px;
+    padding-block: 2px;
+  }
+
+  .plugin-row-heading {
+    gap: 5px;
+  }
+
+  .plugin-name {
+    font-size: 14px;
+  }
+
+  .plugin-description {
+    -webkit-line-clamp: 1;
+  }
+
+  .plugin-row-meta {
+    grid-column: 1;
+    grid-row: 2;
+    padding-inline-start: 4px;
+  }
+
+  .plugin-memory,
+  .plugin-update-summary {
+    font-size: 11px;
+  }
+
+  .plugin-row-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .plugin-row-actions .el-switch,
+  .plugin-more-button {
+    min-height: 44px;
+  }
+
+  .plugin-more-button {
+    width: 44px;
+  }
+  .plugin-update-button {
+    min-height: 44px;
+  }
+
+  .plugin-global-actions .el-switch,
+  .plugin-global-actions .el-button,
+  .plugin-list-actions .el-button,
+  .plugin-empty-state .el-button,
+  .plugin-console-actions .el-button,
+  .js-plugin-action-menu .el-dropdown-menu__item {
+    min-height: 44px;
+  }
+
+  .plugin-list-actions .el-link,
+  .plugin-empty-actions .el-link {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .plugin-empty-state {
+    min-height: 180px;
+    padding: 18px;
+  }
+
+  .plugin-drawer-footer {
+    justify-content: flex-start;
+  }
+
+  .plugin-drawer-footer > :not(.el-switch) {
+    min-height: 44px;
+  }
+
+  .js-backtop {
+    right: 0.8rem;
+    bottom: 0.8rem;
+  }
+
+  .el-drawer.js-plugin-detail-drawer {
+    width: 100vw !important;
+    max-width: 100vw;
+    height: 100dvh;
+    margin: 0;
+  }
+
+  .js-plugin-detail-drawer .el-drawer__body {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding: 16px;
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plugin-row,
+  .js-backtop {
+    transition: none;
   }
 }
 </style>

@@ -1,438 +1,309 @@
 <template>
-  <Teleport v-if="filteredLogs.length" to="#root">
-    <el-button
-      type="default"
-      class="btn-scrolldown"
-      :icon="CaretBottom"
-      circle
-      @click="scrollDown"
-      content="最新日志"></el-button>
-  </Teleport>
-
-  <div style="display: flex; justify-content: flex-end; align-items: center">
-    <div style="display: flex; flex-direction: column">
-      <el-tooltip
-        v-if="
-          store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode &&
-          store.curDice.baseInfo.containerMode
-        "
-        content="容器模式下禁止直接更新，请手动拉取最新镜像">
-        <el-button type="primary" disabled>升级新版</el-button>
-      </el-tooltip>
-      <el-button
-        v-else-if="store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode"
-        type="primary"
-        @click="upgradeDialogVisible = true">
-        升级新版
-      </el-button>
-    </div>
-  </div>
-
-  <h4>状态</h4>
-  <div class="flex flex-col justify-center gap-4">
-    <div class="flex items-center flex-wrap gap-1">
-      <span>内存占用：</span>
-      <span class="mr-2">{{ filesize(store.curDice.baseInfo.memoryUsedSys || 0) }}</span>
-      <el-text size="small" type="info"
-        >理论内存占用，数值偏大。系统任务管理器中的「活动内存」才是实际使用的系统内存。</el-text
-      >
-    </div>
-
-    <div class="flex items-center flex-wrap gap-1">
-      <el-tooltip raw-content content="点击重新进行检测">
-        <button class="network-health-trigger" type="button" @click="refreshNetworkHealth">
-          <span>网络质量：</span>
-
-          <el-text type="primary" v-if="networkHealth.timestamp === 0">检测中…… 🤔</el-text>
-          <el-text
-            type="success"
-            v-else-if="
-              networkHealth.total !== 0 && networkHealth.total === networkHealth.ok?.length
-            "
-            >优 😄</el-text
-          >
-          <el-text
-            type="primary"
-            v-else-if="networkHealth.ok?.includes('sign') && networkHealth.ok?.includes('seal')"
-            >一般 😐️</el-text
-          >
-          <el-text
-            type="danger"
-            v-else-if="networkHealth.total !== 0 && (networkHealth.ok ?? []).length === 0"
-            >网络中断 😱</el-text
-          >
-          <el-text v-else type="warning">差 ☹️</el-text>
-        </button>
-      </el-tooltip>
-
-      <el-text v-if="isNetworkHealthPoor" class="ml-3" type="warning" size="small"
-        >这意味着你可能无法正常使用内置客户端/Lagrange 连接 QQ
-        平台，有时会出现消息无法正常发送的现象。</el-text
-      >
-
-      <el-tooltip v-if="networkHealth.timestamp !== 0">
-        <template #content>
-          {{ dayjs.unix(networkHealth.timestamp).format('YYYY-MM-DD HH:mm:ss') }}
-        </template>
-        <el-text class="ml-auto" type="info" size="small"
-          >检测于 {{ dayjs.unix(networkHealth.timestamp).from(now) }}</el-text
-        >
-      </el-tooltip>
-    </div>
-
-    <div v-if="networkHealth.timestamp !== 0" class="mx-2 flex items-center gap-4">
-      <el-text size="small"
-        >官网
-        <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('seal'))"></component
-      ></el-text>
-      <el-text size="small"
-        >Lagrange Sign
-        <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('sign'))"></component
-      ></el-text>
-      <el-text size="small"
-        >Google
-        <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('google'))"></component
-      ></el-text>
-      <el-text size="small"
-        >GitHub
-        <component :is="getWebsiteHealthComponent(networkHealth.ok?.includes('github'))"></component
-      ></el-text>
-    </div>
-  </div>
-
-  <div class="flex justify-between items-center gap-3 flex-wrap">
-    <h4>日志</h4>
-    <div class="log-controls">
-      <div class="log-level-filter">
-        <span class="log-level-filter__label">日志等级：</span>
-        <el-checkbox-group v-model="selectedLogLevels" :min="1" size="small">
-          <el-checkbox v-for="level in logLevelOptions" :key="level" :value="level">
-            {{ getLogLevelLabel(level) }}
-          </el-checkbox>
-        </el-checkbox-group>
+  <section class="workspace-page home-workspace" aria-labelledby="home-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="home-workspace-title" class="workspace-title">运行概览</h1>
+        <p class="workspace-subtitle">查看核心状态、平台接口连通性、管理操作记录与快捷入口。</p>
       </div>
-
-      <div class="log-refresh-toggle">
-        <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
+      <div class="workspace-actions">
+        <el-button :icon="Refresh" :loading="refreshing" @click="refreshOverview">
+          刷新概览
+        </el-button>
+        <el-tooltip
+          v-if="hasUpgrade && store.curDice.baseInfo.containerMode"
+          content="容器模式下禁止直接更新，请手动拉取最新镜像">
+          <el-button type="primary" disabled>升级新版</el-button>
+        </el-tooltip>
+        <el-button v-else-if="hasUpgrade" type="primary" @click="upgradeDialogVisible = true">
+          升级新版
+        </el-button>
       </div>
-    </div>
-  </div>
+    </header>
 
-  <el-divider class="latest-log-warn">
-    <el-text type="warning" size="small" class="hover:cursor-pointer" @click="scrollDown"
-      >点击下拉到底查看最新</el-text
-    >
-  </el-divider>
-
-  <div class="hidden md:block p-0 logs">
-    <el-table
-      :data="filteredLogs"
-      :row-class-name="getLogRowClassName"
-      :header-cell-style="{ backgroundColor: 'var(--seal-table-header-bg)' }">
-      <el-table-column label="时间" width="90">
-        <template #default="scope">
-          <div style="display: flex; align-items: center">
-            <el-icon v-if="scope.row.msg.startsWith('onebot | ')" color="var(--el-color-warning)"
-              ><timer
-            /></el-icon>
-            <el-icon v-else-if="scope.row.msg.startsWith('发给')" color="var(--el-color-primary)"
-              ><timer
-            /></el-icon>
-            <el-icon v-else-if="scope.row.level === 'warn'" color="var(--el-color-warning)"
-              ><timer
-            /></el-icon>
-            <el-icon v-else-if="scope.row.level === 'error'" color="var(--el-color-danger)"
-              ><timer
-            /></el-icon>
-            <el-icon v-else><timer /></el-icon>
-            <span style="margin-left: 0.3rem">
-              <span
-                v-if="scope.row.msg.startsWith('onebot | ')"
-                style="color: var(--el-color-warning)"
-                >{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span
-              >
-              <span
-                v-else-if="scope.row.msg.startsWith('发给')"
-                style="color: var(--el-color-primary)"
-                >{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span
-              >
-              <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{
-                dayjs.unix(scope.row.ts).format('HH:mm:ss')
-              }}</span>
-              <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{
-                dayjs.unix(scope.row.ts).format('HH:mm:ss')
-              }}</span>
-              <span v-else>{{ dayjs.unix(scope.row.ts).format('HH:mm:ss') }}</span>
-            </span>
+    <div class="workspace-body home-scroll">
+      <section class="overview-metrics" aria-label="核心与账号指标">
+        <div class="metric-item metric-item--accounts">
+          <span class="metric-label">已连接账号</span>
+          <div class="metric-account-value">
+            <strong class="metric-value">
+              {{ connectionsLoading ? '…' : `${connectedCount} / ${connections.length}` }}
+            </strong>
+            <el-button class="metric-account-action" link type="primary" @click="goToConnections">
+              {{ connections.length ? '管理账号' : '添加账号' }}
+            </el-button>
           </div>
-        </template>
-      </el-table-column>
-      <el-table-column prop="level" label="级别" width="55">
-        <template #default="scope">
-          <el-text v-if="scope.row.msg.startsWith('onebot | ')" type="warning">{{
-            scope.row.level
-          }}</el-text>
-          <el-text v-else-if="scope.row.msg.startsWith('发给')" type="primary">{{
-            scope.row.level
-          }}</el-text>
-          <el-text v-else-if="scope.row.level === 'warn'" type="warning">{{
-            scope.row.level
-          }}</el-text>
-          <el-text v-else-if="scope.row.level === 'error'" type="danger">{{
-            scope.row.level
-          }}</el-text>
-          <el-text v-else>{{ scope.row.level }}</el-text>
-        </template>
-      </el-table-column>
-      <el-table-column prop="msg" label="信息">
-        <template #default="scope">
-          <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)"
-            ><log-rich-content :content="scope.row.msg"
-          /></span>
-          <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)"
-            ><log-rich-content :content="scope.row.msg"
-          /></span>
-          <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">
-            <log-rich-content :content="scope.row.msg" />
-          </span>
-          <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">
-            <log-rich-content :content="scope.row.msg" />
-          </span>
-          <span v-else><log-rich-content :content="scope.row.msg" /></span>
-        </template>
-      </el-table-column>
-    </el-table>
-  </div>
-  <el-table
-    :data="filteredLogs"
-    class="md:hidden w-full logs"
-    :row-class-name="getLogRowClassName"
-    :header-cell-style="{ backgroundColor: 'var(--seal-table-header-bg)' }">
-    <el-table-column label="时间" width="60">
-      <template #default="scope">
-        <div style="display: flex; align-items: center">
-          <span
-            v-if="scope.row.msg.startsWith('onebot | ')"
-            style="color: var(--el-color-warning)"
-            >{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span
-          >
-          <span
-            v-else-if="scope.row.msg.startsWith('发给')"
-            style="color: var(--el-color-primary)"
-            >{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span
-          >
-          <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">{{
-            dayjs.unix(scope.row.ts).format('HH:mm')
-          }}</span>
-          <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">{{
-            dayjs.unix(scope.row.ts).format('HH:mm')
-          }}</span>
-          <span v-else>{{ dayjs.unix(scope.row.ts).format('HH:mm') }}</span>
+          <small v-if="endpointLoadError" class="metric-caption">账号列表读取失败</small>
+          <small v-else class="metric-caption">
+            在线 / 已配置<template v-if="overviewUpdatedAt">
+              · 更新于 {{ overviewUpdatedAt }}</template
+            >
+          </small>
         </div>
-      </template>
-    </el-table-column>
-    <el-table-column prop="msg" label="信息">
-      <template #default="scope">
-        <span v-if="scope.row.msg.startsWith('onebot | ')" style="color: var(--el-color-warning)">
-          <log-rich-content :content="scope.row.msg" />
-        </span>
-        <span v-else-if="scope.row.msg.startsWith('发给')" style="color: var(--el-color-primary)">
-          <log-rich-content :content="scope.row.msg" />
-        </span>
-        <span v-else-if="scope.row.level === 'warn'" style="color: var(--el-color-warning)">
-          <log-rich-content :content="scope.row.msg" />
-        </span>
-        <span v-else-if="scope.row.level === 'error'" style="color: var(--el-color-danger)">
-          <log-rich-content :content="scope.row.msg" />
-        </span>
-        <span v-else><log-rich-content :content="scope.row.msg" /></span>
-      </template>
-    </el-table-column>
-  </el-table>
+        <div class="metric-item">
+          <span class="metric-label">运行时长</span>
+          <strong class="metric-value">
+            {{ hasBaseInfo ? formatUptime(store.curDice.baseInfo.uptime) : '—' }}
+          </strong>
+          <small class="metric-caption">核心进程运行时间</small>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">运行时内存</span>
+          <strong class="metric-value">
+            {{ hasBaseInfo ? filesize(store.curDice.baseInfo.memoryUsedSys || 0) : '—' }}
+          </strong>
+          <small class="metric-caption">Go 保留内存，不等同于进程 RSS</small>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">运行环境</span>
+          <strong class="metric-value metric-value--environment">
+            {{
+              hasBaseInfo
+                ? `${store.curDice.baseInfo.OS || '未知'} / ${store.curDice.baseInfo.arch || '未知'}`
+                : '—'
+            }}
+          </strong>
+          <small class="metric-caption">
+            <template v-if="hasBaseInfo">
+              版本 {{ store.curDice.baseInfo.versionSimple || store.curDice.baseInfo.version }}
+              <template v-if="store.curDice.baseInfo.appChannel">
+                ({{ store.curDice.baseInfo.appChannel }})</template
+              >
+              · {{ store.curDice.baseInfo.containerMode ? '容器模式' : '非容器模式' }}
+            </template>
+            <template v-else>环境信息暂不可用</template>
+          </small>
+        </div>
+      </section>
 
-  <el-dialog
-    v-model="upgradeDialogVisible"
-    title="升级新版本"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    :show-close="true"
-    class="the-dialog">
-    <!-- <el-checkbox v-model="importOnlyCurrent">仅当前页面 (勾选)/全部自定义文案</el-checkbox> -->
-    <!-- <el-checkbox v-model="importImpact">紧凑</el-checkbox> -->
-
-    <el-link
-      style="font-size: 16px; font-weight: bolder"
-      type="primary"
-      href="https://dice.weizaima.com/changelog"
-      target="_blank"
-      >查看更新日志</el-link
-    >
-
-    <div>请及时更新余烬到最新版本，这意味着功能增加和 BUG 修复。</div>
-    <div>当然，在更新前最好看看右上角的余烬新闻，通常会很有帮助。</div>
-    <div>在操作之前，最好能确保你目前可以接触到服务器，以防万一需要人工干预。</div>
-    <div>
-      <b>如果升级后无法启动，请删除余烬目录中的"update"、"auto_update.exe"并手动进行升级</b>
+      <div class="overview-grid">
+        <div class="home-main-column">
+          <HomeQuickEntries />
+          <HomeActivityFeed />
+        </div>
+        <section class="overview-section network-section" aria-labelledby="network-title">
+          <div class="section-heading">
+            <div>
+              <h2 id="network-title">接口连通性</h2>
+              <p class="section-caption">核心服务器到平台 API 的可达性</p>
+            </div>
+            <el-tooltip content="重新检测六个平台 API">
+              <button
+                type="button"
+                class="network-refresh"
+                :disabled="checkingNetwork"
+                aria-label="重新检测接口连通性"
+                @click="refreshNetworkHealth">
+                <el-icon><Refresh /></el-icon>
+              </button>
+            </el-tooltip>
+          </div>
+          <div class="network-summary" role="status" aria-live="polite">
+            <span class="network-summary-label">
+              可达平台
+              <el-tooltip
+                content="检测不携带账号凭据：401/403/404 等拒绝响应也算可达，但不代表账号已授权。"
+                placement="top">
+                <el-icon class="network-help" aria-label="可达的含义"><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </span>
+            <strong>{{ networkHealthLabel }}</strong>
+          </div>
+          <p v-if="networkError" class="network-error" role="status">{{ networkError }}</p>
+          <div class="network-target-list" aria-label="平台 API 检测结果">
+            <div v-for="target in healthTargetRows" :key="target.key" class="network-target-row">
+              <strong class="network-target-name">{{ target.label }}</strong>
+              <span class="network-target-state" :class="`network-target-state--${target.state}`">
+                <i class="network-state-dot" aria-hidden="true"></i>
+                {{ target.stateLabel }}
+              </span>
+              <span class="network-target-detail">
+                <template v-if="target.result?.statusCode">
+                  HTTP {{ target.result.statusCode }}
+                </template>
+                <template v-else-if="target.result">无 HTTP 响应</template>
+                <template v-else>—</template>
+                <template v-if="target.result">
+                  · {{ formatProbeDuration(target.result.duration) }}
+                </template>
+              </span>
+            </div>
+          </div>
+          <p v-if="networkHealth && networkHealth.timestamp !== 0" class="network-checked-at">
+            检测于 {{ dayjs.unix(networkHealth.timestamp).from(now) }}
+            <span>({{ dayjs.unix(networkHealth.timestamp).format('YYYY-MM-DD HH:mm:ss') }})</span>
+          </p>
+        </section>
+      </div>
     </div>
-    <div><b>进一步的内容请查阅届时自动生成的“升级失败指引”或加群询问。</b></div>
 
-    <el-button style="margin: 1rem 0" type="primary" @click="doUpgrade"
-      >确认升级到 {{ store.curDice.baseInfo.versionNew }}
-    </el-button>
+    <el-dialog
+      v-model="upgradeDialogVisible"
+      title="升级新版本"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="true"
+      class="the-dialog">
+      <el-link
+        style="font-size: 16px; font-weight: bolder"
+        type="primary"
+        href="https://dice.weizaima.com/changelog"
+        target="_blank">
+        查看更新日志
+      </el-link>
 
-    <div>{{ store.curDice.baseInfo.versionNewNote }}</div>
-    <div>注意：升级成功后界面不会自动刷新，请在重连完成后手动刷新</div>
-    <div><b>当前 Win11 22H2 无法自动重启，建议此系统用户手动更新</b></div>
-    <div>不要连续多次执行</div>
+      <div>请及时更新余烬到最新版本，这意味着功能增加和 BUG 修复。</div>
+      <div>当然，在更新前最好看看右上角的余烬新闻，通常会很有帮助。</div>
+      <div>在操作之前，最好能确保你目前可以接触到服务器，以防万一需要人工干预。</div>
+      <div>
+        <b>如果升级后无法启动，请删除余烬目录中的“update”、“auto_update.exe”并手动进行升级</b>
+      </div>
+      <div><b>进一步的内容请查阅届时自动生成的“升级失败指引”或加群询问。</b></div>
 
-    <template #footer>
-      <span class="dialog-footer">
-        <!-- <el-button @click="dialogImportVisible = false">取消</el-button> -->
-        <!-- <el-button @click="configForImport = ''">清空</el-button> -->
-        <!-- <el-button data-clipboard-target="#import-edit" @click="copied" id="btnCopy1">复制</el-button> -->
-        <!-- <el-button type="primary" @click="doImport" :disabled="configForImport === ''">导入并保存</el-button> -->
-      </span>
-    </template>
-  </el-dialog>
+      <el-button style="margin: 1rem 0" type="primary" @click="doUpgrade">
+        确认升级到 {{ store.curDice.baseInfo.versionNew }}
+      </el-button>
 
-  <!-- <div v-for="i in store.curDice.logs">
-    {{i}}
-  </div> -->
+      <div>{{ store.curDice.baseInfo.versionNewNote }}</div>
+      <div>注意：升级成功后界面不会自动刷新，请在重连完成后手动刷新</div>
+      <div><b>当前 Win11 22H2 无法自动重启，建议此系统用户手动更新</b></div>
+      <div>不要连续多次执行</div>
+    </el-dialog>
+  </section>
 </template>
 
-<script lang="tsx" setup>
-import { Timer, CaretBottom } from '@element-plus/icons-vue';
-import { useStore } from '~/store';
+<script setup lang="ts">
+import { QuestionFilled, Refresh } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import { filesize } from 'filesize';
-import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue';
-import { getUtilsCheckNetWorkHealth } from '~/api/utils';
+import HomeActivityFeed from '~/components/home/HomeActivityFeed.vue';
+import HomeQuickEntries from '~/components/home/HomeQuickEntries.vue';
 import { postUpgrade } from '~/api/dice';
-import LogRichContent from '~/components/utils/log-rich-content.vue';
+import { getUtilsCheckNetWorkHealth, type UtilsNetworkHealthResponse } from '~/api/utils';
+import { useStore } from '~/store';
 
 const store = useStore();
+const router = useRouter();
+
+type NetworkTargetKey = UtilsNetworkHealthResponse['targets'][number]['target'];
+type NetworkTargetState = 'reachable' | 'unreachable' | 'pending' | 'error';
 
 const upgradeDialogVisible = ref(false);
-const autoRefresh = ref(true);
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type SysLog = { level: string; ts: number; caller: string; msg: string };
-const logLevelOptions: LogLevel[] = ['debug', 'info', 'warn', 'error'];
-const selectedLogLevels = ref<LogLevel[]>(['info', 'warn', 'error']);
-const logLevelLabelMap: Record<LogLevel, string> = {
-  debug: 'DEBUG',
-  info: 'INFO',
-  warn: 'WARN',
-  error: 'ERROR',
-};
-const now = ref<dayjs.Dayjs>(dayjs());
-const networkHealth = ref({
-  total: 0,
-  ok: [],
-  timestamp: 0,
-} as {
-  total: number;
-  ok: string[];
-  timestamp: number;
+const refreshing = ref(false);
+const connectionsLoading = ref(false);
+const endpointLoadError = ref(false);
+const overviewUpdatedAt = ref('');
+const now = ref(dayjs());
+const networkError = ref('');
+const checkingNetwork = ref(false);
+const networkHealth = ref<UtilsNetworkHealthResponse | null>(null);
+let relativeTimeTimer: ReturnType<typeof setInterval> | undefined;
+let networkCheckTimer: ReturnType<typeof setInterval> | undefined;
+let overviewActive = false;
+
+const hasBaseInfo = computed(() => store.curDice.baseInfo.version !== '0.0');
+const hasUpgrade = computed(
+  () => store.curDice.baseInfo.versionCode < store.curDice.baseInfo.versionNewCode,
+);
+const connections = computed(() => store.curDice.conns || []);
+const connectedCount = computed(
+  () =>
+    connections.value.filter(connection => connection.state === 1 && !connection.ambiguous).length,
+);
+const healthTargets: { key: NetworkTargetKey; label: string }[] = [
+  { key: 'qq', label: 'QQ 官方机器人' },
+  { key: 'kook', label: 'KOOK' },
+  { key: 'discord', label: 'Discord' },
+  { key: 'telegram', label: 'Telegram' },
+  { key: 'dingtalk', label: '钉钉' },
+  { key: 'slack', label: 'Slack' },
+];
+
+const healthTargetRows = computed(() =>
+  healthTargets.map(target => {
+    const result = networkHealth.value?.targets.find(item => item.target === target.key);
+    const state: NetworkTargetState = result
+      ? result.ok
+        ? 'reachable'
+        : 'unreachable'
+      : networkError.value || networkHealth.value
+        ? 'error'
+        : 'pending';
+    return {
+      ...target,
+      result,
+      state,
+      stateLabel: {
+        reachable: '可达',
+        unreachable: '不可达',
+        pending: '检测中',
+        error: '未获取结果',
+      }[state],
+    };
+  }),
+);
+
+const networkHealthLabel = computed(() => {
+  if (!networkHealth.value) return networkError.value ? '检测失败' : '检测中……';
+  return `${networkHealth.value.ok.length} / ${networkHealth.value.total}`;
 });
 
-const isNetworkHealthPoor = computed(() => {
-  const { timestamp, total, ok } = networkHealth.value;
-  return (
-    timestamp !== 0 &&
-    !(total !== 0 && total === ok.length) &&
-    !(ok.includes('sign') && ok.includes('seal')) &&
-    !(total !== 0 && ok.length === 0)
-  );
-});
+function formatUptime(value: number) {
+  const totalSeconds = Math.max(0, Math.floor(value || 0));
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  return days > 0
+    ? `${days} 天 ${hours} 小时`
+    : hours > 0
+      ? `${hours} 小时 ${minutes} 分`
+      : `${minutes} 分钟`;
+}
 
-let timerId: ReturnType<typeof setInterval>;
-let checkTimerId: ReturnType<typeof setInterval>;
-let logSSE: EventSource | null = null;
+function formatProbeDuration(duration: number) {
+  const milliseconds = Math.max(0, duration) / 1_000_000;
+  return `${milliseconds < 100 ? milliseconds.toFixed(1) : Math.round(milliseconds)} ms`;
+}
 
-const normalizeLogLevel = (level: unknown): LogLevel => {
-  if (level === 'debug' || level === 'info' || level === 'warn' || level === 'error') {
-    return level;
-  }
-  return 'info';
-};
-
-const getLogLevelLabel = (level: LogLevel) => logLevelLabelMap[level];
-
-const filteredLogs = computed(() => {
-  const selected = new Set(selectedLogLevels.value);
-  return store.curDice.logs.filter(log => selected.has(normalizeLogLevel(log.level)));
-});
-
-const getUILogLimit = () => {
-  const raw = Number(store.curDice.config?.logPageItemLimit ?? 100);
-  if (!Number.isFinite(raw) || raw <= 0) {
-    return 100;
-  }
-  return Math.floor(raw);
-};
-
-const trimLogs = (logs: SysLog[]) => {
-  const limit = getUILogLimit();
-  if (logs.length <= limit) {
-    return logs;
-  }
-  return logs.slice(logs.length - limit);
-};
-
-const closeLogStream = () => {
-  if (!logSSE) {
-    return;
-  }
-  logSSE.close();
-  logSSE = null;
-};
-
-const openLogStream = () => {
-  if (logSSE || !store.canAccess || !store.token) {
-    return;
-  }
-
-  const token = encodeURIComponent(store.token);
-  const es = new EventSource(`/sd-api/log/stream?token=${token}`);
-  es.addEventListener('snapshot', event => {
-    if (!autoRefresh.value) {
-      return;
+async function refreshOverview() {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  connectionsLoading.value = true;
+  try {
+    await store.getImConnections();
+    if (!overviewActive) return;
+    endpointLoadError.value = false;
+    overviewUpdatedAt.value = dayjs().format('HH:mm:ss');
+  } catch {
+    if (overviewActive) endpointLoadError.value = true;
+  } finally {
+    if (overviewActive) {
+      connectionsLoading.value = false;
+      refreshing.value = false;
     }
-    try {
-      const data = JSON.parse((event as MessageEvent).data);
-      if (Array.isArray(data)) {
-        store.curDice.logs = trimLogs(data as SysLog[]);
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('日志快照解析失败', error);
-      }
-    }
-  });
+  }
+}
 
-  es.addEventListener('log', event => {
-    if (!autoRefresh.value) {
-      return;
+async function refreshNetworkHealth() {
+  if (checkingNetwork.value) return;
+  checkingNetwork.value = true;
+  networkError.value = '';
+  try {
+    const result = await getUtilsCheckNetWorkHealth();
+    if (result.result) {
+      networkHealth.value = result;
+    } else {
+      networkError.value = '接口连通性检测未返回结果，请稍后重试。';
     }
-    try {
-      const data = JSON.parse((event as MessageEvent).data) as SysLog;
-      const merged = [...store.curDice.logs, data];
-      store.curDice.logs = trimLogs(merged);
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn('日志解析失败', error);
-      }
-    }
-  });
+  } catch {
+    networkError.value = '接口连通性检测失败，保留上次结果或稍后重试。';
+  } finally {
+    checkingNetwork.value = false;
+  }
+}
 
-  es.onerror = () => {
-    if (!autoRefresh.value) {
-      closeLogStream();
-    }
-  };
-
-  logSSE = es;
-};
+function goToConnections() {
+  void router.push({ name: 'connect' });
+}
 
 const doUpgrade = async () => {
   upgradeDialogVisible.value = false;
@@ -449,198 +320,458 @@ const doUpgrade = async () => {
   }
 };
 
-const scrollDown = () => {
-  const panel = document.querySelector<HTMLElement>('.logs')?.parentElement;
-  if (panel) {
-    panel.scrollTop = panel.scrollHeight;
-  }
-};
-
-// const getColorByLevel = (level: string) => {
-//   switch (level) {
-//     case 'warn':
-//       return 'var(--el-color-warning)';
-//     case 'error':
-//       return 'var(--el-color-danger)';
-//     default:
-//       return '';
-//   }
-// };
-
-const getLogRowClassName = ({ row }: { row: SysLog }) => {
-  switch (normalizeLogLevel(row.level)) {
-    case 'warn':
-      return 'no-hover warning-row';
-    case 'error':
-      return 'no-hover danger-row';
-    default:
-      return 'no-hover normal-row';
-  }
-};
-
-const getWebsiteHealthComponent = (ok: boolean): VNode => (
-  <>
-    {ok ? (
-      <el-icon color={'var(--el-color-success)'}>
-        <CircleCheckFilled />
-      </el-icon>
-    ) : (
-      <el-icon color={'var(--el-color-danger)'}>
-        <CircleCloseFilled />
-      </el-icon>
-    )}
-  </>
-);
-
-const refreshNetworkHealth = async () => {
-  networkHealth.value.timestamp = 0;
-  const ret = await getUtilsCheckNetWorkHealth();
-  if (ret.result) {
-    networkHealth.value = ret;
-  }
-};
-
-onBeforeMount(async () => {
-  if (autoRefresh.value) {
-    openLogStream();
-    await refreshNetworkHealth();
-  }
-
-  timerId = setInterval(() => {
+onMounted(() => {
+  overviewActive = true;
+  void refreshOverview();
+  void refreshNetworkHealth();
+  relativeTimeTimer = setInterval(() => {
     now.value = dayjs();
-  }, 5000);
-  checkTimerId = setInterval(
-    async () => {
-      await refreshNetworkHealth();
-    },
-    5 * 60 * 1000,
-  ); // 5 min 一次
+  }, 5_000);
+  networkCheckTimer = setInterval(() => void refreshNetworkHealth(), 5 * 60 * 1000);
 });
 
-watch(autoRefresh, enabled => {
-  if (enabled) {
-    openLogStream();
-    return;
-  }
-  closeLogStream();
-});
-
-watch(
-  () => store.token,
-  () => {
-    if (!autoRefresh.value) {
-      return;
-    }
-    closeLogStream();
-    openLogStream();
-  },
-);
-
-onBeforeUnmount(() => {
-  closeLogStream();
-  clearInterval(timerId);
-  clearInterval(checkTimerId);
+onUnmounted(() => {
+  overviewActive = false;
+  if (relativeTimeTimer) clearInterval(relativeTimeTimer);
+  if (networkCheckTimer) clearInterval(networkCheckTimer);
 });
 </script>
 
 <style scoped>
-.btn-scrolldown {
-  position: absolute;
-  right: 40px;
-  bottom: 60px;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  display: flex;
+.home-scroll {
+  container: home-overview / inline-size;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: var(--workspace-gap, 16px);
+  overflow: hidden;
+  padding: 0 4px 8px 0;
+}
+
+.metric-label {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.network-summary-label {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
-  z-index: 5;
-  opacity: 0.4;
+  gap: 4px;
 }
 
-.btn-scrolldown:hover {
-  transition: all 0.3s;
-  opacity: 1;
+.network-help {
+  color: var(--el-text-color-secondary);
+  cursor: help;
 }
 
-.latest-log-warn {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  :deep(.el-divider__text) {
-    background: var(--seal-panel-bg);
-  }
+.overview-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
-.log-controls {
+.metric-item {
   display: flex;
-  align-items: center;
-  gap: 1.1rem;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 16px;
+}
+
+.metric-item:first-child {
+  padding-inline-start: 0;
+}
+
+.metric-item + .metric-item {
+  border-left: 1px solid var(--el-border-color-lighter);
+}
+
+.metric-label {
+  overflow-wrap: anywhere;
+}
+
+.metric-value {
+  min-height: 28px;
+  color: var(--el-text-color-primary);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.metric-account-value {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
   flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
-.log-level-filter {
+.metric-account-action {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.metric-caption,
+.section-caption {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.overview-grid {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 310px);
+  gap: 24px;
+  overflow: hidden;
+}
+
+.home-main-column {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 24px;
+}
+
+.home-main-column :deep(.section-heading) {
+  padding-block: 4px;
+  padding-inline-end: 12px;
+}
+
+.overview-section {
+  min-width: 0;
+  min-height: 0;
+}
+
+.section-heading {
   display: flex;
+  min-height: 34px;
   align-items: center;
-  gap: 0.6rem;
-  margin-right: 0.2rem;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
-.log-level-filter__label {
-  color: #6b7280;
-  font-size: 0.82rem;
+.section-heading h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.section-heading .section-caption {
+  margin-top: 2px;
+}
+
+.network-section {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.network-section .section-heading {
+  margin-bottom: 8px;
+}
+
+.network-refresh {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  color: var(--el-text-color-secondary);
+  background: transparent;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.network-refresh:hover:not(:disabled) {
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary-light-5);
+}
+
+.network-refresh:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.network-summary {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.network-summary strong {
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.network-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.network-error {
+  color: var(--el-color-danger);
+}
+
+.network-target-list {
+  margin-top: 8px;
+}
+
+.network-target-row {
+  display: grid;
+  min-height: 30px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-size: 12px;
+}
+
+.network-target-name {
+  min-width: 0;
+  color: var(--el-text-color-primary);
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.network-target-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   white-space: nowrap;
 }
 
-.log-controls :deep(.el-checkbox-group) {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+.network-state-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--el-text-color-placeholder);
 }
 
-.log-refresh-toggle {
-  padding-left: 0.9rem;
-  border-left: 1px solid #d1d5db;
+.network-target-state--reachable {
+  color: var(--el-color-success);
 }
 
-.network-health-trigger {
-  display: inline-flex;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
+.network-target-state--reachable .network-state-dot {
+  background: var(--el-color-success);
 }
-</style>
 
-<style lang="css">
-.el-table .warning-row {
-  --el-table-tr-bg-color: var(--el-color-warning-light-8);
-  &:hover {
-    --el-table-tr-bg-color: var(--el-color-warning-light-9);
+.network-target-state--unreachable {
+  color: var(--el-color-danger);
+}
+
+.network-target-state--unreachable .network-state-dot {
+  background: var(--el-color-danger);
+}
+
+.network-target-state--error {
+  color: var(--el-text-color-secondary);
+}
+
+.network-target-state--error .network-state-dot {
+  background: var(--el-text-color-placeholder);
+}
+
+.network-target-state--pending {
+  color: var(--el-color-primary);
+}
+
+.network-target-state--pending .network-state-dot {
+  background: var(--el-color-primary);
+}
+
+.network-target-detail {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.network-checked-at {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.network-checked-at span {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+@container home-overview (max-width: 760px) {
+  .overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .network-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-content: start;
+  }
+
+  .network-section .section-heading {
+    margin-bottom: 0;
+  }
+
+  .network-summary {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+    padding: 0;
+    border-bottom: 0;
+    white-space: nowrap;
+  }
+
+  .network-error,
+  .network-target-list,
+  .network-checked-at {
+    grid-column: 1 / -1;
+  }
+
+  .network-target-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+
+  .network-target-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 6px;
+    line-height: 1.5;
+  }
+
+  .network-target-detail {
+    grid-column: 1 / -1;
+    text-align: start;
+  }
+
+  .network-checked-at span {
+    display: inline;
   }
 }
 
-.el-table .danger-row {
-  --el-table-tr-bg-color: var(--el-color-danger-light-8);
-  &:hover {
-    --el-table-tr-bg-color: var(--el-color-danger-light-9);
+@container home-overview (max-width: 700px) {
+  .overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+  }
+
+  .metric-item {
+    padding-block: 4px;
+    padding-inline: 10px;
+  }
+
+  .metric-item:first-child,
+  .metric-item:nth-child(2n + 1) {
+    padding-inline-start: 0;
+    border-left: 0;
+  }
+
+  .metric-item:nth-child(2n) {
+    padding-inline-end: 0;
+  }
+
+  .metric-value {
+    font-size: 18px;
+  }
+
+  .network-target-row {
+    min-height: 28px;
+    column-gap: 6px;
+  }
+
+  .network-refresh {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+}
+@media (max-width: 1023px) {
+  .home-scroll {
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .overview-grid {
+    overflow: visible;
+  }
+
+  .home-main-column {
+    min-height: auto;
+    grid-template-rows: auto auto;
+  }
+
+  .network-section {
+    overflow: visible;
   }
 }
 
-.el-table .normal-row {
-  --el-table-tr-bg-color: var(--seal-surface-soft);
-  &:hover {
-    --el-table-tr-bg-color: var(--el-color-primary-light-9);
+@media (max-width: 767px) {
+  .workspace-header {
+    gap: 8px;
   }
-}
 
-.no-hover:hover > td {
-  background-color: initial !important;
+  .workspace-subtitle {
+    display: none;
+  }
+
+  .home-scroll {
+    gap: 8px;
+  }
+
+  .metric-label {
+    line-height: 1.5;
+  }
+
+  .overview-metrics {
+    gap: 4px 0;
+    padding-bottom: 8px;
+  }
+
+  .metric-item {
+    gap: 2px;
+    padding-block: 2px;
+  }
+
+  .metric-value {
+    min-height: 24px;
+  }
+  .section-caption,
+  .network-error,
+  .network-summary,
+  .network-summary strong,
+  .network-target-row,
+  .network-target-name,
+  .network-target-detail,
+  .network-checked-at {
+    font-size: 16px;
+  }
 }
 </style>

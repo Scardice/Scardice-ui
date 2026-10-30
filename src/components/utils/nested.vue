@@ -2,6 +2,7 @@
 <template>
   <draggable
     class="dragArea"
+    :class="{ 'is-focused': focused }"
     tag="div"
     :list="tasks"
     handle=".handle"
@@ -12,13 +13,14 @@
         <foldable-card
           :ref="el => setItemCardRef(index, el)"
           type="div"
-          :default-fold="true"
+          :default-fold="focused ? false : true"
           compact>
           <template #title>
-            <el-checkbox v-model="el.enable" @click.stop>开启</el-checkbox>
+            <el-checkbox v-if="!focused" v-model="el.enable" @click.stop>开启</el-checkbox>
+            <el-text v-else tag="strong">条件与回复</el-text>
           </template>
           <template #title-extra>
-            <el-space size="large" alignment="center">
+            <el-space v-if="!focused" size="large" alignment="center">
               <el-icon class="handle">
                 <rank />
               </el-icon>
@@ -125,14 +127,8 @@
 
                 <div v-for="(k2, index) in i.message" :key="index" class="w-full my-2">
                   <!-- 这里面是单条修改项 -->
-                  <div style="display: flex">
-                    <div
-                      style="
-                        display: flex;
-                        align-items: center;
-                        width: 1.3rem;
-                        margin-left: 0.2rem;
-                      ">
+                  <div class="reply-message-row">
+                    <div class="reply-message-action">
                       <el-tooltip
                         :content="
                           index === 0
@@ -140,13 +136,23 @@
                             : '点击删除你不想要的回复语'
                         "
                         placement="bottom-start">
-                        <el-icon>
-                          <circle-plus-filled v-if="index == 0" @click="addItem(i.message)" />
-                          <circle-close v-else @click="removeItem(i.message, index)" />
-                        </el-icon>
+                        <el-button
+                          v-if="index === 0"
+                          text
+                          circle
+                          :icon="CirclePlusFilled"
+                          aria-label="添加一条随机回复语"
+                          @click="addItem(i.message)" />
+                        <el-button
+                          v-else
+                          text
+                          circle
+                          :icon="CircleClose"
+                          :aria-label="`删除第 ${Number(index) + 1} 条随机回复语`"
+                          @click="removeItem(i.message, index)" />
                       </el-tooltip>
                     </div>
-                    <div style="flex: 1">
+                    <div class="reply-message-input">
                       <el-input
                         v-model="k2[0]"
                         type="textarea"
@@ -179,8 +185,10 @@ import {
 import draggable from 'vuedraggable';
 import { breakpointsTailwind } from '@vueuse/core';
 
-const props = defineProps<{ tasks: Array<any> }>();
-type FoldableCardRef = { open: () => void; toggle: () => void };
+const props = defineProps<{ tasks: Array<any>; focused?: boolean }>();
+
+const focused = computed(() => props.focused ?? false);
+type FoldableCardRef = { toggle: () => void };
 const itemCardRefs = ref<Array<FoldableCardRef | null>>([]);
 
 const setItemCardRef = (index: number, card: unknown) => {
@@ -190,14 +198,6 @@ const setItemCardRef = (index: number, card: unknown) => {
 const toggleCard = (index: number) => {
   itemCardRefs.value[index]?.toggle();
 };
-
-const openLast = () => {
-  nextTick(() => {
-    itemCardRefs.value[props.tasks.length - 1]?.open();
-  });
-};
-
-defineExpose({ openLast });
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const notMobile = breakpoints.greater('sm');
@@ -251,7 +251,35 @@ const removeItem = (v: any[], index: number | any) => {
   }
 }
 
-@media screen and (max-width: 700px) {
+.dragArea.is-focused {
+  padding-block: 0;
+}
+
+.reply-message-row {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.reply-message-action {
+  flex: 0 0 auto;
+  margin-inline-start: 0.2rem;
+}
+
+.reply-message-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media screen and (max-width: 767px) {
+  .reply-message-action :deep(.el-button) {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media screen and (max-width: 767px) {
   .mobile-changeline {
     flex-direction: column;
   }

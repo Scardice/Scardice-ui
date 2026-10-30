@@ -28,7 +28,7 @@ type QuitGroupConfig = {
   extraText: string; // 额外的文本信息
 };
 
-export type GroupLocalDataDeleteScope = 'group_record' | 'players' | 'attrs';
+export type GroupLocalDataDeleteScope = 'group_record' | 'players' | 'attrs' | 'logs';
 
 export type GroupLocalDataDeleteConfig = {
   groupId: string; // 群组ID
@@ -50,6 +50,11 @@ export type GroupLocalDataDeleteResult = {
     playerRows: number;
     groupAttrRows: number;
     groupUserAttrRows: number;
+    logSessions: number;
+    logStates: number;
+    logEntries: number;
+    logIntents: number;
+    logImports: number;
   };
 };
 

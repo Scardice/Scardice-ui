@@ -1,508 +1,518 @@
 <template>
-  <header class="page-header">
-    <el-space wrap>
-      <el-text size="large" tag="strong">扩展商店</el-text>
-      <el-tag type="info">包管理</el-tag>
-    </el-space>
-    <el-space wrap>
-      <el-dropdown @command="handleReloadContentCommand">
-        <el-button :icon="Refresh" :loading="reloadAllLoading"> 重载内容 </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="all">全部内容</el-dropdown-item>
-            <el-dropdown-item command="scripts">JS 扩展</el-dropdown-item>
-            <el-dropdown-item command="decks">牌堆</el-dropdown-item>
-            <el-dropdown-item command="reply">自定义回复</el-dropdown-item>
-            <el-dropdown-item command="helpdoc">帮助文档</el-dropdown-item>
-            <el-dropdown-item command="templates">模板</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-      <el-button :icon="Download" @click="exportInstalledPackageList"> 导出清单 </el-button>
-      <el-button :icon="Upload" @click="openManifestInstallDialog"> 从清单安装 </el-button>
-      <el-button type="primary" :icon="Refresh" :loading="loading" @click="loadPackageData">
-        刷新
-      </el-button>
-    </el-space>
-  </header>
+  <section class="workspace-page package-workspace" aria-labelledby="package-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="package-workspace-title" class="workspace-title">扩展商店</h1>
+        <p class="workspace-subtitle">
+          安装和管理扩展包（JS 扩展、牌堆、自定义回复、帮助文档等），也可按清单批量安装。
+        </p>
+      </div>
+      <div class="workspace-actions">
+        <el-dropdown @command="handleReloadContentCommand">
+          <el-button :icon="Refresh" :loading="reloadAllLoading">重载内容</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="all">全部内容</el-dropdown-item>
+              <el-dropdown-item command="scripts">JS 扩展</el-dropdown-item>
+              <el-dropdown-item command="decks">牌堆</el-dropdown-item>
+              <el-dropdown-item command="reply">自定义回复</el-dropdown-item>
+              <el-dropdown-item command="helpdoc">帮助文档</el-dropdown-item>
+              <el-dropdown-item command="templates">模板</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button :icon="Download" @click="exportInstalledPackageList">导出清单</el-button>
+        <el-button :icon="Upload" @click="openManifestInstallDialog">从清单安装</el-button>
+        <el-button :icon="Refresh" :loading="loading" @click="loadPackageData">刷新</el-button>
+      </div>
+    </header>
 
-  <el-alert
-    v-if="unsupportedText"
-    class="package-alert"
-    type="warning"
-    :closable="false"
-    show-icon
-    :title="unsupportedText" />
+    <el-alert
+      v-if="unsupportedText"
+      class="package-alert"
+      type="warning"
+      :closable="false"
+      show-icon
+      :title="unsupportedText" />
 
-  <el-tabs v-model="activeTab" stretch>
-    <el-tab-pane label="已安装" name="installed">
-      <main v-loading="installedLoading" class="package-panel">
-        <el-alert
-          v-if="installedError"
-          class="package-alert"
-          type="error"
-          :closable="false"
-          show-icon
-          :title="installedError" />
-
-        <el-empty
-          v-else-if="installedPackages.length === 0 && !installedLoading"
-          description="暂无已安装扩展包，或当前后端暂不支持包管理接口。" />
-
-        <el-row v-else :gutter="16">
-          <el-col v-for="item in installedPackages" :key="packageId(item)" :xs="24" :md="12">
-            <el-card class="package-card" shadow="hover">
-              <template #header>
-                <el-space wrap>
-                  <el-icon><Box /></el-icon>
-                  <el-text tag="strong">{{ item.manifest.package.name }}</el-text>
-                  <el-tag size="small">{{ item.manifest.package.version }}</el-tag>
-                  <el-tag :type="packageStateType(item.state)" size="small">
-                    {{ packageStateText(item.state) }}
-                  </el-tag>
-                </el-space>
-              </template>
-              <el-text class="package-description" tag="p">
-                {{ item.manifest.package.description || '暂无简介' }}
-              </el-text>
-              <el-descriptions :column="1" size="small" border>
-                <el-descriptions-item label="包 ID">
-                  {{ item.manifest.package.id }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="item.sourceWarning" label="提示">
-                  <el-text type="warning">{{ item.sourceWarning }}</el-text>
-                </el-descriptions-item>
-              </el-descriptions>
-              <el-space class="package-actions" wrap>
-                <el-button type="primary" size="small" @click="openPackageDetail(item)">
-                  详情
-                </el-button>
-                <el-button
-                  v-if="item.state === 'enabled'"
-                  type="warning"
-                  size="small"
-                  :loading="isPackageActionLoading(item)"
-                  @click="handleDisablePackage(item)">
-                  停用
-                </el-button>
-                <el-button
-                  v-else
-                  type="success"
-                  size="small"
-                  :loading="isPackageActionLoading(item)"
-                  :disabled="item.sourceStatus === 'cache_only'"
-                  @click="handleEnablePackage(item)">
-                  启用
-                </el-button>
-                <el-button
-                  type="primary"
-                  size="small"
-                  plain
-                  :loading="isPackageActionLoading(item)"
-                  @click="handleReloadPackage(item)">
-                  重载
-                </el-button>
-                <el-button
-                  type="danger"
-                  size="small"
-                  plain
-                  :loading="isPackageActionLoading(item)"
-                  @click="handleUninstallPackage(item)">
-                  卸载
-                </el-button>
-              </el-space>
-            </el-card>
-          </el-col>
-        </el-row>
-      </main>
-    </el-tab-pane>
-
-    <el-tab-pane label="商店" name="store">
-      <main v-loading="storeLoading" class="package-panel">
-        <el-alert
-          v-if="storeError"
-          class="package-alert"
-          type="error"
-          :closable="false"
-          show-icon
-          :title="storeError" />
-
-        <section class="package-section">
-          <el-card shadow="never">
-            <template #header>
-              <el-space wrap>
-                <el-icon><Shop /></el-icon>
-                <el-text tag="strong">商店后端</el-text>
-                <el-tag size="small" type="info">{{ storeBackends.length }} 个</el-tag>
-              </el-space>
-            </template>
-
-            <el-space class="backend-add-row" wrap>
-              <el-input
-                v-model="newBackendUrl"
-                class="backend-url-input"
-                clearable
-                placeholder="输入扩展商店后端地址" />
-              <el-button type="primary" :loading="backendAddLoading" @click="handleAddBackend">
-                添加后端
-              </el-button>
-              <el-button :loading="storeLoading" @click="loadStorePackages">刷新商店</el-button>
-            </el-space>
+    <div class="workspace-body workspace-scroll">
+      <el-tabs v-model="activeTab">
+        <el-tab-pane label="已安装" name="installed">
+          <main v-loading="installedLoading" class="package-panel">
+            <el-alert
+              v-if="installedError"
+              class="package-alert"
+              type="error"
+              :closable="false"
+              show-icon
+              :title="installedError" />
 
             <el-empty
-              v-if="storeBackends.length === 0 && !storeLoading && !storeError"
-              description="暂无可用商店后端，或当前后端暂不支持扩展商店。" />
-            <el-table v-else :data="storeBackends" class="package-table" size="small">
-              <el-table-column label="名称" min-width="180">
-                <template #default="{ row }">
-                  <el-space wrap>
-                    <el-text>{{ getBackendLabel(row) }}</el-text>
-                    <el-tag v-if="isBuiltinBackend(row)" size="small" type="info">内置</el-tag>
-                  </el-space>
-                </template>
-              </el-table-column>
-              <el-table-column prop="url" label="地址" min-width="240" show-overflow-tooltip />
-              <el-table-column label="状态" width="120">
-                <template #default="{ row }">
-                  <el-switch
-                    :model-value="isBackendEnabled(row)"
-                    :loading="backendToggleLoadingMap[getBackendKey(row)] === true"
-                    active-text="启用"
-                    inactive-text="停用"
-                    inline-prompt
-                    @change="
-                      (value: string | number | boolean) => handleToggleBackend(row, value)
-                    " />
-                </template>
-              </el-table-column>
-              <el-table-column label="操作" width="120">
-                <template #default="{ row }">
-                  <el-button
-                    size="small"
-                    type="danger"
-                    plain
-                    :disabled="isBuiltinBackend(row)"
-                    :loading="backendRemoveLoadingMap[getBackendKey(row)] === true"
-                    @click="handleRemoveBackend(row)">
-                    删除
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-card>
-        </section>
+              v-else-if="installedPackages.length === 0 && !installedLoading"
+              description="还没有安装扩展包。可以在“商店”标签中浏览并安装。" />
 
-        <section class="package-section">
-          <el-card shadow="never">
-            <template #header>
-              <el-space wrap>
-                <el-icon><Box /></el-icon>
-                <el-text tag="strong">扩展包浏览</el-text>
-                <el-tag size="small" type="info">
-                  {{ storeViewMode === 'recommend' ? '推荐' : '搜索' }}
-                </el-tag>
-              </el-space>
-            </template>
-            <div class="store-view-tabs">
-              <el-radio-group v-model="storeViewMode" @change="handleStoreViewChange">
-                <el-radio-button value="search">全部</el-radio-button>
-                <el-radio-button value="recommend">推荐</el-radio-button>
-              </el-radio-group>
-            </div>
-
-            <el-form
-              v-if="storeViewMode === 'search'"
-              class="store-query-form"
-              label-position="top"
-              :model="storeQuery">
-              <el-row :gutter="12">
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="后端">
-                    <el-select v-model="storeQuery.backend" clearable placeholder="全部后端">
-                      <el-option
-                        v-for="backend in enabledStoreBackends"
-                        :key="getBackendKey(backend)"
-                        :label="getBackendLabel(backend)"
-                        :value="getBackendIdentifier(backend)" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="内容类型">
-                    <el-select v-model="storeQuery.content" placeholder="全部内容">
-                      <el-option label="全部内容" value="all" />
-                      <el-option label="JS 扩展" value="scripts" />
-                      <el-option label="牌堆" value="decks" />
-                      <el-option label="自定义回复" value="reply" />
-                      <el-option label="帮助文档" value="helpdoc" />
-                      <el-option label="模板" value="templates" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="名称">
-                    <el-input v-model="storeQuery.name" clearable placeholder="按名称搜索" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="作者">
-                    <el-input v-model="storeQuery.author" clearable placeholder="按作者搜索" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="8">
-                  <el-form-item label="分类">
-                    <el-input v-model="storeQuery.category" clearable placeholder="按分类搜索" />
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="4">
-                  <el-form-item label="排序">
-                    <el-select v-model="storeQuery.sortBy">
-                      <el-option label="更新时间" value="updateTime" />
-                      <el-option label="发布时间" value="releaseTime" />
-                      <el-option label="下载量" value="downloadCount" />
-                      <el-option label="名称" value="name" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :xs="24" :md="4">
-                  <el-form-item label="方向">
-                    <el-select v-model="storeQuery.order">
-                      <el-option label="降序" value="desc" />
-                      <el-option label="升序" value="asc" />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-              <el-space wrap>
-                <el-button type="primary" :loading="storeLoading" @click="searchStorePackages">
-                  搜索
-                </el-button>
-              </el-space>
-            </el-form>
-
-            <el-empty
-              v-if="storePackages.length === 0 && !storeLoading && !storeError"
-              description="暂无商店扩展包。" />
             <el-row v-else :gutter="16">
-              <el-col v-for="item in storePackages" :key="storePackageKey(item)" :xs="24" :md="12">
-                <el-card class="package-card" shadow="hover">
+              <el-col v-for="item in installedPackages" :key="packageId(item)" :xs="24" :md="12">
+                <el-card class="package-card" shadow="never">
                   <template #header>
                     <el-space wrap>
-                      <el-link
-                        v-if="storePackageDetailHref(item)"
-                        :href="storePackageDetailHref(item)"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        :underline="false">
-                        {{ item.name }}
-                      </el-link>
-                      <el-text v-else tag="strong">{{ item.name }}</el-text>
-                      <el-tag size="small">{{ item.version }}</el-tag>
-                      <el-tag v-if="item.installed" size="small" type="success">已安装</el-tag>
+                      <el-icon><Box /></el-icon>
+                      <el-text tag="strong">{{ item.manifest.package.name }}</el-text>
+                      <el-tag size="small">{{ item.manifest.package.version }}</el-tag>
+                      <el-tag :type="packageStateType(item.state)" size="small">
+                        {{ packageStateText(item.state) }}
+                      </el-tag>
                     </el-space>
                   </template>
                   <el-text class="package-description" tag="p">
-                    {{ item.description || '暂无简介' }}
+                    {{ item.manifest.package.description || '暂无简介' }}
                   </el-text>
                   <el-descriptions :column="1" size="small" border>
-                    <el-descriptions-item label="作者">
-                      {{ item.authors.join(', ') || '未知' }}
+                    <el-descriptions-item label="包 ID">
+                      {{ item.manifest.package.id }}
                     </el-descriptions-item>
-                    <el-descriptions-item label="内容">
-                      {{ item.contents.join(', ') || '未标注' }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="更新时间">
-                      {{ formatTime(item.download.updateTime) }}
+                    <el-descriptions-item v-if="item.sourceWarning" label="提示">
+                      <el-text type="warning">{{ item.sourceWarning }}</el-text>
                     </el-descriptions-item>
                   </el-descriptions>
                   <el-space class="package-actions" wrap>
-                    <el-button type="primary" size="small" @click="openStoreDetail(item)">
-                      详情
+                    <el-button size="small" @click="openPackageDetail(item)">详情</el-button>
+                    <el-button
+                      v-if="item.state === 'enabled'"
+                      size="small"
+                      :loading="isPackageActionLoading(item)"
+                      @click="handleDisablePackage(item)">
+                      停用
                     </el-button>
                     <el-button
-                      type="success"
+                      v-else
+                      type="primary"
+                      plain
                       size="small"
-                      :disabled="item.installed"
-                      :loading="storeInstallLoadingMap[storePackageKey(item)] === true"
-                      @click="openStoreInstallPreview(item)">
-                      {{ item.installed ? '已安装' : '预览安装' }}
+                      :loading="isPackageActionLoading(item)"
+                      :disabled="item.sourceStatus === 'cache_only'"
+                      @click="handleEnablePackage(item)">
+                      启用
+                    </el-button>
+                    <el-button
+                      size="small"
+                      :loading="isPackageActionLoading(item)"
+                      @click="handleReloadPackage(item)">
+                      重载
+                    </el-button>
+                    <el-button
+                      type="danger"
+                      size="small"
+                      plain
+                      :loading="isPackageActionLoading(item)"
+                      @click="handleUninstallPackage(item)">
+                      卸载
                     </el-button>
                   </el-space>
                 </el-card>
               </el-col>
             </el-row>
-            <div
-              v-if="storeViewMode === 'search' && storePackages.length > 0 && storeMaxPageCount > 1"
-              class="store-pagination">
-              <el-pagination
-                v-model:current-page="storeQuery.pageNum"
-                v-model:page-size="storeQuery.pageSize"
-                :page-sizes="[12, 24, 48]"
-                :page-count="storeMaxPageCount"
-                layout="sizes, prev, pager, next"
-                background
-                @current-change="() => searchStorePackages()"
-                @size-change="handleStorePageSizeChange" />
-            </div>
-          </el-card>
-        </section>
-      </main>
-    </el-tab-pane>
-  </el-tabs>
+          </main>
+        </el-tab-pane>
 
-  <PackageInstalledDrawer
-    v-model="packageDetailVisible"
-    :loading="packageDetailLoading"
-    :saving="packageConfigSaving"
-    :data="currentPackageDetail"
-    :config-data="currentPackageConfig"
-    :config-schema="currentPackageSchema"
-    @save-config="handleSavePackageConfig" />
+        <el-tab-pane label="商店" name="store">
+          <main v-loading="storeLoading" class="package-panel">
+            <el-alert
+              v-if="storeError"
+              class="package-alert"
+              type="error"
+              :closable="false"
+              show-icon
+              :title="storeError" />
 
-  <PackageStoreDrawer v-model="storeDetailVisible" :data="currentStorePackage" />
+            <section class="package-section">
+              <el-card shadow="never">
+                <template #header>
+                  <el-space wrap>
+                    <el-icon><Shop /></el-icon>
+                    <el-text tag="strong">商店后端</el-text>
+                    <el-tag size="small" type="info">{{ storeBackends.length }} 个</el-tag>
+                  </el-space>
+                </template>
 
-  <el-dialog
-    v-model="storeInstallPreviewVisible"
-    title="安装商店扩展包"
-    width="min(720px, 92vw)"
-    destroy-on-close>
-    <div v-loading="storeInstallPreviewLoading">
-      <el-empty
-        v-if="!storeInstallPreviewData"
-        description="正在获取安装预览，或当前后端不支持预览。" />
-      <template v-else>
-        <el-alert
-          class="package-alert"
-          type="info"
-          :closable="false"
-          show-icon
-          :title="`即将${previewActionText(storeInstallPreviewData)}「${storeInstallPreviewData.manifest.package.name}」`" />
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="包 ID">
-            {{ storeInstallPreviewData.manifest.package.id }}
-          </el-descriptions-item>
-          <el-descriptions-item label="版本">
-            {{ storeInstallPreviewData.manifest.package.version }}
-          </el-descriptions-item>
-          <el-descriptions-item label="当前版本">
-            {{ installedVersionForPreview(storeInstallPreviewData) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="文件数量">
-            {{ storeInstallPreviewData.fileCount ?? storeInstallPreviewData.files?.length ?? '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="内容统计">
-            <pre class="preview-json">{{ previewCountsText(storeInstallPreviewData) }}</pre>
-          </el-descriptions-item>
-        </el-descriptions>
-        <el-checkbox v-model="storeInstallAutoEnable" class="auto-enable-checkbox">
-          安装后尝试启用扩展包
-        </el-checkbox>
-        <section class="preview-file-tree">
-          <header class="preview-file-tree-title">文件清单</header>
-          <PackageFileTree :files="storeInstallPreviewData.files ?? []" />
-        </section>
-      </template>
+                <el-space class="backend-add-row" wrap>
+                  <el-input
+                    v-model="newBackendUrl"
+                    class="backend-url-input"
+                    clearable
+                    placeholder="商店后端地址，例如 https://store.example.com" />
+                  <el-button :icon="Plus" :loading="backendAddLoading" @click="handleAddBackend">
+                    添加后端
+                  </el-button>
+                  <el-button :loading="storeLoading" @click="loadStorePackages">刷新商店</el-button>
+                </el-space>
+
+                <el-empty
+                  v-if="storeBackends.length === 0 && !storeLoading && !storeError"
+                  description="还没有可用的商店后端，请先在上方添加。" />
+                <el-table v-else :data="storeBackends" class="package-table" size="small">
+                  <el-table-column label="名称" min-width="180">
+                    <template #default="{ row }">
+                      <el-space wrap>
+                        <el-text>{{ getBackendLabel(row) }}</el-text>
+                        <el-tag v-if="isBuiltinBackend(row)" size="small" type="info">内置</el-tag>
+                      </el-space>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="url" label="地址" min-width="240" show-overflow-tooltip />
+                  <el-table-column label="状态" width="120">
+                    <template #default="{ row }">
+                      <el-switch
+                        :model-value="isBackendEnabled(row)"
+                        :loading="backendToggleLoadingMap[getBackendKey(row)] === true"
+                        active-text="启用"
+                        inactive-text="停用"
+                        inline-prompt
+                        @change="
+                          (value: string | number | boolean) => handleToggleBackend(row, value)
+                        " />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="120">
+                    <template #default="{ row }">
+                      <el-button
+                        size="small"
+                        type="danger"
+                        plain
+                        :disabled="isBuiltinBackend(row)"
+                        :loading="backendRemoveLoadingMap[getBackendKey(row)] === true"
+                        @click="handleRemoveBackend(row)">
+                        删除
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </el-card>
+            </section>
+
+            <section class="package-section">
+              <el-card shadow="never">
+                <template #header>
+                  <el-space wrap>
+                    <el-icon><Box /></el-icon>
+                    <el-text tag="strong">扩展包浏览</el-text>
+                    <el-tag size="small" type="info">
+                      {{ storeViewMode === 'recommend' ? '推荐' : '搜索' }}
+                    </el-tag>
+                  </el-space>
+                </template>
+                <div class="store-view-tabs">
+                  <el-radio-group v-model="storeViewMode" @change="handleStoreViewChange">
+                    <el-radio-button value="search">全部</el-radio-button>
+                    <el-radio-button value="recommend">推荐</el-radio-button>
+                  </el-radio-group>
+                </div>
+
+                <el-form
+                  v-if="storeViewMode === 'search'"
+                  class="store-query-form"
+                  label-position="top"
+                  :model="storeQuery">
+                  <el-row :gutter="12">
+                    <el-col :xs="24" :md="8">
+                      <el-form-item label="后端">
+                        <el-select v-model="storeQuery.backend" clearable placeholder="全部后端">
+                          <el-option
+                            v-for="backend in enabledStoreBackends"
+                            :key="getBackendKey(backend)"
+                            :label="getBackendLabel(backend)"
+                            :value="getBackendIdentifier(backend)" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-form-item label="内容类型">
+                        <el-select v-model="storeQuery.content" placeholder="全部内容">
+                          <el-option label="全部内容" value="all" />
+                          <el-option label="JS 扩展" value="scripts" />
+                          <el-option label="牌堆" value="decks" />
+                          <el-option label="自定义回复" value="reply" />
+                          <el-option label="帮助文档" value="helpdoc" />
+                          <el-option label="模板" value="templates" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-form-item label="名称">
+                        <el-input v-model="storeQuery.name" clearable placeholder="按名称搜索" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-form-item label="作者">
+                        <el-input v-model="storeQuery.author" clearable placeholder="按作者搜索" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="8">
+                      <el-form-item label="分类">
+                        <el-input
+                          v-model="storeQuery.category"
+                          clearable
+                          placeholder="按分类搜索" />
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="4">
+                      <el-form-item label="排序">
+                        <el-select v-model="storeQuery.sortBy">
+                          <el-option label="更新时间" value="updateTime" />
+                          <el-option label="发布时间" value="releaseTime" />
+                          <el-option label="下载量" value="downloadCount" />
+                          <el-option label="名称" value="name" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :xs="24" :md="4">
+                      <el-form-item label="方向">
+                        <el-select v-model="storeQuery.order">
+                          <el-option label="降序" value="desc" />
+                          <el-option label="升序" value="asc" />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                  <el-space wrap>
+                    <el-button type="primary" :loading="storeLoading" @click="searchStorePackages">
+                      搜索
+                    </el-button>
+                  </el-space>
+                </el-form>
+
+                <el-empty
+                  v-if="storePackages.length === 0 && !storeLoading && !storeError"
+                  description="没有找到扩展包，换个条件再试。" />
+                <el-row v-else :gutter="16">
+                  <el-col
+                    v-for="item in storePackages"
+                    :key="storePackageKey(item)"
+                    :xs="24"
+                    :md="12">
+                    <el-card class="package-card" shadow="never">
+                      <template #header>
+                        <el-space wrap>
+                          <el-link
+                            v-if="storePackageDetailHref(item)"
+                            :href="storePackageDetailHref(item)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            :underline="false">
+                            {{ item.name }}
+                          </el-link>
+                          <el-text v-else tag="strong">{{ item.name }}</el-text>
+                          <el-tag size="small">{{ item.version }}</el-tag>
+                          <el-tag v-if="item.installed" size="small" type="success">已安装</el-tag>
+                        </el-space>
+                      </template>
+                      <el-text class="package-description" tag="p">
+                        {{ item.description || '暂无简介' }}
+                      </el-text>
+                      <el-descriptions :column="1" size="small" border>
+                        <el-descriptions-item label="作者">
+                          {{ item.authors.join(', ') || '未知' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="内容">
+                          {{ item.contents.join(', ') || '未标注' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="更新时间">
+                          {{ formatTime(item.download.updateTime) }}
+                        </el-descriptions-item>
+                      </el-descriptions>
+                      <el-space class="package-actions" wrap>
+                        <el-button size="small" @click="openStoreDetail(item)">详情</el-button>
+                        <el-button
+                          type="primary"
+                          plain
+                          size="small"
+                          :disabled="item.installed"
+                          :loading="storeInstallLoadingMap[storePackageKey(item)] === true"
+                          @click="openStoreInstallPreview(item)">
+                          {{ item.installed ? '已安装' : '安装' }}
+                        </el-button>
+                      </el-space>
+                    </el-card>
+                  </el-col>
+                </el-row>
+                <div
+                  v-if="
+                    storeViewMode === 'search' && storePackages.length > 0 && storeMaxPageCount > 1
+                  "
+                  class="store-pagination">
+                  <el-pagination
+                    v-model:current-page="storeQuery.pageNum"
+                    v-model:page-size="storeQuery.pageSize"
+                    :page-sizes="[12, 24, 48]"
+                    :page-count="storeMaxPageCount"
+                    layout="sizes, prev, pager, next"
+                    background
+                    @current-change="() => searchStorePackages()"
+                    @size-change="handleStorePageSizeChange" />
+                </div>
+              </el-card>
+            </section>
+          </main>
+        </el-tab-pane>
+      </el-tabs>
     </div>
-    <template #footer>
-      <el-button @click="storeInstallPreviewVisible = false">取消</el-button>
-      <el-button
-        type="primary"
-        :disabled="!storeInstallPreviewData || storeInstallPreviewLoading"
-        :loading="storeInstallConfirmLoading"
-        @click="confirmStoreInstall">
-        确认安装
-      </el-button>
-    </template>
-  </el-dialog>
 
-  <el-dialog
-    v-model="manifestInstallVisible"
-    title="从清单安装扩展包"
-    width="min(760px, 92vw)"
-    destroy-on-close>
-    <el-alert
-      class="package-alert"
-      type="info"
-      :closable="false"
-      show-icon
-      title="粘贴或选择 sealpack 依赖清单（TOML），将按清单中的确切版本从商店批量安装。" />
-    <el-space wrap class="manifest-install-actions">
-      <el-button :icon="Upload" @click="triggerManifestInstallFilePick">选择清单文件</el-button>
-      <el-text v-if="manifestInstallFileName" size="small" type="info">
-        {{ manifestInstallFileName }}
+    <PackageInstalledDrawer
+      v-model="packageDetailVisible"
+      :loading="packageDetailLoading"
+      :saving="packageConfigSaving"
+      :data="currentPackageDetail"
+      :config-data="currentPackageConfig"
+      :config-schema="currentPackageSchema"
+      @save-config="handleSavePackageConfig" />
+
+    <PackageStoreDrawer v-model="storeDetailVisible" :data="currentStorePackage" />
+
+    <el-dialog
+      v-model="storeInstallPreviewVisible"
+      title="安装商店扩展包"
+      width="min(720px, 92vw)"
+      destroy-on-close>
+      <div v-loading="storeInstallPreviewLoading">
+        <el-empty
+          v-if="!storeInstallPreviewData"
+          description="正在获取安装预览，或当前后端不支持预览。" />
+        <template v-else>
+          <el-alert
+            class="package-alert"
+            type="info"
+            :closable="false"
+            show-icon
+            :title="`即将${previewActionText(storeInstallPreviewData)}「${storeInstallPreviewData.manifest.package.name}」`" />
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="包 ID">
+              {{ storeInstallPreviewData.manifest.package.id }}
+            </el-descriptions-item>
+            <el-descriptions-item label="版本">
+              {{ storeInstallPreviewData.manifest.package.version }}
+            </el-descriptions-item>
+            <el-descriptions-item label="当前版本">
+              {{ installedVersionForPreview(storeInstallPreviewData) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="文件数量">
+              {{
+                storeInstallPreviewData.fileCount ?? storeInstallPreviewData.files?.length ?? '-'
+              }}
+            </el-descriptions-item>
+            <el-descriptions-item label="内容统计">
+              <pre class="preview-json">{{ previewCountsText(storeInstallPreviewData) }}</pre>
+            </el-descriptions-item>
+          </el-descriptions>
+          <el-checkbox v-model="storeInstallAutoEnable" class="auto-enable-checkbox">
+            安装后尝试启用扩展包
+          </el-checkbox>
+          <section class="preview-file-tree">
+            <header class="preview-file-tree-title">文件清单</header>
+            <PackageFileTree :files="storeInstallPreviewData.files ?? []" />
+          </section>
+        </template>
+      </div>
+      <template #footer>
+        <el-button @click="storeInstallPreviewVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :disabled="!storeInstallPreviewData || storeInstallPreviewLoading"
+          :loading="storeInstallConfirmLoading"
+          @click="confirmStoreInstall">
+          确认安装
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="manifestInstallVisible"
+      title="从清单安装扩展包"
+      width="min(760px, 92vw)"
+      destroy-on-close>
+      <el-alert
+        class="package-alert"
+        type="info"
+        :closable="false"
+        show-icon
+        title="粘贴或选择 sealpack 依赖清单（TOML），将按清单中的确切版本从商店批量安装。" />
+      <el-space wrap class="manifest-install-actions">
+        <el-button :icon="Upload" @click="triggerManifestInstallFilePick">选择清单文件</el-button>
+        <el-text v-if="manifestInstallFileName" size="small" type="info">
+          {{ manifestInstallFileName }}
+        </el-text>
+      </el-space>
+      <input
+        ref="manifestInstallFileInput"
+        type="file"
+        accept=".toml,text/plain"
+        class="manifest-install-file-input"
+        @change="handleManifestInstallFileChange" />
+      <el-input
+        v-model="manifestInstallContent"
+        type="textarea"
+        :rows="8"
+        placeholder='[dependencies]&#10;"namespace/package" = "=1.0.0"'
+        @input="resetManifestInstallResults" />
+      <el-alert
+        v-if="manifestInstallPreview.error"
+        class="package-alert"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="manifestInstallPreview.error" />
+      <el-table
+        v-else-if="manifestInstallPreview.items?.length"
+        v-loading="manifestInstallNamesLoading"
+        :data="manifestInstallPreview.items"
+        class="package-table"
+        size="small">
+        <el-table-column label="扩展包" min-width="220">
+          <template #default="scope">
+            <div>{{ manifestInstallPackageNames[scope.row.id] || '-' }}</div>
+            <el-text size="small" type="info">{{ scope.row.id }}</el-text>
+          </template>
+        </el-table-column>
+        <el-table-column label="版本" width="140" prop="version" />
+        <el-table-column label="状态" width="140">
+          <template #default="scope">
+            <el-tag size="small" :type="manifestInstallResultTagType(scope.row.id)">
+              {{ manifestInstallResultText(scope.row.id) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="说明" min-width="200">
+          <template #default="scope">
+            {{ manifestInstallResultMap.get(scope.row.id)?.message || '' }}
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-checkbox v-model="manifestInstallAutoEnable" class="auto-enable-checkbox">
+        安装后尝试启用扩展包
+      </el-checkbox>
+      <el-progress
+        v-if="manifestInstallProgressText"
+        :percentage="manifestInstallProgress"
+        :status="manifestInstallProgressStatus" />
+      <el-text v-if="manifestInstallProgressText" size="small" type="info">
+        {{ manifestInstallProgressText }}
       </el-text>
-    </el-space>
-    <input
-      ref="manifestInstallFileInput"
-      type="file"
-      accept=".toml,text/plain"
-      class="manifest-install-file-input"
-      @change="handleManifestInstallFileChange" />
-    <el-input
-      v-model="manifestInstallContent"
-      type="textarea"
-      :rows="8"
-      placeholder='[dependencies]&#10;"namespace/package" = "=1.0.0"'
-      @input="resetManifestInstallResults" />
-    <el-alert
-      v-if="manifestInstallPreview.error"
-      class="package-alert"
-      type="error"
-      :closable="false"
-      show-icon
-      :title="manifestInstallPreview.error" />
-    <el-table
-      v-else-if="manifestInstallPreview.items?.length"
-      v-loading="manifestInstallNamesLoading"
-      :data="manifestInstallPreview.items"
-      class="package-table"
-      size="small">
-      <el-table-column label="扩展包" min-width="220">
-        <template #default="scope">
-          <div>{{ manifestInstallPackageNames[scope.row.id] || '-' }}</div>
-          <el-text size="small" type="info">{{ scope.row.id }}</el-text>
-        </template>
-      </el-table-column>
-      <el-table-column label="版本" width="140" prop="version" />
-      <el-table-column label="状态" width="140">
-        <template #default="scope">
-          <el-tag size="small" :type="manifestInstallResultTagType(scope.row.id)">
-            {{ manifestInstallResultText(scope.row.id) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="说明" min-width="200">
-        <template #default="scope">
-          {{ manifestInstallResultMap.get(scope.row.id)?.message || '' }}
-        </template>
-      </el-table-column>
-    </el-table>
-    <el-checkbox v-model="manifestInstallAutoEnable" class="auto-enable-checkbox">
-      安装后尝试启用扩展包
-    </el-checkbox>
-    <el-progress
-      v-if="manifestInstallProgressText"
-      :percentage="manifestInstallProgress"
-      :status="manifestInstallProgressStatus" />
-    <el-text v-if="manifestInstallProgressText" size="small" type="info">
-      {{ manifestInstallProgressText }}
-    </el-text>
-    <template #footer>
-      <el-button @click="manifestInstallVisible = false">关闭</el-button>
-      <el-button
-        type="primary"
-        :disabled="!manifestInstallPreview.items?.length"
-        :loading="manifestInstallLoading"
-        @click="handleManifestInstall">
-        开始安装
-      </el-button>
-    </template>
-  </el-dialog>
+      <template #footer>
+        <el-button @click="manifestInstallVisible = false">关闭</el-button>
+        <el-button
+          type="primary"
+          :disabled="!manifestInstallPreview.items?.length"
+          :loading="manifestInstallLoading"
+          @click="handleManifestInstall">
+          开始安装
+        </el-button>
+      </template>
+    </el-dialog>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeMount, reactive, ref, watch } from 'vue';
-import { Box, Download, Refresh, Shop, Upload } from '@element-plus/icons-vue';
+import { Box, Download, Plus, Refresh, Shop, Upload } from '@element-plus/icons-vue';
 import PackageFileTree from './package/PackageFileTree.vue';
 import PackageInstalledDrawer from './package/PackageInstalledDrawer.vue';
 import PackageStoreDrawer from './package/PackageStoreDrawer.vue';

@@ -1,39 +1,39 @@
 <template>
-  <h4>词库列表</h4>
-  <header class="page-header">
-    <el-upload
-      action=""
-      multiple
-      accept="application/text,.txt,application/toml,.toml"
-      :before-upload="beforeUpload">
-      <el-button type="primary" :icon="Upload">导入</el-button>
-    </el-upload>
-    <el-space>
-      <el-button
-        style="text-decoration: none"
-        type="success"
-        tag="a"
-        target="_blank"
-        link
-        size="small"
-        :href="`${urlBase}/sd-api/censor/files/template/toml`"
-        :icon="Download">
-        下载 toml 词库模板
-      </el-button>
-      <el-button
-        style="text-decoration: none"
-        type="success"
-        tag="a"
-        target="_blank"
-        link
-        size="small"
-        :href="`${urlBase}/sd-api/censor/files/template/txt`"
-        :icon="Download"
-        >下载 txt 词库模板
-      </el-button>
-    </el-space>
-  </header>
-  <main style="margin-top: 1rem">
+  <section class="workspace-panel censor-files">
+    <div class="workspace-panel-header">
+      <div>
+        <h2>词库文件</h2>
+        <p>支持 txt 与 toml 格式；导入后需重载拦截才会生效。</p>
+      </div>
+      <div class="workspace-actions">
+        <el-button
+          class="censor-template-link"
+          tag="a"
+          target="_blank"
+          link
+          :href="`${urlBase}/sd-api/censor/files/template/toml`"
+          :icon="Download">
+          toml 模板
+        </el-button>
+        <el-button
+          class="censor-template-link"
+          tag="a"
+          target="_blank"
+          link
+          :href="`${urlBase}/sd-api/censor/files/template/txt`"
+          :icon="Download"
+          >txt 模板
+        </el-button>
+        <el-upload
+          action=""
+          multiple
+          :show-file-list="false"
+          accept="application/text,.txt,application/toml,.toml"
+          :before-upload="beforeUpload">
+          <el-button type="primary" :icon="Upload">导入词库</el-button>
+        </el-upload>
+      </div>
+    </div>
     <el-table table-layout="auto" :data="files">
       <el-table-column fixed label="文件名" prop="name"></el-table-column>
       <el-table-column prop="count[1]">
@@ -69,7 +69,7 @@
         </template>
       </el-table-column>
     </el-table>
-  </main>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -146,3 +146,13 @@ const deleteFile = async (key: string) => {
   });
 };
 </script>
+
+<style scoped>
+.censor-files {
+  margin-top: 16px;
+}
+
+.censor-template-link {
+  text-decoration: none;
+}
+</style>

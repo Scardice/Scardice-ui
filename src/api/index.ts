@@ -6,6 +6,7 @@ import axios, {
 } from 'axios';
 import axiosRetry from 'axios-retry';
 import qs from 'qs';
+import { testWebUIBypass } from '~/utils/test-webui-bypass';
 
 type HttpMethod = 'post' | 'get' | 'put' | 'patch' | 'delete';
 type RequestContentType = 'form' | 'json' | 'formdata';
@@ -101,7 +102,7 @@ function getResponseErrorMessage(error: AxiosError) {
 function handleResponseError(error: AxiosError) {
   const status = error.response?.status;
 
-  if (status === 401 || status === 403) {
+  if ((status === 401 || status === 403) && !testWebUIBypass.skipStoredToken) {
     try {
       if (localStorage.getItem('scardice-auth-mode') !== 'admin') {
         localStorage.removeItem('t');
@@ -120,16 +121,18 @@ function handleResponseError(error: AxiosError) {
 }
 
 http.interceptors.request.use(config => {
-  try {
-    const token = localStorage.getItem('t');
-    if (token) {
-      const authorization = /^Bearer\s+/i.test(token) ? token : `Bearer ${token}`;
-      setHeader(config, 'Authorization', authorization);
-      setHeader(config, 'token', token);
+  if (!testWebUIBypass.skipStoredToken) {
+    try {
+      const token = localStorage.getItem('t');
+      if (token) {
+        const authorization = /^Bearer\s+/i.test(token) ? token : `Bearer ${token}`;
+        setHeader(config, 'Authorization', authorization);
+        setHeader(config, 'token', token);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+      // ignore storage errors
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
-    // ignore storage errors
   }
 
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {

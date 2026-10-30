@@ -18,6 +18,8 @@ import '~/styles/index.css';
 // import 'element-plus/theme-chalk/display.css'
 
 import { useStore } from '~/store';
+import { getPreInfo } from '~/api/others';
+import { testWebUIBypass } from '~/utils/test-webui-bypass';
 const loading = useStorage('router-view-loading', true);
 import router from '~/router';
 
@@ -67,9 +69,32 @@ app
 
 const store = useStore();
 
-store.trySignIn().finally(() => {
-  app.mount('#app');
-});
+const bootstrap = async () => {
+  try {
+    const preInfo = await getPreInfo();
+    testWebUIBypass.auth = preInfo.testWebUIAuthBypass === true;
+    testWebUIBypass.originRateLimit = preInfo.testWebUIOriginRateLimitBypass === true;
+    testWebUIBypass.skipStoredToken = testWebUIBypass.auth;
+  } catch {
+    // Keep normal authentication when the public pre-info endpoint is unavailable.
+    testWebUIBypass.skipStoredToken = false;
+  }
+
+  if (testWebUIBypass.auth) {
+    store.token = '';
+    store.canAccess = true;
+    store.backendOffline = false;
+    await router.isReady();
+    app.mount('#app');
+    return;
+  }
+
+  void store.trySignIn().finally(() => {
+    app.mount('#app');
+  });
+};
+
+void bootstrap();
 
 if (import.meta.env.DEV) {
   try {

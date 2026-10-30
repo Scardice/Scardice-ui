@@ -1,259 +1,321 @@
 <template>
-  <div class="ui-beautify-page">
-    <div class="ui-beautify-header">
+  <section class="workspace-page ui-beautify-page" aria-labelledby="beautify-workspace-title">
+    <header class="workspace-header">
       <div>
-        <h2>UI 美化</h2>
-        <el-text type="info">设置会保存在当前浏览器，仅影响 WebUI 显示。</el-text>
+        <h1 id="beautify-workspace-title" class="workspace-title">UI 美化</h1>
+        <p class="workspace-subtitle">设置只保存在当前浏览器，仅影响 WebUI 的显示效果。</p>
       </div>
-      <el-button @click="resetConfig">恢复默认</el-button>
-    </div>
+      <div class="workspace-actions">
+        <el-button :icon="RefreshLeft" @click="resetConfig">恢复默认</el-button>
+      </div>
+    </header>
 
-    <section class="ui-beautify-section">
-      <h3>主题颜色</h3>
-      <div class="theme-grid">
-        <button
-          v-for="theme in uiThemeOptions"
-          :key="theme.id"
-          class="theme-card"
-          :class="{ active: config.themeId === theme.id }"
-          type="button"
-          @click="config.themeId = theme.id">
-          <span class="theme-name">{{ theme.name }}</span>
-          <span class="theme-swatches">
-            <span
-              v-for="(color, swatchIndex) in getThemeSwatches(theme)"
-              :key="`${theme.id}-${swatchIndex}-${color}`"
-              class="theme-swatch"
-              :style="{ backgroundColor: color }" />
-          </span>
-        </button>
-      </div>
-      <div class="theme-preview-panel" :style="themePreviewStyle">
-        <div class="theme-preview-top">
-          <div>
-            <strong>{{ currentThemeName }}预览</strong>
-            <el-text size="small" type="info">卡片、输入框、折叠块、表格、按钮实时小样</el-text>
-          </div>
-          <span class="theme-preview-pill">Live</span>
-        </div>
-        <div class="theme-preview-grid">
-          <div class="theme-preview-card">
-            <strong>卡片标题</strong>
-            <span>这里展示主面板、次级块、边框与文字层级。</span>
-            <div class="theme-preview-actions">
-              <button type="button" class="theme-preview-button primary">主要</button>
-              <button type="button" class="theme-preview-button plain">次要</button>
+    <div class="workspace-body workspace-scroll beautify-body">
+      <div class="beautify-layout">
+        <div class="beautify-main">
+          <section class="workspace-panel" aria-labelledby="beautify-theme-title">
+            <div class="workspace-panel-header">
+              <div>
+                <h2 id="beautify-theme-title">主题</h2>
+                <p>点选即生效。所有主题都保证文字与按钮清晰可读。</p>
+              </div>
             </div>
-          </div>
-          <div class="theme-preview-card">
-            <label class="theme-preview-field">
-              <span>输入框</span>
-              <input value="Scardice UI" readonly />
-            </label>
-            <div class="theme-preview-collapse">
-              <div class="theme-preview-collapse-title">折叠块标题</div>
-              <div class="theme-preview-collapse-body">帮助内容和说明文字使用同一套卡片视觉。</div>
+
+            <div class="theme-grid" role="radiogroup" aria-label="主题">
+              <button
+                v-for="theme in uiThemeOptions"
+                :key="theme.id"
+                class="theme-card"
+                :class="{ active: config.themeId === theme.id }"
+                type="button"
+                role="radio"
+                :aria-checked="config.themeId === theme.id"
+                :aria-label="`${theme.name}：${theme.description}`"
+                @click="config.themeId = theme.id">
+                <span class="theme-thumb" :style="themeThumbStyle(theme.colors)" aria-hidden="true">
+                  <span class="theme-thumb-nav">
+                    <i class="is-active" />
+                    <i />
+                    <i />
+                  </span>
+                  <span class="theme-thumb-main">
+                    <span class="theme-thumb-panel">
+                      <i class="theme-thumb-title" />
+                      <i class="theme-thumb-line" />
+                      <i class="theme-thumb-line is-short" />
+                      <span class="theme-thumb-actions">
+                        <i class="theme-thumb-button" />
+                        <i class="theme-thumb-link" />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+                <span class="theme-meta">
+                  <span class="theme-name"
+                    >{{ theme.name
+                    }}<em v-if="theme.mode === 'dark'" class="theme-tag">深色</em></span
+                  >
+                  <span class="theme-desc">{{ theme.description }}</span>
+                </span>
+                <el-icon v-if="config.themeId === theme.id" class="theme-check" aria-hidden="true"
+                  ><CircleCheckFilled
+                /></el-icon>
+              </button>
+              <button
+                class="theme-card"
+                :class="{ active: config.themeId === 'custom' }"
+                type="button"
+                role="radio"
+                :aria-checked="config.themeId === 'custom'"
+                aria-label="自定义：选择任意主色生成主题"
+                @click="config.themeId = 'custom'">
+                <span
+                  class="theme-thumb"
+                  :style="themeThumbStyle(config.customColors)"
+                  aria-hidden="true">
+                  <span class="theme-thumb-nav">
+                    <i class="is-active" />
+                    <i />
+                    <i />
+                  </span>
+                  <span class="theme-thumb-main">
+                    <span class="theme-thumb-panel">
+                      <i class="theme-thumb-title" />
+                      <i class="theme-thumb-line" />
+                      <i class="theme-thumb-line is-short" />
+                      <span class="theme-thumb-actions">
+                        <i class="theme-thumb-button" />
+                        <i class="theme-thumb-link" />
+                      </span>
+                    </span>
+                  </span>
+                </span>
+                <span class="theme-meta">
+                  <span class="theme-name">自定义</span>
+                  <span class="theme-desc">选择任意主色，自动生成整套配色</span>
+                </span>
+                <el-icon v-if="config.themeId === 'custom'" class="theme-check" aria-hidden="true"
+                  ><CircleCheckFilled
+                /></el-icon>
+              </button>
             </div>
-          </div>
-          <table class="theme-preview-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>群组</td>
-                <td>在线</td>
-              </tr>
-              <tr>
-                <td>插件</td>
-                <td>启用</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div v-if="config.themeId === 'custom'" class="custom-theme-panel">
-        <div class="custom-theme-header">
-          <div>
-            <strong>自定义配色</strong>
-            <el-text type="info" size="small"
-              >可点选色块，或输入 #RRGGBB / #RGB / rgb(64, 158, 255)。</el-text
-            >
-          </div>
-          <el-space wrap>
-            <label class="custom-primary-generator">
-              <span>主色</span>
-              <input
-                class="custom-color-picker"
-                type="color"
-                :value="customGeneratorPrimary"
-                aria-label="选择主色并生成配色"
-                @input="pickGeneratorPrimary" />
-              <el-input
-                v-model="customGeneratorPrimary"
-                size="small"
-                @change="value => commitGeneratorPrimary(String(value))"
-                @blur="commitGeneratorPrimary(customGeneratorPrimary)" />
-            </label>
-            <el-button size="small" type="primary" plain @click="() => generateCustomColors()">
-              主色生成
-            </el-button>
-            <el-button size="small" @click="resetCustomColors">恢复自定义默认</el-button>
-          </el-space>
-        </div>
-        <div class="custom-color-grid">
-          <label v-for="item in customColorItems" :key="item.key" class="custom-color-item">
-            <span class="custom-color-label">{{ item.label }}</span>
-            <input
-              class="custom-color-picker"
-              type="color"
-              :value="config.customColors[item.key]"
-              :aria-label="`选择${item.label}`"
-              @input="pickCustomColor(item.key, $event)"
-              @change="pickCustomColor(item.key, $event)" />
-            <el-input
-              :model-value="customColorInputs[item.key]"
-              size="small"
-              @input="value => (customColorInputs[item.key] = String(value))"
-              @change="value => commitCustomColor(item.key, String(value))"
-              @blur="commitCustomColor(item.key, customColorInputs[item.key])" />
-          </label>
-        </div>
-      </div>
-    </section>
 
-    <section class="ui-beautify-section">
-      <h3>字体</h3>
-      <el-radio-group v-model="config.fontId" class="font-list">
-        <el-radio-button v-for="font in uiFontOptions" :key="font.id" :label="font.id">
-          <span :style="{ fontFamily: font.family }">{{ font.name }}</span>
-        </el-radio-button>
-      </el-radio-group>
-    </section>
+            <div v-if="config.themeId === 'custom'" class="custom-editor">
+              <div class="custom-editor-row">
+                <label class="custom-field">
+                  <span class="custom-field-label">主色</span>
+                  <span class="custom-accent">
+                    <input
+                      class="custom-color-picker"
+                      type="color"
+                      :value="config.customAccent"
+                      aria-label="选择主色"
+                      @input="pickCustomAccent" />
+                    <el-input
+                      v-model="customAccentInput"
+                      class="custom-hex-input"
+                      aria-label="主色色值"
+                      placeholder="#1a73d5"
+                      @change="value => commitCustomAccent(String(value))" />
+                  </span>
+                </label>
+                <div class="custom-field">
+                  <span class="custom-field-label">明暗</span>
+                  <el-segmented
+                    :model-value="config.customMode"
+                    :options="customModeOptions"
+                    aria-label="明暗模式"
+                    @change="value => setCustomMode(value as UiThemeMode)" />
+                </div>
+                <el-button
+                  v-if="config.backgroundPath.trim()"
+                  :icon="Picture"
+                  :loading="backgroundColorLoading"
+                  @click="generateThemeFromBackground">
+                  从背景图取色
+                </el-button>
+              </div>
+              <p class="custom-hint">
+                背景、边框、文字、导航与状态色会按主色自动生成，并自动校正明度保证可读。
+                修改主色或明暗会重新生成下方所有颜色。
+              </p>
 
-    <section class="ui-beautify-section">
-      <h3>图像背景</h3>
-      <el-form label-width="7rem" class="background-form">
-        <el-form-item label="启用背景">
-          <el-switch v-model="config.backgroundEnabled" />
-        </el-form-item>
-        <el-form-item label="图片路径">
-          <el-input
-            v-model="config.backgroundPath"
-            placeholder="例如 data/images/04cfe09a564c162c33c2d611300103df_720.jpg">
-            <template #append>
-              <el-button :disabled="!config.backgroundPath.trim()" @click="saveBackgroundConfig">
-                保存
-              </el-button>
-              <el-button
-                :disabled="!config.backgroundPath.trim() || cropLoading"
-                :loading="cropLoading"
-                @click="openCropWindow">
-                剪裁
-              </el-button>
-            </template>
-          </el-input>
-        </el-form-item>
-        <el-form-item v-if="config.backgroundCropPath" label="剪裁文件">
-          <el-space wrap>
-            <el-text truncated>{{ config.backgroundCropPath }}</el-text>
-            <el-button size="small" plain @click="clearBackgroundCrop">使用原图</el-button>
-          </el-space>
-        </el-form-item>
-        <el-form-item label="图片比例">
-          <el-segmented
-            v-model="config.backgroundFit"
-            :disabled="!config.backgroundEnabled"
-            :options="uiBackgroundFitOptions" />
-        </el-form-item>
-        <el-form-item label="图片位置">
-          <div class="background-position-control">
-            <el-tooltip
-              :disabled="isBackgroundPositionEnabled || !config.backgroundEnabled"
-              content="图片位置仅在自由剪裁模式下生效；背景比例剪裁会自动居中覆盖。"
-              placement="top">
-              <span class="background-position-segment">
+              <el-collapse class="custom-advanced">
+                <el-collapse-item name="tokens">
+                  <template #title>
+                    <span class="custom-advanced-title">逐项微调颜色（高级）</span>
+                  </template>
+                  <div v-for="group in customColorGroups" :key="group.label" class="token-group">
+                    <h4>{{ group.label }}</h4>
+                    <div class="token-grid">
+                      <label v-for="item in group.items" :key="item.key" class="token-item">
+                        <input
+                          class="custom-color-picker is-small"
+                          type="color"
+                          :value="config.customColors[item.key]"
+                          :aria-label="`选择${item.label}`"
+                          @input="pickCustomColor(item.key, $event)" />
+                        <span class="token-label">{{ item.label }}</span>
+                        <el-input
+                          :model-value="customColorInputs[item.key]"
+                          size="small"
+                          class="token-input"
+                          :aria-label="`${item.label}色值`"
+                          @input="value => (customColorInputs[item.key] = String(value))"
+                          @change="value => commitCustomColor(item.key, String(value))" />
+                      </label>
+                    </div>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </section>
+
+          <section class="workspace-panel" aria-labelledby="beautify-bg-title">
+            <div class="workspace-panel-header">
+              <div>
+                <h2 id="beautify-bg-title">背景图片</h2>
+                <p>在内容区铺一张背景图，可调节虚化、暗化与卡片透明度。</p>
+              </div>
+              <label class="workspace-toggle">
+                <el-switch v-model="config.backgroundEnabled" aria-label="启用背景图片" />
+                <span>启用背景图片</span>
+              </label>
+            </div>
+
+            <el-form
+              v-if="config.backgroundEnabled"
+              label-width="auto"
+              label-position="left"
+              class="background-form">
+              <el-form-item label="图片路径">
+                <div class="background-field">
+                  <el-input
+                    v-model="config.backgroundPath"
+                    placeholder="例如 data/images/background.jpg">
+                    <template #append>
+                      <el-button
+                        :disabled="!config.backgroundPath.trim()"
+                        @click="saveBackgroundConfig">
+                        应用
+                      </el-button>
+                    </template>
+                  </el-input>
+                  <span class="background-hint">
+                    可先在“资源管理”上传图片，再复制其路径到这里。
+                  </span>
+                </div>
+              </el-form-item>
+              <el-form-item label="裁剪">
+                <div class="background-inline">
+                  <el-button
+                    :icon="Crop"
+                    :disabled="!config.backgroundPath.trim() || cropLoading"
+                    :loading="cropLoading"
+                    @click="openCropWindow">
+                    裁剪图片
+                  </el-button>
+                  <template v-if="config.backgroundCropPath">
+                    <el-text size="small" type="info" truncated>
+                      正在使用裁剪图：{{ config.backgroundCropPath }}
+                    </el-text>
+                    <el-button link type="primary" @click="clearBackgroundCrop">改用原图</el-button>
+                  </template>
+                </div>
+              </el-form-item>
+              <el-form-item label="填充方式">
+                <el-segmented v-model="config.backgroundFit" :options="uiBackgroundFitOptions" />
+              </el-form-item>
+              <el-form-item label="图片位置">
+                <div class="background-field">
+                  <span class="background-position-segment">
+                    <el-segmented
+                      v-model="config.backgroundPosition"
+                      :disabled="!isBackgroundPositionEnabled"
+                      :options="uiBackgroundPositionOptions" />
+                  </span>
+                  <span v-if="!isBackgroundPositionEnabled" class="background-hint">
+                    仅“自由剪裁”后的图片可调整位置，其他情况自动居中。
+                  </span>
+                </div>
+              </el-form-item>
+              <el-form-item label="遮罩">
                 <el-segmented
-                  v-model="config.backgroundPosition"
-                  :disabled="!isBackgroundPositionEnabled"
-                  :options="uiBackgroundPositionOptions" />
-              </span>
-            </el-tooltip>
-            <el-text
-              v-if="config.backgroundEnabled && !isBackgroundPositionEnabled"
-              size="small"
-              type="info">
-              仅自由剪裁后的背景图可调整位置，背景比例剪裁会自动居中覆盖。
-            </el-text>
-          </div>
-        </el-form-item>
-        <el-form-item label="遮罩预设">
-          <el-segmented
-            v-model="config.backgroundMaskPreset"
-            :disabled="!config.backgroundEnabled"
-            :options="uiBackgroundMaskOptions" />
-        </el-form-item>
-        <el-form-item label="背景虚化">
-          <el-slider
-            v-model="config.backgroundBlur"
-            :disabled="!config.backgroundEnabled"
-            :min="0"
-            :max="80"
-            :step="1"
-            show-input />
-        </el-form-item>
-        <el-form-item label="背景暗化">
-          <el-slider
-            v-model="config.backgroundDim"
-            :disabled="!config.backgroundEnabled"
-            :min="0"
-            :max="80"
-            :step="1"
-            show-input />
-        </el-form-item>
-        <el-form-item label="图片不透明度">
-          <el-slider
-            v-model="config.backgroundImageOpacity"
-            :disabled="!config.backgroundEnabled"
-            :min="0"
-            :max="100"
-            :step="1"
-            show-input />
-        </el-form-item>
-        <el-form-item label="卡片不透明度">
-          <el-slider v-model="config.cardOpacity" :min="0" :max="100" :step="1" show-input />
-        </el-form-item>
-        <el-form-item label="主题取色">
-          <el-button
-            type="primary"
-            plain
-            :disabled="!config.backgroundPath.trim() || backgroundColorLoading"
-            :loading="backgroundColorLoading"
-            @click="generateThemeFromBackground">
-            从背景图生成主题
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </section>
-
-    <section class="ui-preview">
-      <div class="ui-preview-nav">Scardice</div>
-      <div class="ui-preview-body">
-        <div class="ui-preview-panel">
-          <strong>预览</strong>
-          <span>按钮、面板和文字会随主题即时变化。</span>
-          <el-space wrap>
-            <el-button type="primary">主要</el-button>
-            <el-button type="success">成功</el-button>
-            <el-button type="warning">警告</el-button>
-            <el-button type="danger">危险</el-button>
-          </el-space>
+                  v-model="config.backgroundMaskPreset"
+                  :options="uiBackgroundMaskOptions" />
+              </el-form-item>
+              <el-form-item label="虚化">
+                <el-slider
+                  v-model="config.backgroundBlur"
+                  :min="0"
+                  :max="80"
+                  :step="1"
+                  show-input />
+              </el-form-item>
+              <el-form-item label="暗化">
+                <el-slider v-model="config.backgroundDim" :min="0" :max="80" :step="1" show-input />
+              </el-form-item>
+              <el-form-item label="图片不透明度">
+                <el-slider
+                  v-model="config.backgroundImageOpacity"
+                  :min="0"
+                  :max="100"
+                  :step="1"
+                  show-input />
+              </el-form-item>
+              <el-form-item label="卡片不透明度">
+                <el-slider v-model="config.cardOpacity" :min="0" :max="100" :step="1" show-input />
+              </el-form-item>
+              <el-form-item label="配色">
+                <el-button
+                  :icon="Picture"
+                  :disabled="!config.backgroundPath.trim() || backgroundColorLoading"
+                  :loading="backgroundColorLoading"
+                  @click="generateThemeFromBackground">
+                  用背景图主色生成主题
+                </el-button>
+              </el-form-item>
+            </el-form>
+            <p v-else class="background-off-hint">开启后即可设置图片与显示效果。</p>
+          </section>
         </div>
+        <aside class="beautify-side">
+          <section class="workspace-panel" aria-labelledby="beautify-density-title">
+            <div class="workspace-panel-header">
+              <div>
+                <h2 id="beautify-density-title">显示密度</h2>
+                <p>调整列表行高与页面间距。</p>
+              </div>
+            </div>
+            <el-radio-group v-model="density" class="option-list" aria-label="显示密度">
+              <el-radio v-for="item in densityOptions" :key="item.value" :value="item.value" border>
+                <span class="option-text">
+                  <strong>{{ item.label }}</strong>
+                  <small>{{ item.hint }}</small>
+                </span>
+              </el-radio>
+            </el-radio-group>
+          </section>
+
+          <section class="workspace-panel" aria-labelledby="beautify-font-title">
+            <div class="workspace-panel-header">
+              <div>
+                <h2 id="beautify-font-title">字体</h2>
+                <p>未安装的字体会回退到系统默认字体。</p>
+              </div>
+            </div>
+            <el-radio-group v-model="config.fontId" class="option-list" aria-label="字体">
+              <el-radio v-for="font in uiFontOptions" :key="font.id" :value="font.id" border>
+                <span class="option-text">
+                  <strong>{{ font.name }}</strong>
+                  <small :style="{ fontFamily: font.family }">余烬骰子 Aa 1d100 = 42</small>
+                </span>
+              </el-radio>
+            </el-radio-group>
+          </section>
+        </aside>
       </div>
-    </section>
+    </div>
 
     <el-dialog
       v-model="cropDialogVisible"
@@ -311,13 +373,12 @@
         </el-button>
       </template>
     </el-dialog>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
 import {
   applyUiBeautifyConfig,
-  defaultCustomUiThemeColors,
   defaultUiBeautifyConfig,
   deriveThemeFromPrimary,
   getUiThemeColors,
@@ -333,9 +394,17 @@ import {
   type UiBackgroundCropMode,
   type UiThemeColorKey,
   type UiThemeColors,
-  type UiThemeOption,
 } from '~/utils/ui-beautify';
+import { relativeLuminance, type UiThemeMode } from '~/utils/theme-palette';
 import { deleteResource, saveResourceBlob } from '~/api/resource';
+import { CircleCheckFilled, Crop, Picture, RefreshLeft } from '@element-plus/icons-vue';
+
+const density = useStorage<'comfortable' | 'compact' | 'dense'>('workspace-density', 'compact');
+const densityOptions = [
+  { value: 'comfortable', label: '舒适', hint: '行高更大、留白更多，适合触屏或大屏' },
+  { value: 'compact', label: '紧凑', hint: '默认设置，信息量与可读性平衡' },
+  { value: 'dense', label: '极紧凑', hint: '一屏显示更多行，适合管理大量数据' },
+] as const;
 
 const config = useUiBeautifyConfig();
 const cropLoading = ref(false);
@@ -375,159 +444,136 @@ const cropDrag = reactive<{
 let cropResizeObserver: ResizeObserver | undefined;
 const minCropSize = 36;
 
-const cloneColors = (colors: UiThemeColors): UiThemeColors => ({ ...colors });
-const customGeneratorPrimary = ref(config.value.customColors.primary);
-
 const ensureCustomColors = () => {
   const current = (config.value.customColors || {}) as Partial<UiThemeColors>;
   const repaired = getUiThemeColors({
     themeId: 'custom',
     customColors: current as UiThemeColors,
   });
-  const needsRepair =
+  if (
     !config.value.customColors ||
-    (Object.keys(defaultCustomUiThemeColors) as UiThemeColorKey[]).some(
-      key => current[key] !== repaired[key],
-    );
-  if (needsRepair) {
+    (Object.keys(repaired) as UiThemeColorKey[]).some(key => current[key] !== repaired[key])
+  ) {
     config.value.customColors = repaired;
   }
+  config.value.customAccent ||= repaired.primary;
+  config.value.customMode ||= relativeLuminance(repaired.page) < 0.28 ? 'dark' : 'light';
   config.value.backgroundMaskPreset ||= defaultUiBeautifyConfig.backgroundMaskPreset;
   config.value.backgroundPosition ||= defaultUiBeautifyConfig.backgroundPosition;
 };
 
 ensureCustomColors();
 
-const getThemeSwatches = (theme: UiThemeOption) => [
-  ...(theme.id === 'custom'
-    ? [
-        config.value.customColors.primary,
-        config.value.customColors.nav,
-        config.value.customColors.page,
-        config.value.customColors.panel,
-        config.value.customColors.surfaceSoft,
-      ]
-    : [
-        theme.colors.primary,
-        theme.colors.nav,
-        theme.colors.page,
-        theme.colors.panel,
-        theme.colors.surfaceSoft,
-      ]),
-];
-
-const currentThemeColors = computed(() => getUiThemeColors(config.value));
-const currentThemeName = computed(
-  () => uiThemeOptions.find(theme => theme.id === config.value.themeId)?.name || '主题',
-);
-const themePreviewStyle = computed(() => {
-  const colors = currentThemeColors.value;
-  return {
-    '--preview-primary': colors.primary,
-    '--preview-page': colors.page,
-    '--preview-panel': colors.panel,
-    '--preview-surface': colors.surface,
-    '--preview-soft': colors.surfaceSoft,
-    '--preview-muted': colors.surfaceMuted,
-    '--preview-input': colors.input,
-    '--preview-border': colors.border,
-    '--preview-border-light': colors.borderLight,
-    '--preview-text': colors.text,
-    '--preview-regular': colors.textRegular,
-    '--preview-secondary': colors.textSecondary,
-    '--preview-table': colors.tableHeader,
-  };
+const themeThumbStyle = (colors: UiThemeColors) => ({
+  '--thumb-nav': colors.nav,
+  '--thumb-nav-active': colors.navActive,
+  '--thumb-page': colors.page,
+  '--thumb-panel': colors.panel,
+  '--thumb-border': colors.borderLight,
+  '--thumb-text': colors.text,
+  '--thumb-muted': colors.textMuted,
+  '--thumb-primary': colors.primary,
 });
 
-const customColorItems: Array<{ key: UiThemeColorKey; label: string }> = [
-  { key: 'primary', label: '主色' },
-  { key: 'success', label: '成功' },
-  { key: 'warning', label: '警告' },
-  { key: 'danger', label: '危险' },
-  { key: 'info', label: '信息' },
-  { key: 'nav', label: '导航背景' },
-  { key: 'navHover', label: '导航悬停' },
-  { key: 'navActive', label: '导航选中' },
-  { key: 'page', label: '页面背景' },
-  { key: 'panel', label: '主面板' },
-  { key: 'surface', label: '浮层面板' },
-  { key: 'surfaceSoft', label: '柔和块' },
-  { key: 'surfaceMuted', label: '次级块' },
-  { key: 'input', label: '输入框' },
-  { key: 'border', label: '边框' },
-  { key: 'borderLight', label: '浅边框' },
-  { key: 'text', label: '主文字' },
-  { key: 'textRegular', label: '正文' },
-  { key: 'textSecondary', label: '次文字' },
-  { key: 'textMuted', label: '弱文字' },
-  { key: 'codeBg', label: '代码背景' },
-  { key: 'tableHeader', label: '表头背景' },
+const customModeOptions = [
+  { label: '浅色', value: 'light' },
+  { label: '深色', value: 'dark' },
 ];
 
-const customColorInputs = reactive<Record<UiThemeColorKey, string>>(
-  Object.fromEntries(
-    customColorItems.map(item => [item.key, config.value.customColors[item.key]]),
-  ) as Record<UiThemeColorKey, string>,
-);
+const customColorGroups: Array<{
+  label: string;
+  items: Array<{ key: UiThemeColorKey; label: string }>;
+}> = [
+  {
+    label: '品牌与状态',
+    items: [
+      { key: 'primary', label: '主色' },
+      { key: 'success', label: '成功' },
+      { key: 'warning', label: '警告' },
+      { key: 'danger', label: '危险' },
+      { key: 'info', label: '信息' },
+    ],
+  },
+  {
+    label: '侧边导航',
+    items: [
+      { key: 'nav', label: '导航背景' },
+      { key: 'navHover', label: '导航悬停' },
+      { key: 'navActive', label: '导航选中' },
+    ],
+  },
+  {
+    label: '背景与面板',
+    items: [
+      { key: 'page', label: '页面背景' },
+      { key: 'panel', label: '面板' },
+      { key: 'surface', label: '浮层' },
+      { key: 'surfaceSoft', label: '浅色块' },
+      { key: 'surfaceMuted', label: '深色块' },
+      { key: 'input', label: '输入框' },
+      { key: 'tableHeader', label: '表头' },
+      { key: 'codeBg', label: '代码块' },
+    ],
+  },
+  {
+    label: '文字与边框',
+    items: [
+      { key: 'text', label: '标题文字' },
+      { key: 'textRegular', label: '正文' },
+      { key: 'textSecondary', label: '次要文字' },
+      { key: 'textMuted', label: '占位文字' },
+      { key: 'border', label: '边框' },
+      { key: 'borderLight', label: '浅边框' },
+    ],
+  },
+];
 
-const pickCustomColor = (key: UiThemeColorKey, event: Event) => {
-  const target = event.target as HTMLInputElement | null;
-  if (target?.value) {
-    commitCustomColor(key, target.value);
+const customColorInputs = reactive({ ...config.value.customColors });
+const customAccentInput = ref(config.value.customAccent ?? '');
+
+const regenerateCustomTheme = () => {
+  config.value.themeId = 'custom';
+  config.value.customColors = deriveThemeFromPrimary(
+    config.value.customAccent ?? '',
+    config.value.customMode ?? 'light',
+  );
+};
+
+const commitCustomAccent = (value: string) => {
+  const normalized = normalizeColorInput(value);
+  if (!normalized) {
+    customAccentInput.value = config.value.customAccent ?? '';
+    ElMessage.warning('请输入 #RRGGBB、#RGB 或 rgb(64, 158, 255) 格式的颜色');
+    return;
   }
+  config.value.customAccent = normalized;
+  customAccentInput.value = normalized;
+  regenerateCustomTheme();
+};
+
+const pickCustomAccent = (event: Event) => {
+  const target = event.target as HTMLInputElement | null;
+  if (target?.value) commitCustomAccent(target.value);
+};
+
+const setCustomMode = (mode: UiThemeMode) => {
+  config.value.customMode = mode;
+  regenerateCustomTheme();
 };
 
 const commitCustomColor = (key: UiThemeColorKey, value: string) => {
   const normalized = normalizeColorInput(value);
   if (!normalized) {
     customColorInputs[key] = config.value.customColors[key];
-    ElMessage.warning('颜色值格式不正确');
+    ElMessage.warning('请输入 #RRGGBB、#RGB 或 rgb(64, 158, 255) 格式的颜色');
     return;
   }
   config.value.customColors[key] = normalized;
-  customColorInputs[key] = normalized;
 };
 
-const syncCustomColorInputs = () => {
-  for (const item of customColorItems) {
-    customColorInputs[item.key] = config.value.customColors[item.key];
-  }
-  customGeneratorPrimary.value = config.value.customColors.primary;
-};
-
-const pickGeneratorPrimary = (event: Event) => {
+const pickCustomColor = (key: UiThemeColorKey, event: Event) => {
   const target = event.target as HTMLInputElement | null;
-  if (target?.value) {
-    customGeneratorPrimary.value = target.value;
-  }
-};
-
-const commitGeneratorPrimary = (value: string) => {
-  const normalized = normalizeColorInput(value);
-  if (!normalized) {
-    customGeneratorPrimary.value = config.value.customColors.primary;
-    ElMessage.warning('主色格式不正确');
-    return;
-  }
-  customGeneratorPrimary.value = normalized;
-};
-
-const generateCustomColors = (primary = customGeneratorPrimary.value) => {
-  const normalized = normalizeColorInput(primary);
-  if (!normalized) {
-    ElMessage.warning('主色格式不正确');
-    return;
-  }
-  config.value.themeId = 'custom';
-  config.value.customColors = deriveThemeFromPrimary(normalized);
-  syncCustomColorInputs();
-  ElMessage.success('已按主色生成自定义配色');
-};
-
-const resetCustomColors = () => {
-  config.value.customColors = cloneColors(defaultCustomUiThemeColors);
-  syncCustomColorInputs();
-  ElMessage.success('已恢复自定义配色默认值');
+  if (target?.value) commitCustomColor(key, target.value);
 };
 
 const applyCurrentUiConfig = () => {
@@ -590,7 +636,7 @@ const getImageDominantColor = async (src: string) => {
   }
   const best = [...buckets.values()].sort((a, b) => b.count - a.count)[0];
   if (!best) {
-    return defaultCustomUiThemeColors.primary;
+    return defaultUiBeautifyConfig.customAccent ?? '#1a73d5';
   }
   const toHex = (value: number) =>
     Math.max(0, Math.min(255, Math.round(value / best.count)))
@@ -609,8 +655,10 @@ const generateThemeFromBackground = async () => {
       config.value.backgroundCropPath || config.value.backgroundPath,
     );
     const color = await getImageDominantColor(path);
-    generateCustomColors(color);
-    customGeneratorPrimary.value = color;
+    config.value.customAccent = color;
+    customAccentInput.value = color;
+    regenerateCustomTheme();
+    ElMessage.success('已用背景图主色生成自定义主题');
   } catch (error: any) {
     ElMessage.error(error?.message || '背景图取色失败');
   } finally {
@@ -1004,7 +1052,7 @@ onBeforeUnmount(() => {
 const resetConfig = () => {
   config.value = {
     ...defaultUiBeautifyConfig,
-    customColors: cloneColors(defaultCustomUiThemeColors),
+    customColors: { ...defaultUiBeautifyConfig.customColors },
   };
   ElMessage.success('已恢复默认外观');
 };
@@ -1020,295 +1068,278 @@ watch(
 
 watch(
   () => config.value.customColors,
-  value => {
-    const colors = getUiThemeColors({ themeId: 'custom', customColors: value });
-    for (const item of customColorItems) {
-      customColorInputs[item.key] = colors[item.key];
-    }
-    customGeneratorPrimary.value = colors.primary;
-  },
+  value =>
+    Object.assign(customColorInputs, getUiThemeColors({ themeId: 'custom', customColors: value })),
   { deep: true },
+);
+
+watch(
+  () => config.value.customAccent,
+  value => {
+    customAccentInput.value = value ?? '';
+  },
 );
 </script>
 
 <style scoped>
-.ui-beautify-page {
+.beautify-body {
+  container-type: inline-size;
+}
+
+.beautify-layout {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--workspace-gap);
+  align-items: start;
 }
 
-.ui-beautify-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+.beautify-main,
+.beautify-side {
+  display: grid;
+  gap: var(--workspace-gap);
+  min-width: 0;
 }
 
-.ui-beautify-section,
-.ui-preview {
-  padding: 1rem;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  background: var(--seal-panel-bg);
-  box-shadow: var(--el-box-shadow-light);
+@container (min-width: 1120px) {
+  .beautify-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+
+  .beautify-side {
+    position: sticky;
+    top: 0;
+  }
 }
 
+/* 主题 */
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: 12px;
 }
 
 .theme-card {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.85rem;
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  background: var(--seal-surface-bg);
-  color: var(--el-text-color-primary);
-  text-align: left;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 8px 12px;
+  border: 1px solid var(--seal-border-color-light);
+  border-radius: 10px;
+  background: var(--seal-panel-bg);
+  color: var(--seal-text-color);
+  font: inherit;
+  text-align: start;
   cursor: pointer;
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
-.theme-card:hover,
+@media (hover: hover) and (pointer: fine) {
+  .theme-card:hover {
+    border-color: var(--seal-border-color);
+    box-shadow: var(--el-box-shadow-lighter);
+  }
+}
+
 .theme-card.active {
   border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 2px var(--el-color-primary-light-8);
+  box-shadow: 0 0 0 1px var(--el-color-primary);
 }
 
-.theme-card.active {
-  transform: translateY(-1px);
+.theme-card:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.theme-check {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 18px;
+  color: var(--el-color-primary);
+  background: var(--seal-panel-bg-base);
+  border-radius: 50%;
+}
+
+.theme-thumb {
+  display: flex;
+  height: 92px;
+  overflow: hidden;
+  border: 1px solid var(--thumb-border);
+  border-radius: 6px;
+  background: var(--thumb-page);
+}
+
+.theme-thumb i {
+  display: block;
+  border-radius: 2px;
+}
+
+.theme-thumb-nav {
+  display: flex;
+  flex: 0 0 26%;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 6px;
+  background: var(--thumb-nav);
+}
+
+.theme-thumb-nav i {
+  height: 5px;
+  background: color-mix(in srgb, #fff 22%, transparent);
+}
+
+.theme-thumb-nav i.is-active {
+  background: var(--thumb-nav-active);
+}
+
+.theme-thumb-main {
+  flex: 1;
+  padding: 10px;
+}
+
+.theme-thumb-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--thumb-border);
+  border-radius: 4px;
+  background: var(--thumb-panel);
+}
+
+.theme-thumb-title {
+  width: 45%;
+  height: 6px;
+  background: var(--thumb-text);
+}
+
+.theme-thumb-line {
+  width: 85%;
+  height: 4px;
+  background: var(--thumb-muted);
+  opacity: 0.6;
+}
+
+.theme-thumb-line.is-short {
+  width: 60%;
+}
+
+.theme-thumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.theme-thumb-button {
+  width: 34%;
+  height: 10px;
+  background: var(--thumb-primary);
+}
+
+.theme-thumb-link {
+  width: 22%;
+  height: 4px;
+  background: var(--thumb-primary);
+  opacity: 0.7;
+}
+
+.theme-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-inline: 4px;
 }
 
 .theme-name {
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.theme-swatches {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.35rem;
-}
-
-.theme-swatch {
-  height: 1.25rem;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
-.theme-preview-panel {
-  display: grid;
-  gap: 0.85rem;
-  margin-top: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--preview-border-light);
-  border-radius: 8px;
-  background: var(--preview-page);
-  color: var(--preview-text);
-}
-
-.theme-preview-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.theme-preview-top > div {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.theme-preview-pill {
-  padding: 0.15rem 0.45rem;
-  border: 1px solid var(--preview-border);
+.theme-tag {
+  padding: 0 6px;
+  border: 1px solid var(--seal-border-color);
   border-radius: 999px;
-  background: var(--preview-soft);
-  color: var(--preview-secondary);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--seal-text-secondary);
 }
 
-.theme-preview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 0.75rem;
+.theme-desc {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--seal-text-secondary);
 }
 
-.theme-preview-card,
-.theme-preview-table {
-  border: 1px solid var(--preview-border-light);
-  border-radius: 8px;
-  background: var(--preview-panel);
-  color: var(--preview-text);
-}
-
-.theme-preview-card {
-  display: grid;
-  gap: 0.65rem;
-  padding: 0.85rem;
-}
-
-.theme-preview-card > span,
-.theme-preview-field > span,
-.theme-preview-collapse-body {
-  color: var(--preview-regular);
-  font-size: 0.85rem;
-}
-
-.theme-preview-actions {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-.theme-preview-button {
-  min-height: 2rem;
-  padding: 0.3rem 0.8rem;
-  border-radius: 6px;
-  border: 1px solid var(--preview-border);
-  cursor: default;
-}
-
-.theme-preview-button.primary {
-  border-color: var(--preview-primary);
-  background: var(--preview-primary);
-  color: #fff;
-}
-
-.theme-preview-button.plain {
-  background: var(--preview-surface);
-  color: var(--preview-text);
-}
-
-.theme-preview-field {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.theme-preview-field input {
-  min-width: 0;
-  padding: 0.42rem 0.55rem;
-  border: 1px solid var(--preview-border);
-  border-radius: 6px;
-  background: var(--preview-input);
-  color: var(--preview-text);
-}
-
-.theme-preview-collapse {
-  overflow: hidden;
-  border: 1px solid var(--preview-border-light);
-  border-radius: 8px;
-  background: var(--preview-surface);
-}
-
-.theme-preview-collapse-title {
-  padding: 0.55rem 0.7rem;
-  border-bottom: 1px solid var(--preview-border-light);
-  background: var(--preview-panel);
-  font-weight: 700;
-}
-
-.theme-preview-collapse-body {
-  padding: 0.7rem;
-  background: var(--preview-surface);
-}
-
-.theme-preview-table {
-  width: 100%;
-  border-spacing: 0;
-  overflow: hidden;
-}
-
-.theme-preview-table th,
-.theme-preview-table td {
-  padding: 0.55rem 0.7rem;
-  border-bottom: 1px solid var(--preview-border-light);
-  text-align: left;
-  font-size: 0.85rem;
-}
-
-.theme-preview-table th {
-  background: var(--preview-table);
-  color: var(--preview-text);
-}
-
-.theme-preview-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.custom-theme-panel {
-  display: grid;
-  gap: 0.85rem;
-  margin-top: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--el-border-color-lighter);
+/* 自定义主题 */
+.custom-editor {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--seal-border-color-light);
   border-radius: 8px;
   background: var(--seal-surface-soft);
 }
 
-.custom-theme-header {
+.custom-editor-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 24px;
 }
 
-.custom-theme-header > div {
-  display: grid;
-  gap: 0.25rem;
+.custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.custom-theme-header > .el-space {
-  justify-content: flex-end;
+.custom-field-label {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
 }
 
-.custom-primary-generator {
-  display: grid;
-  grid-template-columns: auto 2.25rem minmax(7rem, 10rem);
+.custom-accent {
+  display: flex;
   align-items: center;
-  gap: 0.45rem;
-  max-width: 100%;
-  padding: 0.35rem;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  background: var(--seal-panel-bg);
-  color: var(--el-text-color-secondary);
-  font-size: 0.85rem;
+  gap: 8px;
 }
 
-.custom-color-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: 0.65rem;
+.custom-hex-input {
+  width: 120px;
 }
 
-.custom-color-item {
-  display: grid;
-  grid-template-columns: minmax(4.8rem, auto) 2.25rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  background: var(--seal-panel-bg);
+.custom-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--seal-text-secondary);
 }
 
 .custom-color-picker {
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  padding: 0.1rem;
-  border: 1px solid var(--el-border-color);
+  width: 32px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--seal-border-color);
   border-radius: 6px;
-  background: var(--seal-surface-bg);
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+  background: var(--seal-panel-bg);
   cursor: pointer;
+}
+
+.custom-color-picker.is-small {
+  width: 24px;
+  height: 24px;
+  padding: 1px;
+  border-radius: 4px;
 }
 
 .custom-color-picker::-webkit-color-swatch-wrapper {
@@ -1317,31 +1348,91 @@ watch(
 
 .custom-color-picker::-webkit-color-swatch {
   border: 0;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .custom-color-picker::-moz-color-swatch {
   border: 0;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
-.custom-color-item :deep(.el-input) {
-  min-width: 0;
+.custom-advanced {
+  margin-top: 12px;
+  border-top: 0;
+  border-bottom: 0;
 }
 
-.custom-color-label {
-  color: var(--el-text-color-secondary);
-  font-size: 0.85rem;
+.custom-advanced :deep(.el-collapse-item__header),
+.custom-advanced :deep(.el-collapse-item__wrap) {
+  background: transparent;
+  border-bottom: 0;
 }
 
-.font-list {
+.custom-advanced-title {
+  font-size: 13px;
+  color: var(--seal-text-regular);
+}
+
+.token-group + .token-group {
+  margin-top: 12px;
+}
+
+.token-group h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--seal-text-secondary);
+}
+
+.token-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  gap: 6px 16px;
+}
+
+.token-item {
+  display: grid;
+  grid-template-columns: 24px minmax(4.5em, 1fr) minmax(0, 96px);
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* 密度与字体 */
+.option-list {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.option-list .el-radio {
+  width: 100%;
+  height: auto;
+  margin-inline-end: 0;
+  padding-block: 10px;
+  box-sizing: border-box;
+}
+
+.option-text {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.4;
+  white-space: normal;
 }
 
-.background-form {
-  max-width: 48rem;
+.option-text small {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+
+/* 背景 */
+.background-form .el-form-item {
+  margin-bottom: 14px;
+}
+
+.background-form .el-form-item:last-child {
+  margin-bottom: 0;
 }
 
 .background-form :deep(.el-segmented) {
@@ -1349,9 +1440,35 @@ watch(
   overflow-x: auto;
 }
 
-.background-position-control {
-  display: grid;
-  gap: 0.35rem;
+.background-form :deep(.el-slider) {
+  max-width: 480px;
+}
+
+.background-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.background-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.background-hint,
+.background-off-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--seal-text-secondary);
+}
+
+.background-off-hint {
+  margin: 0;
 }
 
 .background-position-segment {
@@ -1359,32 +1476,10 @@ watch(
   max-width: 100%;
 }
 
-.ui-preview {
-  overflow: hidden;
-  padding: 0;
-}
-
-.ui-preview-nav {
-  padding: 0.85rem 1rem;
-  background: var(--seal-nav-bg);
-  color: #fff;
-  font-weight: 700;
-}
-
-.ui-preview-body {
-  padding: 1rem;
-  background: var(--seal-page-bg);
-}
-
-.ui-preview-panel {
-  display: grid;
-  gap: 0.75rem;
-  max-width: 34rem;
-  padding: 1rem;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  background: var(--seal-panel-bg);
-  color: var(--seal-text-color);
+@media (prefers-reduced-motion: reduce) {
+  .theme-card {
+    transition: none;
+  }
 }
 
 .crop-window {
@@ -1515,29 +1610,5 @@ watch(
 .crop-toolbar {
   display: grid;
   gap: 0.5rem;
-}
-
-@media screen and (max-width: 700px) {
-  .ui-beautify-header {
-    flex-direction: column;
-  }
-
-  .custom-theme-header {
-    flex-direction: column;
-  }
-
-  .custom-theme-header > .el-space {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .custom-primary-generator {
-    grid-template-columns: auto 2.25rem minmax(0, 1fr);
-    width: 100%;
-  }
-
-  .custom-color-item {
-    grid-template-columns: minmax(4.6rem, auto) 2.25rem minmax(0, 1fr);
-  }
 }
 </style>

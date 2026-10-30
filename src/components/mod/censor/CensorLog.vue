@@ -1,7 +1,7 @@
 <template>
   <div class="censor-log-container">
     <header class="censor-log-header">
-      <el-button type="primary" :icon="Refresh" @click="refreshCensorLog">刷新</el-button>
+      <el-button :icon="Refresh" @click="refreshCensorLog">刷新</el-button>
       <el-pagination
         class="pagination"
         layout="sizes, prev, pager, next"
@@ -134,6 +134,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-inline-end: 12px;
 }
 
 .censor-log-header {

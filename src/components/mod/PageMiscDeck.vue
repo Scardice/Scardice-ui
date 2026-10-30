@@ -1,172 +1,186 @@
 <template>
-  <header class="page-header">
-    <el-button type="primary" :icon="Refresh" @click="doBackup">重载牌堆</el-button>
-  </header>
-
-  <el-tabs v-model="mode" :stretch="true">
-    <el-tab-pane label="牌堆列表" name="list">
-      <header class="deck-list-header">
-        <el-space>
-          <el-upload
-            class="upload"
-            action=""
-            multiple
-            :before-upload="beforeUpload"
-            :file-list="fileList">
-            <el-button type="primary" :icon="Upload">上传牌堆</el-button>
-          </el-upload>
-          <el-input v-model="filter" :prefix-icon="Search" size="small" clearable />
-          <el-button
-            class="link-button"
-            type="info"
-            :icon="Link"
-            size="small"
-            link
-            tag="a"
-            target="_blank"
-            href="https://github.com/sealdice/draw"
-            >获取牌堆</el-button
-          >
-        </el-space>
-        <el-space>
-          <el-text type="info" size="small">目前支持 json/yaml/deck/toml 格式的牌堆</el-text>
+  <section class="workspace-page deck-workspace" aria-labelledby="deck-workspace-title">
+    <header class="workspace-header">
+      <div>
+        <h1 id="deck-workspace-title" class="workspace-title">牌堆管理</h1>
+        <p class="workspace-subtitle">
+          上传、更新和删除牌堆；支持 json / yaml / toml / deck 格式。
           <el-tooltip raw-content>
             <template #content>
-              deck 牌堆：一种单文件带图的牌堆格式<br />
-              在牌堆文件中使用./images/xxx.png 的相对路径引用图片。并连同图片目录一起打包成
-              zip，修改扩展名为 deck 即可制作<br />
-              <br />
-              toml 牌堆：余烬支持的新牌堆格式。格式更加友好，还提供了包括云牌组在内的更多功能支持。
+              deck 牌堆：单文件带图的牌堆格式。牌堆内用 ./images/xxx.png 引用图片，<br />
+              连同图片目录打包成 zip，再把扩展名改为 .deck 即可。<br />
+              toml 牌堆：余烬支持的新格式，书写更友好，并支持云牌组等功能。
             </template>
-            <el-icon size="small"><question-filled /></el-icon>
+            <el-icon class="deck-format-help" aria-label="牌堆格式说明"
+              ><question-filled
+            /></el-icon>
           </el-tooltip>
-        </el-space>
-      </header>
-      <aside v-if="filterCount > 0" class="mb-4">
-        <el-text size="small" type="info">已过滤 {{ filterCount }} 条</el-text>
-      </aside>
-      <main class="deck-list-main">
-        <foldable-card
-          v-for="(i, index) in filtered"
-          :key="index"
-          class="deck-item"
-          :err-title="i.filename"
-          :err-text="i.errText">
-          <template #title>
-            <el-space size="small" alignment="center">
-              <el-text size="large" tag="b">{{ i.name }}</el-text>
-              <el-text>{{ i.version }}</el-text>
-              <el-tag
-                size="small"
-                :type="i.fileFormat === 'toml' ? 'success' : 'primary'"
-                disable-transitions
-                >{{ i.fileFormat }}</el-tag
-              >
-            </el-space>
-          </template>
+        </p>
+      </div>
+      <div class="workspace-actions">
+        <el-button :icon="Refresh" @click="reloadDecks">重载牌堆</el-button>
+        <el-upload
+          class="upload"
+          action=""
+          multiple
+          :show-file-list="false"
+          :before-upload="beforeUpload"
+          :file-list="fileList">
+          <el-button type="primary" :icon="Upload">上传牌堆</el-button>
+        </el-upload>
+      </div>
+    </header>
 
-          <template #title-extra>
-            <el-popconfirm
-              v-if="i.updateUrls && i.updateUrls.length > 0"
-              confirm-button-text="确认"
-              cancel-button-text="取消"
-              title="更新地址由牌堆作者提供，是否确认要检查该牌堆更新？"
-              @confirm="doCheckUpdate(i)">
-              <template #reference>
-                <el-button :icon="Download" type="success" size="small" plain :loading="diffLoading"
-                  >更新</el-button
-                >
-              </template>
-            </el-popconfirm>
-            <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i)">
-              删除
-            </el-button>
-          </template>
+    <div class="workspace-toolbar deck-toolbar">
+      <el-input
+        v-model="filter"
+        class="deck-search"
+        :prefix-icon="Search"
+        placeholder="搜索牌堆名称、作者、简介或牌组"
+        aria-label="搜索牌堆"
+        clearable />
+      <span class="deck-count">
+        {{
+          filter ? `匹配 ${filtered.length} / ${data.length} 个牌堆` : `共 ${data.length} 个牌堆`
+        }}
+      </span>
+      <el-link
+        class="deck-more-link"
+        :icon="Link"
+        href="https://github.com/sealdice/draw"
+        target="_blank"
+        rel="noopener noreferrer">
+        浏览牌堆仓库
+      </el-link>
+    </div>
 
-          <template #title-extra-error>
-            <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i)">
-              删除
-            </el-button>
-          </template>
+    <div class="workspace-body workspace-scroll deck-list">
+      <p v-if="filtered.length" class="deck-legend">
+        实线标签是可直接抽取的牌组；虚线标签只供牌堆内部引用。
+      </p>
+      <div v-if="!loading && data.length === 0" class="workspace-panel workspace-empty">
+        <strong>还没有牌堆</strong>
+        <p>上传牌堆文件后，群内即可使用 .draw 抽取牌组。</p>
+      </div>
+      <div v-else-if="!loading && filtered.length === 0" class="workspace-panel workspace-empty">
+        <strong>没有匹配“{{ filter }}”的牌堆</strong>
+        <p>换个关键词，或清空搜索查看全部牌堆。</p>
+        <el-button @click="filter = ''">清空搜索</el-button>
+      </div>
+      <foldable-card
+        v-for="i in filtered"
+        :key="i.filename"
+        class="deck-item"
+        :err-title="i.filename"
+        :err-text="i.errText">
+        <template #title>
+          <el-space size="small" alignment="center" wrap>
+            <el-text size="large" tag="b">{{ i.name }}</el-text>
+            <el-text v-if="i.version" type="info">{{ i.version }}</el-text>
+            <el-tag size="small" type="info" effect="plain" disable-transitions>
+              {{ i.fileFormat }}
+            </el-tag>
+          </el-space>
+        </template>
 
-          <template #description>
-            <el-space size="small" direction="vertical" alignment="normal">
-              <el-text v-if="i.cloud" type="primary" size="small">
-                <el-icon><MostlyCloudy /></el-icon>
-                作者提供云端内容，请自行鉴别安全性
-              </el-text>
-              <el-text v-if="i.fileFormat === 'jsonc'" type="warning" size="small">
-                <el-icon><Warning /></el-icon>
-                注意：该牌堆的格式并非标准 JSON，而是允许尾逗号与注释语法的扩展 JSON
-              </el-text>
-            </el-space>
-          </template>
+        <template #title-extra>
+          <el-popconfirm
+            v-if="i.updateUrls && i.updateUrls.length > 0"
+            confirm-button-text="检查更新"
+            cancel-button-text="取消"
+            title="更新地址由牌堆作者提供，确认检查该牌堆的更新吗？"
+            width="240"
+            @confirm="doCheckUpdate(i)">
+            <template #reference>
+              <el-button :icon="Download" size="small" :loading="diffLoading">检查更新</el-button>
+            </template>
+          </el-popconfirm>
+          <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i)">
+            删除
+          </el-button>
+        </template>
 
-          <el-descriptions style="white-space: pre-line">
-            <el-descriptions-item :span="3" label="作者">{{
-              i.author || '&lt;佚名>'
-            }}</el-descriptions-item>
-            <el-descriptions-item v-if="i.desc" :span="3" label="简介">{{
-              i.desc
-            }}</el-descriptions-item>
-            <el-descriptions-item :span="3" label="牌组列表">
+        <template #title-extra-error>
+          <el-button :icon="Delete" type="danger" size="small" plain @click="doDelete(i)">
+            删除
+          </el-button>
+        </template>
+
+        <template #description>
+          <el-space size="small" direction="vertical" alignment="normal">
+            <el-text v-if="i.cloud" type="warning" size="small">
+              <el-icon><MostlyCloudy /></el-icon>
+              包含作者提供的云端内容，请自行确认来源可信。
+            </el-text>
+            <el-text v-if="i.fileFormat === 'jsonc'" type="info" size="small">
+              <el-icon><Warning /></el-icon>
+              此牌堆使用扩展 JSON（允许注释与尾逗号），而非标准 JSON。
+            </el-text>
+          </el-space>
+        </template>
+
+        <el-descriptions class="deck-meta" :column="3">
+          <el-descriptions-item :span="3" label="作者">{{
+            i.author || '佚名'
+          }}</el-descriptions-item>
+          <el-descriptions-item v-if="i.desc" :span="3" label="简介">{{
+            i.desc
+          }}</el-descriptions-item>
+          <el-descriptions-item :span="3" label="牌组">
+            <span class="deck-tags">
               <el-tag
                 v-for="(visible, c) of i.command"
                 :key="c"
                 size="small"
+                :class="{ 'deck-tag-internal': !visible }"
                 :type="visible ? 'primary' : 'info'"
-                style="margin-right: 0.5rem"
+                :title="visible ? undefined : '仅供牌堆内部引用'"
+                effect="plain"
                 disable-transitions>
                 {{ c }}
               </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item v-if="i.license" label="许可协议">{{
-              i.license
-            }}</el-descriptions-item>
-            <el-descriptions-item v-if="i.date" label="发布时间">{{ i.date }}</el-descriptions-item>
-            <el-descriptions-item v-if="i.updateDate" label="更新时间">{{
-              i.updateDate
-            }}</el-descriptions-item>
-          </el-descriptions>
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="i.license" label="许可协议">{{
+            i.license
+          }}</el-descriptions-item>
+          <el-descriptions-item v-if="i.date" label="发布时间">{{ i.date }}</el-descriptions-item>
+          <el-descriptions-item v-if="i.updateDate" label="更新时间">
+            {{ i.updateDate }}
+          </el-descriptions-item>
+        </el-descriptions>
 
-          <template #unfolded-extra>
-            <el-descriptions>
-              <el-descriptions-item :span="3" label="可见牌组列表">
-                <el-tag
-                  v-for="(visible, c) of i.command"
-                  :key="c"
-                  size="small"
-                  :type="visible ? 'primary' : 'info'"
-                  :style="{
-                    marginRight: '0.5rem',
-                    display: visible ? '' : 'none',
-                  }"
-                  disable-transitions>
-                  {{ c }}
-                </el-tag>
-              </el-descriptions-item>
-            </el-descriptions>
-          </template>
-        </foldable-card>
-      </main>
-    </el-tab-pane>
+        <template #unfolded-extra>
+          <span class="deck-tags">
+            <span class="deck-tags-label">可抽取牌组</span>
+            <template v-for="(visible, c) of i.command" :key="c">
+              <el-tag v-if="visible" size="small" effect="plain" disable-transitions>{{
+                c
+              }}</el-tag>
+            </template>
+          </span>
+        </template>
+      </foldable-card>
+    </div>
 
-    <el-dialog v-model="showDiff" title="牌堆内容对比" class="diff-dialog">
+    <el-dialog
+      v-model="showDiff"
+      title="对比牌堆更新内容"
+      width="min(960px, calc(100vw - 32px))"
+      class="diff-dialog">
       <diff-viewer :lang="deckCheck.format" :old="deckCheck.old" :new="deckCheck.new" />
       <template #footer>
-        <el-space wrap>
-          <el-button @click="showDiff = false">取消</el-button>
-          <el-button
-            v-if="!(deckCheck.old === deckCheck.new)"
-            type="success"
-            :icon="DocumentChecked"
-            @click="deckUpdate">
-            确认更新
-          </el-button>
-        </el-space>
+        <el-button @click="showDiff = false">取消</el-button>
+        <el-button
+          v-if="!(deckCheck.old === deckCheck.new)"
+          type="primary"
+          :icon="DocumentChecked"
+          @click="deckUpdate">
+          应用更新
+        </el-button>
       </template>
     </el-dialog>
-  </el-tabs>
+  </section>
 </template>
 
 <script lang="ts" setup>
@@ -195,10 +209,9 @@ import type { UploadRawFile } from 'element-plus/es/components/upload/src/upload
 import { confirmUploadTargetMatch } from '~/utils/upload-classifier';
 import { formatUploadFailureMessage } from '~/utils/upload-error';
 
-const mode = ref<string>('list');
+const loading = ref(true);
 
 const filter = ref<string>('');
-const filterCount = computed(() => data.value.length - filtered.value.length);
 const data = ref<any[]>([]);
 const filtered = computed(() =>
   data.value.filter(deck => {
@@ -220,8 +233,11 @@ const filtered = computed(() =>
 const cfg = ref<any>({});
 
 const refreshList = async () => {
-  const lst = await getDeckList();
-  data.value = lst;
+  try {
+    data.value = await getDeckList();
+  } finally {
+    loading.value = false;
+  }
 };
 
 const configGet = async () => {
@@ -231,28 +247,32 @@ const configGet = async () => {
 
 const fileList = ref<any[]>([]);
 
-const doBackup = async () => {
+const reloadDecks = async () => {
   const ret = await reloadDeck();
   if (ret.testMode) {
     ElMessage.success('展示模式无法重载牌堆');
   } else {
-    ElMessage.success('已重载');
+    ElMessage.success('牌堆已重载');
     await refreshList();
   }
 };
 
 const doDelete = async (data: any) => {
-  ElMessageBox.confirm(`删除牌堆《${data.name}》，确定吗？`, '删除', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  }).then(async _data => {
-    await deleteDeck(data.filename);
-    await reloadDeck();
-    await refreshList();
-    ElMessage.success('牌堆已删除');
-  });
+  try {
+    await ElMessageBox.confirm(`确定删除牌堆《${data.name}》吗？此操作无法撤销。`, '删除牌堆', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch (reason) {
+    if (reason === 'cancel' || reason === 'close') return;
+    throw reason;
+  }
+
+  await deleteDeck(data.filename);
+  await reloadDeck();
+  await refreshList();
+  ElMessage.success('牌堆已删除');
 };
 
 // let lastSetEnable = 0;
@@ -338,97 +358,65 @@ const deckUpdate = async () => {
 </script>
 
 <style lang="css">
-@media screen and (max-width: 700px) {
-  .bak-item {
-    flex-direction: column;
-
-    & > span {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
+.deck-format-help {
+  vertical-align: -2px;
+  cursor: help;
 }
 
-@media screen and (max-width: 700px) {
-  .diff-dialog {
-    width: 90% !important;
-  }
+.deck-toolbar {
+  gap: 12px;
 }
 
-@media screen and (min-width: 700px) and (max-width: 900px) {
-  .diff-dialog {
-    width: 80% !important;
-  }
+.deck-search {
+  width: min(360px, 100%);
 }
 
-@media screen and (min-width: 900px) and (max-width: 1100px) {
-  .diff-dialog {
-    width: 65% !important;
-  }
+.deck-count {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
 }
 
-@media screen and (min-width: 1100px) {
-  .diff-dialog {
-    width: 50% !important;
-  }
+.deck-more-link {
+  margin-inline-start: auto;
 }
 
-.deck-keys {
-  display: flex;
-  flex-flow: wrap;
-
-  & > span {
-    margin-right: 1rem;
-    /* width: fit-content; */
-  }
-}
-
-.deck-control {
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.deck-list-header {
-  margin-bottom: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
-.deck-list-main {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.deck-item-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
-.deck-item {
+.deck-list .deck-item {
   width: 100%;
 }
 
-.edit-operation {
-  display: flex;
+.deck-meta {
+  white-space: pre-line;
+}
+
+.deck-tags {
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
 }
 
-.upload {
-  > ul {
-    display: none;
+.deck-tags-label {
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+
+.deck-legend {
+  margin: 0;
+  font-size: 12px;
+  color: var(--seal-text-secondary);
+}
+
+.deck-tag-internal {
+  border-style: dashed;
+}
+
+.upload > ul {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .deck-more-link {
+    margin-inline-start: 0;
   }
-}
-
-.link-button {
-  text-decoration: none;
 }
 </style>
