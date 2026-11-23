@@ -595,58 +595,6 @@
       <el-input v-model="config.maxExecuteTime" clearable style="width: 14rem" />
     </el-form-item>
 
-    <h2>余烬</h2>
-    <el-form-item>
-      <template #label>
-        <span>保护开关</span>
-      </template>
-      <!-- <el-button v-if="!isShowUnlockCode" @click="isShowUnlockCode = true">查看</el-button> -->
-      <el-checkbox v-model="isUploadEnable" label="我已阅读功能描述" />
-    </el-form-item>
-
-    <el-form-item>
-      <template #label>
-        <div>
-          <span>固件升级</span>
-          <el-tooltip raw-content content="使用余烬安装包进行覆盖升级">
-            <el-icon><question-filled /></el-icon>
-          </el-tooltip>
-        </div>
-      </template>
-      <el-space v-if="store.curDice.baseInfo.containerMode" wrap>
-        <el-tooltip content="容器模式下固件升级被禁用，请手动拉取最新镜像">
-          <el-button type="primary" :icon="Upload" disabled>上传压缩包</el-button>
-        </el-tooltip>
-        <el-text type="warning" size="small">容器模式下固件升级被禁用，请手动拉取最新镜像</el-text>
-      </el-space>
-      <el-upload
-        ref="firmwareUploadRef"
-        v-else
-        class="upload"
-        action=""
-        accept=".zip,.tar.gz"
-        :before-upload="beforeUpload"
-        :limit="1"
-        :on-exceed="handleFirmwareUploadExceed"
-        :file-list="fileList"
-        :disabled="!isUploadEnable || firmwareUploadLoading"
-        :show-file-list="false">
-        <el-button
-          type="primary"
-          :icon="Upload"
-          :disabled="!isUploadEnable || firmwareUploadLoading"
-          :loading="firmwareUploadLoading"
-          >{{ firmwareUploadLoading ? '上传中…' : '上传压缩包' }}</el-button
-        >
-      </el-upload>
-    </el-form-item>
-
-    <el-form-item>
-      <div>使用指定的压缩包对当前余烬进行覆盖，上传完成后会自动重启余烬。</div>
-      <div>请注意尽量不要从高版本降低到低版本，数据库有可能不兼容。</div>
-      <div>一次仅支持上传一个升级包，选择文件后会显示上传进度，请耐心等待反馈。</div>
-    </el-form-item>
-
     <h2>其他</h2>
     <el-form-item label="加好友验证信息">
       <template #label>
@@ -811,16 +759,14 @@
 </template>
 
 <script lang="ts" setup>
-import { genFileId, type UploadInstance, type UploadProps, type UploadRawFile } from 'element-plus';
 import {
   CircleClose,
   CirclePlusFilled,
   DocumentChecked,
   QuestionFilled,
-  Upload,
 } from '@element-plus/icons-vue';
 import { cloneDeep, toNumber } from 'lodash-es';
-import { postMailTest, postUploadToUpgrade } from '~/api/dice';
+import { postMailTest } from '~/api/dice';
 import {
   ALL_NOTICE_CATEGORIES,
   NOTICE_CATEGORY_DESCRIPTIONS,
@@ -832,23 +778,16 @@ import {
 } from '~/api/dice/noticeCodec';
 import { useStore } from '~/store';
 import { objDiff, passwordHash } from '~/utils';
-import { showProgressMessage } from '~/utils/progress-message';
-import { formatUploadFailureMessage } from '~/utils/upload-error';
 
-const minFirmwareProgressMessageDuration = 800;
 // 与 core 的 dice.MaxTrayTooltipPrefixLength 保持一致，超出会被后端拒绝保存。
 const trayTooltipMaxLength = 10;
 
 const store = useStore();
 
 const config = ref<any>({});
-const fileList = ref<any[]>([]);
-const firmwareUploadRef = ref<UploadInstance>();
 
 // const isShowUnlockCode = ref(false);
 const modified = ref(false);
-const isUploadEnable = ref(false);
-const firmwareUploadLoading = ref(false);
 
 const noticeItems = ref<NoticeItem[]>([]);
 
@@ -893,94 +832,6 @@ function markCategoriesDirty(item: NoticeItem) {
   }
   item.categoriesDirty = true;
 }
-
-function normalizeProgress(progressEvent: { loaded?: number; progress?: number; total?: number }) {
-  if (typeof progressEvent.progress === 'number' && Number.isFinite(progressEvent.progress)) {
-    return Math.max(0, Math.min(100, Math.round(progressEvent.progress * 100)));
-  }
-
-  if (
-    typeof progressEvent.loaded === 'number' &&
-    typeof progressEvent.total === 'number' &&
-    progressEvent.total > 0
-  ) {
-    return Math.max(
-      0,
-      Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100)),
-    );
-  }
-
-  return undefined;
-}
-
-const beforeUpload = async (file: any) => {
-  if (firmwareUploadLoading.value) {
-    return false;
-  }
-
-  firmwareUploadLoading.value = true;
-  const uploadStartedAt = Date.now();
-  const progressMessage = showProgressMessage({
-    title: '固件升级上传中',
-    message: `正在上传 ${file.name || '升级包'}，大文件在弱网下可能耗时较久，请勿关闭页面。`,
-    indeterminate: true,
-    type: 'info',
-  });
-
-  try {
-    await postUploadToUpgrade(file, progressEvent => {
-      const percentage = normalizeProgress(progressEvent);
-      progressMessage.update({
-        indeterminate: percentage === undefined,
-        message:
-          percentage === undefined
-            ? `正在上传 ${file.name || '升级包'}，大文件在弱网下可能耗时较久，请勿关闭页面。`
-            : `正在上传 ${file.name || '升级包'}，已完成 ${percentage}%。`,
-        percentage,
-      });
-    });
-
-    progressMessage.update({
-      indeterminate: false,
-      message: '上传完成，正在等待程序进入升级流程……',
-      percentage: 100,
-      status: 'success',
-    });
-
-    const visibleDuration = Date.now() - uploadStartedAt;
-    const remainingVisibleDuration = Math.max(
-      0,
-      minFirmwareProgressMessageDuration - visibleDuration,
-    );
-    if (remainingVisibleDuration > 0) {
-      await new Promise(resolve => window.setTimeout(resolve, remainingVisibleDuration));
-    }
-
-    progressMessage.close();
-    ElMessage.success('上传完成，程序即将离线');
-  } catch (error) {
-    progressMessage.close();
-    ElMessage.error(formatUploadFailureMessage(error));
-    console.log(error);
-  } finally {
-    firmwareUploadLoading.value = false;
-    fileList.value = [];
-  }
-
-  return false;
-};
-
-const handleFirmwareUploadExceed: UploadProps['onExceed'] = files => {
-  const upload = firmwareUploadRef.value;
-  if (!upload || files.length === 0 || firmwareUploadLoading.value) {
-    return;
-  }
-
-  upload.clearFiles();
-  const file = files[0] as UploadRawFile;
-  file.uid = genFileId();
-  upload.handleStart(file);
-};
 
 watch(
   [config, noticeItems],

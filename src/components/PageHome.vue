@@ -34,34 +34,34 @@
       <span>内存占用：</span>
       <span class="mr-2">{{ filesize(store.curDice.baseInfo.memoryUsedSys || 0) }}</span>
       <el-text size="small" type="info"
-        >理论内存占用，数值偏大。系统任务管理器中的「活动内存」才是实际使用的系统内存。</el-text
+        >理论内存占用，数值偏大。系统任务管理器中的「活动内存」才是实际使用的系统内存。Scar不胖喵！</el-text
       >
     </div>
 
     <div class="flex items-center flex-wrap gap-1">
-      <el-tooltip raw-content content="点击重新进行检测">
+      <el-tooltip raw-content content="点击重新进行检测喵？">
         <button class="network-health-trigger" type="button" @click="refreshNetworkHealth">
           <span>网络质量：</span>
 
-          <el-text type="primary" v-if="networkHealth.timestamp === 0">检测中…… 🤔</el-text>
+          <el-text type="primary" v-if="networkHealth.timestamp === 0">检测中…… </el-text>
           <el-text
             type="success"
             v-else-if="
               networkHealth.total !== 0 && networkHealth.total === networkHealth.ok?.length
             "
-            >优 😄</el-text
-          >
+            >优
+          </el-text>
           <el-text
             type="primary"
             v-else-if="networkHealth.ok?.includes('sign') && networkHealth.ok?.includes('seal')"
-            >一般 😐️</el-text
-          >
+            >一般
+          </el-text>
           <el-text
             type="danger"
             v-else-if="networkHealth.total !== 0 && (networkHealth.ok ?? []).length === 0"
-            >网络中断 😱</el-text
-          >
-          <el-text v-else type="warning">差 ☹️</el-text>
+            >网络中断
+          </el-text>
+          <el-text v-else type="warning">差 </el-text>
         </button>
       </el-tooltip>
 
@@ -115,6 +115,10 @@
       <div class="log-refresh-toggle">
         <el-checkbox v-model="autoRefresh">保持刷新</el-checkbox>
       </div>
+
+      <el-button size="small" class="log-history-btn" @click="historyPanelVisible = true">
+        历史日志
+      </el-button>
     </div>
   </div>
 
@@ -123,6 +127,30 @@
       >点击下拉到底查看最新</el-text
     >
   </el-divider>
+
+  <div class="log-history-bar">
+    <el-button
+      size="small"
+      class="log-history-load"
+      :loading="historyLoading"
+      :disabled="historyLoading || historyCapReached || (!inlineHistoryGap && historyExhausted)"
+      @click="loadOlderLogs">
+      {{ historyButtonText }}
+    </el-button>
+    <el-button v-if="olderLogs.length" size="small" text @click="scrollDown">回到最新</el-button>
+    <span class="log-history-hint">
+      <template v-if="olderLogs.length">已加载历史 {{ olderLogs.length }} 条</template>
+      <template v-else>可以向前加载本机保存的历史日志</template>
+    </span>
+    <span
+      v-if="inlineHistoryGap && !historyCapReached"
+      class="log-history-hint log-history-hint--gap">
+      实时日志窗口已滚动，点击“补齐缺口”继续加载
+    </span>
+    <span v-if="historyCapReached" class="log-history-hint log-history-hint--cap">
+      已达 {{ MAX_INLINE_HISTORY }} 条上限，更多请用“历史日志”筛选
+    </span>
+  </div>
 
   <div class="hidden md:block p-0 logs">
     <el-table
@@ -295,6 +323,8 @@
     </template>
   </el-dialog>
 
+  <PageLogHistory v-model="historyPanelVisible" />
+
   <!-- <div v-for="i in store.curDice.logs">
     {{i}}
   </div> -->
@@ -308,14 +338,15 @@ import { filesize } from 'filesize';
 import { CircleCheckFilled, CircleCloseFilled } from '@element-plus/icons-vue';
 import { getUtilsCheckNetWorkHealth } from '~/api/utils';
 import { postUpgrade } from '~/api/dice';
+import { getLogHistory, type LogLevel, type SysLog } from '~/api/log';
 import LogRichContent from '~/components/utils/log-rich-content.vue';
+import PageLogHistory from '~/components/PageLogHistory.vue';
 
 const store = useStore();
 
 const upgradeDialogVisible = ref(false);
+const historyPanelVisible = ref(false);
 const autoRefresh = ref(true);
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type SysLog = { level: string; ts: number; caller: string; msg: string };
 const logLevelOptions: LogLevel[] = ['debug', 'info', 'warn', 'error'];
 const selectedLogLevels = ref<LogLevel[]>(['info', 'warn', 'error']);
 const logLevelLabelMap: Record<LogLevel, string> = {
@@ -324,6 +355,8 @@ const logLevelLabelMap: Record<LogLevel, string> = {
   warn: 'WARN',
   error: 'ERROR',
 };
+const MAX_INLINE_HISTORY = 1000;
+const INLINE_HISTORY_PAGE_SIZE = 100;
 const now = ref<dayjs.Dayjs>(dayjs());
 const networkHealth = ref({
   total: 0,
@@ -358,15 +391,197 @@ const normalizeLogLevel = (level: unknown): LogLevel => {
 
 const getLogLevelLabel = (level: LogLevel) => logLevelLabelMap[level];
 
-const filteredLogs = computed(() => {
-  const selected = new Set(selectedLogLevels.value);
-  return store.curDice.logs.filter(log => selected.has(normalizeLogLevel(log.level)));
+const olderLogs = ref<SysLog[]>([]);
+const historyLoading = ref(false);
+const historyExhausted = ref(false);
+const historyCursor = ref<number | undefined>(undefined);
+// 记录已经探测过但没有可用记录的边界，避免 seq 空洞（未勾选的日志等级）
+// 被误判成缺口后反复请求。
+const historyGapProbeBoundary = ref<number | undefined>(undefined);
+let inlineHistoryRequestId = 0;
+
+const historyCapReached = computed(() => olderLogs.value.length >= MAX_INLINE_HISTORY);
+const historyButtonText = computed(() => {
+  if (historyLoading.value) {
+    return '加载中…';
+  }
+  if (historyCapReached.value) {
+    return `已加载 ${MAX_INLINE_HISTORY} 条`;
+  }
+  if (inlineHistoryGap.value) {
+    return '补齐缺口';
+  }
+  if (historyExhausted.value) {
+    return '已到最早';
+  }
+  return '加载更早';
 });
 
+const allLogs = computed<SysLog[]>(() => {
+  if (!olderLogs.value.length) {
+    return store.curDice.logs;
+  }
+  const liveSeqs = new Set(
+    store.curDice.logs
+      .map(log => log.seq)
+      .filter((seq): seq is number => typeof seq === 'number' && seq > 0),
+  );
+  const historical = olderLogs.value.filter(
+    log => typeof log.seq !== 'number' || !liveSeqs.has(log.seq),
+  );
+  return [...historical, ...store.curDice.logs];
+});
+
+const filteredLogs = computed(() => {
+  const selected = new Set(selectedLogLevels.value);
+  return allLogs.value.filter(log => selected.has(normalizeLogLevel(log.level)));
+});
+
+const getOldestLiveSeq = () => {
+  let oldest: number | undefined;
+  for (const log of store.curDice.logs) {
+    if (typeof log.seq === 'number' && log.seq > 0) {
+      if (oldest === undefined || log.seq < oldest) {
+        oldest = log.seq;
+      }
+    }
+  }
+  return oldest;
+};
+
+// 只看当前等级筛选下真正会显示的实时日志，避免把被筛掉的 DEBUG 当成缺口。
+const getOldestVisibleLiveSeq = () => {
+  const selected = new Set(selectedLogLevels.value);
+  let oldest: number | undefined;
+  for (const log of store.curDice.logs) {
+    if (typeof log.seq !== 'number' || log.seq <= 0) {
+      continue;
+    }
+    if (!selected.has(normalizeLogLevel(log.level))) {
+      continue;
+    }
+    if (oldest === undefined || log.seq < oldest) {
+      oldest = log.seq;
+    }
+  }
+  return oldest;
+};
+
+const getNewestOlderSeq = () => {
+  let newest: number | undefined;
+  for (const log of olderLogs.value) {
+    if (typeof log.seq === 'number' && log.seq > 0) {
+      if (newest === undefined || log.seq > newest) {
+        newest = log.seq;
+      }
+    }
+  }
+  return newest;
+};
+
+// 实时窗口裁剪后，旧游标可能停在已加载历史的最底部；继续用它只会重复
+// 旧页，永远够不到新窗口。检测“已加载历史最新一条”和“实时窗口最旧一条”
+// 之间是否断开，断开时下一次从实时窗口边界往前补。
+const inlineHistoryGap = computed(() => {
+  const oldestLive = getOldestVisibleLiveSeq();
+  const newestOlder = getNewestOlderSeq();
+  if (oldestLive === undefined || newestOlder === undefined) {
+    return false;
+  }
+  if (historyGapProbeBoundary.value === oldestLive) {
+    return false;
+  }
+  return newestOlder + 1 < oldestLive;
+});
+
+const resetInlineHistory = () => {
+  inlineHistoryRequestId++;
+  olderLogs.value = [];
+  historyCursor.value = undefined;
+  historyExhausted.value = false;
+  historyLoading.value = false;
+  historyGapProbeBoundary.value = undefined;
+};
+
+const loadOlderLogs = async () => {
+  if (historyLoading.value || historyCapReached.value) {
+    return;
+  }
+  if (historyExhausted.value && !inlineHistoryGap.value) {
+    return;
+  }
+  const remaining = MAX_INLINE_HISTORY - olderLogs.value.length;
+  if (remaining <= 0) {
+    return;
+  }
+
+  const requestId = ++inlineHistoryRequestId;
+  historyLoading.value = true;
+  const previousCursor = historyCursor.value;
+  const gapMode = inlineHistoryGap.value;
+  const beforeSeq = gapMode
+    ? (getOldestVisibleLiveSeq() ?? getOldestLiveSeq())
+    : (previousCursor ?? getOldestLiveSeq());
+  try {
+    const ret = await getLogHistory({
+      beforeSeq,
+      limit: Math.min(INLINE_HISTORY_PAGE_SIZE, remaining),
+      levels: selectedLogLevels.value.join(','),
+    });
+    if (requestId !== inlineHistoryRequestId) {
+      return;
+    }
+
+    const nextItems = ret.items ?? [];
+    const seen = new Set(
+      olderLogs.value.map(log => log.seq).filter((seq): seq is number => typeof seq === 'number'),
+    );
+    const unique = nextItems.filter(log => typeof log.seq !== 'number' || !seen.has(log.seq));
+    if (unique.length) {
+      olderLogs.value = [...unique, ...olderLogs.value];
+    }
+    const nextCursor = Number(ret.nextBeforeSeq) || 0;
+    if (gapMode && !ret.hasMore) {
+      // 服务端明确没有更早的记录，才能标记“已到最早”。
+      historyGapProbeBoundary.value = beforeSeq;
+      historyCursor.value = undefined;
+      historyExhausted.value = true;
+      return;
+    }
+    if (gapMode && unique.length === 0) {
+      // 探测页全是已加载记录：seq 空洞来自未勾选的日志等级，不是漏页。
+      // 只抑制“补齐缺口”提示，保留游标继续向前，不能误标“已到最早”。
+      historyGapProbeBoundary.value = beforeSeq;
+      historyCursor.value = previousCursor ?? (nextCursor > 0 ? nextCursor : undefined);
+      historyExhausted.value = false;
+      return;
+    }
+
+    const cursorAdvanced = gapMode || previousCursor === undefined || nextCursor < previousCursor;
+    if (ret.hasMore && nextCursor > 0 && cursorAdvanced) {
+      historyCursor.value = nextCursor;
+      historyExhausted.value = false;
+    } else {
+      historyCursor.value = undefined;
+      historyExhausted.value = true;
+    }
+  } catch (error) {
+    if (requestId !== inlineHistoryRequestId) {
+      return;
+    }
+    console.error('加载历史日志失败', error);
+    ElMessage.error('加载历史日志失败');
+  } finally {
+    if (requestId === inlineHistoryRequestId) {
+      historyLoading.value = false;
+    }
+  }
+};
+
 const getUILogLimit = () => {
-  const raw = Number(store.curDice.config?.logPageItemLimit ?? 100);
+  const raw = Number(store.curDice.config?.logPageItemLimit ?? 300);
   if (!Number.isFinite(raw) || raw <= 0) {
-    return 100;
+    return 300;
   }
   return Math.floor(raw);
 };
@@ -528,11 +743,21 @@ watch(autoRefresh, enabled => {
 watch(
   () => store.token,
   () => {
+    resetInlineHistory();
     if (!autoRefresh.value) {
       return;
     }
     closeLogStream();
     openLogStream();
+  },
+);
+
+watch(() => store.index, resetInlineHistory);
+
+watch(
+  () => selectedLogLevels.value.join(','),
+  () => {
+    resetInlineHistory();
   },
 );
 
@@ -574,6 +799,14 @@ onBeforeUnmount(() => {
   }
 }
 
+.logs :deep(.el-table__row > td.el-table__cell) {
+  border-bottom: 4px solid var(--el-table-border-color);
+}
+
+html[data-seal-theme='transBluePink'] .logs :deep(.el-table__row > td.el-table__cell) {
+  border-bottom-width: 1px;
+}
+
 .log-controls {
   display: flex;
   align-items: center;
@@ -589,7 +822,7 @@ onBeforeUnmount(() => {
 }
 
 .log-level-filter__label {
-  color: #6b7280;
+  color: var(--seal-text-regular);
   font-size: 0.82rem;
   white-space: nowrap;
 }
@@ -603,7 +836,52 @@ onBeforeUnmount(() => {
 
 .log-refresh-toggle {
   padding-left: 0.9rem;
-  border-left: 1px solid #d1d5db;
+  border-left: 4px solid #f5a9b8;
+}
+
+.el-button.log-history-btn {
+  border-color: #f5a9b8;
+  color: #3d8fb8;
+  background: #f7fcff;
+}
+
+.el-button.log-history-btn:hover {
+  border-color: #5bcefa;
+  color: #2f7ea5;
+  background: #eef9ff;
+}
+
+.log-history-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  margin-bottom: 0.65rem;
+}
+
+.el-button.log-history-load {
+  border-color: #5bcefa;
+  color: #2f7ea5;
+  background: #f7fcff;
+}
+
+.el-button.log-history-load:hover {
+  border-color: #f5a9b8;
+  color: #d4788f;
+  background: #fff6f9;
+}
+
+.log-history-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 0.78rem;
+}
+
+.log-history-hint--cap {
+  color: #d4788f;
+}
+
+.log-history-hint--gap {
+  color: var(--el-color-warning);
 }
 
 .network-health-trigger {

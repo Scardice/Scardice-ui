@@ -138,6 +138,20 @@ code {
   color: var(--el-text-color-primary);
 }
 
+.tip-danger .button {
+  --el-button-bg-color: #409eff;
+  --el-button-border-color: #409eff;
+  --el-button-text-color: #ffffff;
+  --el-button-hover-bg-color: #79bbff;
+  --el-button-hover-border-color: #79bbff;
+  --el-button-hover-text-color: #ffffff;
+  --el-button-active-bg-color: #337ecc;
+  --el-button-active-border-color: #337ecc;
+  --el-button-disabled-bg-color: #a0cfff;
+  --el-button-disabled-border-color: #a0cfff;
+  --el-button-disabled-text-color: #ffffff;
+}
+
 .tip,
 .seal-help-card {
   > .title {

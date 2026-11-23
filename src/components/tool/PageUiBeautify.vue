@@ -1047,6 +1047,7 @@ watch(
 .ui-beautify-page {
   display: grid;
   gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .ui-beautify-header {
@@ -1364,6 +1365,12 @@ watch(
 .background-position-control {
   display: grid;
   gap: 0.35rem;
+}
+
+.background-position-control > * {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .background-position-segment {

@@ -5,9 +5,10 @@
     style="border-right: 0"
     :active-text-color="'var(--seal-nav-active)'"
     :background-color="props.type === 'dark' ? 'var(--seal-nav-bg)' : undefined"
-    :text-color="props.type === 'dark' ? '#fff' : undefined"
+    :text-color="props.type === 'dark' ? '#FFFFFF' : undefined"
     router
-    :default-active="route.path">
+    :default-active="route.path"
+    @select="index => emit('select', index)">
     <el-menu-item index="/home">
       <el-icon><home-filled /></el-icon>
       <span>主页</span>
@@ -102,7 +103,7 @@
       </el-menu-item>
 
       <el-menu-item index="/misc/backup">
-        <span>备份</span>
+        <span>备份！</span>
       </el-menu-item>
 
       <el-menu-item v-if="advancedConfigCounter >= 8" index="/misc/advanced-setting">
@@ -130,6 +131,10 @@
         <span>UI 美化</span>
       </el-menu-item>
 
+      <el-menu-item index="/tool/log-history">
+        <span>历史日志</span>
+      </el-menu-item>
+
       <el-menu-item index="/tool/pprof">
         <span>性能分析</span>
       </el-menu-item>
@@ -139,7 +144,7 @@
       <el-icon>
         <star />
       </el-icon>
-      <span>关于</span>
+      <span>关于？</span>
     </el-menu-item>
   </el-menu>
 </template>
@@ -159,6 +164,10 @@ import type { ModelRef } from 'vue';
 
 const props = defineProps<{
   type: 'light' | 'dark';
+}>();
+
+const emit = defineEmits<{
+  select: [index: string];
 }>();
 
 const advancedConfigCounter: ModelRef<number> = defineModel('advancedConfigCounter', {

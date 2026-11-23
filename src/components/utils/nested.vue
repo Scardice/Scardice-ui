@@ -226,11 +226,11 @@ const addCond = (i: any) => {
 };
 
 const addResult = (i: any) => {
-  i.push({ resultType: 'replyToSender', delay: 0, message: [['说点什么', 1]] });
+  i.push({ resultType: 'replyToSender', delay: 0, message: [['说点什么喵', 1]] });
 };
 
 const addItem = (k: any) => {
-  k.push(['怎么辉石呢', 1]);
+  k.push(['怎么了喵', 1]);
 };
 
 const removeItem = (v: any[], index: number | any) => {

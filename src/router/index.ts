@@ -77,6 +77,11 @@ const router = createRouter({
           component: () => import('~/components/tool/PageUiBeautify.vue'),
         },
         {
+          path: 'log-history',
+          name: 'tool-log-history',
+          component: () => import('~/components/tool/PageLogHistoryView.vue'),
+        },
+        {
           path: 'pprof',
           name: 'tool-pprof',
           component: () => import('~/components/tool/PagePprof.vue'),

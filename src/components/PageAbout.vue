@@ -97,7 +97,7 @@
         ><el-avatar
           shape="circle"
           :size="50"
-          style="border: 1px solid #aaa"
+          style="border: 1px solid #f5a9b8"
           :src="urlBase + '/sd-api/utils/ga/JustAnotherID'" />只是另一个ID</el-link
       >
       <el-link :underline="false" href="https://github.com/MintCider" target="_blank"
@@ -239,7 +239,7 @@
         ><el-avatar
           shape="circle"
           :size="50"
-          style="border: 1px solid #aaa"
+          style="border: 1px solid #5bcefa"
           :src="urlBase + '/sd-api/utils/ga/JustAnotherID'" />只是另一个ID</el-link
       >
       <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"
@@ -381,7 +381,7 @@
         ><el-avatar
           shape="circle"
           :size="50"
-          style="border: 1px solid #aaa"
+          style="border: 1px solid #f5a9b8"
           :src="urlBase + '/sd-api/utils/ga/JustAnotherID'" />只是另一个ID</el-link
       >
       <el-link :underline="false" href="https://github.com/Szzrain" target="_blank"
@@ -549,7 +549,7 @@
         ><el-avatar
           shape="circle"
           :size="50"
-          style="border: 1px solid #aaa"
+          style="border: 1px solid #f5a9b8"
           :src="urlBase + '/sd-api/utils/ga/JustAnotherID'" />只是另一个ID</el-link
       >
       <el-link :underline="false" href="https://github.com/Xiangze-Li" target="_blank"

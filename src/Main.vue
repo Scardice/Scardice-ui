@@ -11,12 +11,7 @@
           </el-button>
         </div>
 
-        <el-space
-          :v-show="store.canAccess"
-          direction="vertical"
-          alignment="flex-start"
-          :size="0"
-          style="">
+        <el-space direction="vertical" alignment="flex-start" :size="0" style="">
           <el-space size="small" alignment="center">
             <span
               class="seal-header-brand"
@@ -109,7 +104,7 @@
     class="drawer-menu">
     <template #header>
       <div class="text-white flex items-center justify-between">
-        <el-space :v-show="store.canAccess" direction="vertical" alignment="flex-start" :size="0">
+        <el-space direction="vertical" alignment="flex-start" :size="0">
           <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
             >Scardice</span
           >
@@ -129,7 +124,10 @@
         </el-tag>
       </div>
     </template>
-    <Menu v-model:advanced-config-counter="advancedConfigCounter" type="dark" />
+    <Menu
+      v-model:advanced-config-counter="advancedConfigCounter"
+      type="dark"
+      @select="drawerMenu = false" />
   </el-drawer>
 
   <el-dialog
@@ -154,7 +152,7 @@
     :show-close="false"
     class="the-dialog">
     <div>与主程序断开连接，请耐心等待连接恢复</div>
-    <div>如果失去响应过久，请登录服务器处理</div>
+    <div>如果失去响应过久，请登录服务器处理。记得离开后随手关浏览器！！！</div>
   </el-dialog>
 
   <el-dialog
@@ -165,8 +163,8 @@
     :show-close="false">
     <template #header="{ close, titleId, titleClass }">
       <div class="my-header">
-        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">余烬新闻</h4>
-        <el-button type="success" :icon="Check" @click="checkNews(close)">确认已读</el-button>
+        <h4 :id="titleId" :class="titleClass" style="margin: 0.5rem">余烬新闻！</h4>
+        <el-button type="success" :icon="Check" @click="checkNews(close)">确认已读？</el-button>
       </div>
     </template>
 
@@ -221,7 +219,7 @@ const checkNews = async (close: any) => {
   console.log('newsMark', newsMark.value);
   const ret = await postUtilsCheckNews(newsMark.value);
   if (ret?.result) {
-    ElMessage.success('已阅读最新的余烬新闻');
+    ElMessage.success('已阅读最新的余烬新闻喵');
   } else {
     ElMessage.error('阅读余烬新闻失败');
   }
@@ -365,13 +363,23 @@ onBeforeUnmount(() => {
 });
 
 const drawerMenu = ref<boolean>(false);
+const route = useRoute();
+
+// 菜单项点击由 Menu 的 select 事件关闭抽屉；路由变化覆盖程序化跳转
+// （例如高级设置、登录后跳转），避免手机端抽屉一直盖在新页面上。
+watch(
+  () => route.fullPath,
+  () => {
+    drawerMenu.value = false;
+  },
+);
 
 const advancedConfigCounter = ref<number>(0);
 const enableAdvancedConfig = async () => {
   advancedConfigCounter.value++;
   const counter = advancedConfigCounter.value;
   if (counter > 8) {
-    ElMessage.info('高级设置页已经开启');
+    ElMessage.info('高级设置页已经开启喵！');
     await router.push({ path: '/misc/advanced-setting' });
     return;
   } else if (counter === 8) {

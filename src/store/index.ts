@@ -168,7 +168,7 @@ interface DiceServer {
       errV2: string;
     };
   };
-  logs: { level: string; ts: number; caller: string; msg: string }[];
+  logs: { level: string; ts: number; caller: string; msg: string; seq?: number }[];
   conns: DiceConnection[];
   baseInfo: DiceBaseInfo;
   qrcodes: { [key: string]: string };
