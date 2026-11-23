@@ -73,6 +73,13 @@
       </el-link>
     </div>
 
+    <div style="margin-top: 2rem" class="subtitle">V1.6.1-dev 版本</div>
+    <div class="developers">
+      <el-link :underline="false" href="https://github.com/XiuIi" target="_blank"
+        ><el-avatar shape="circle" :size="50" :src="xiuliAvatar" />袖里</el-link
+      >
+    </div>
+
     <div style="margin-top: 2rem" class="subtitle">V1.5 版本</div>
     <div class="developers">
       <el-link :underline="false" href="https://github.com/fy0" target="_blank"
@@ -663,6 +670,7 @@
 <script lang="ts" setup>
 import { useStore } from '~/store';
 import imgHaibao from '~/assets/haibao1.png';
+import xiuliAvatar from '~/assets/xiuli.jpg';
 import { urlBase } from '~/api';
 
 const store = useStore();
