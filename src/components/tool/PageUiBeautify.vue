@@ -398,23 +398,34 @@ const ensureCustomColors = () => {
 
 ensureCustomColors();
 
-const getThemeSwatches = (theme: UiThemeOption) => [
-  ...(theme.id === 'custom'
-    ? [
-        config.value.customColors.primary,
-        config.value.customColors.nav,
-        config.value.customColors.page,
-        config.value.customColors.panel,
-        config.value.customColors.surfaceSoft,
-      ]
-    : [
-        theme.colors.primary,
-        theme.colors.nav,
-        theme.colors.page,
-        theme.colors.panel,
-        theme.colors.surfaceSoft,
-      ]),
-];
+const getThemeSwatches = (theme: UiThemeOption) => {
+  if (theme.id === 'transBluePink') {
+    return [
+      theme.colors.info,
+      theme.colors.navActive,
+      theme.colors.panel,
+      theme.colors.navActive,
+      theme.colors.info,
+    ];
+  }
+  return [
+    ...(theme.id === 'custom'
+      ? [
+          config.value.customColors.primary,
+          config.value.customColors.nav,
+          config.value.customColors.page,
+          config.value.customColors.panel,
+          config.value.customColors.surfaceSoft,
+        ]
+      : [
+          theme.colors.primary,
+          theme.colors.nav,
+          theme.colors.page,
+          theme.colors.panel,
+          theme.colors.surfaceSoft,
+        ]),
+  ];
+};
 
 const currentThemeColors = computed(() => getUiThemeColors(config.value));
 const currentThemeName = computed(
@@ -446,6 +457,7 @@ const customColorItems: Array<{ key: UiThemeColorKey; label: string }> = [
   { key: 'danger', label: '危险' },
   { key: 'info', label: '信息' },
   { key: 'nav', label: '导航背景' },
+  { key: 'header', label: '页头背景' },
   { key: 'navHover', label: '导航悬停' },
   { key: 'navActive', label: '导航选中' },
   { key: 'page', label: '页面背景' },

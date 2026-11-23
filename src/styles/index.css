@@ -46,6 +46,8 @@ p {
 
 :root {
   --seal-nav-bg: #545c64;
+  --seal-header-bg: #545c64;
+  --seal-header-image: none;
   --seal-nav-hover-bg: #434a50;
   --seal-nav-active: #fcd34d;
   --seal-page-bg: #f3f4f6;
@@ -178,10 +180,43 @@ code {
   overflow: hidden;
 }
 
-.seal-root > .nav,
+.seal-root > .nav {
+  height: 80px;
+  background-color: var(--seal-header-bg);
+  background-image: var(--seal-header-image, none);
+  background-size: 100% 100%;
+}
+
 .seal-root > .main-shell > .menu,
 .seal-root .drawer-menu {
   background: var(--seal-nav-bg);
+}
+
+html[data-seal-theme='transBluePink'] .seal-root > .nav,
+html[data-seal-theme='transBluePink'] .seal-root > .nav > .el-space:last-child,
+html[data-seal-theme='transBluePink'] .seal-root > .nav .el-text,
+html[data-seal-theme='transBluePink'] .seal-root > .nav .menu-button-wrapper .el-icon {
+  color: #22384a !important;
+}
+
+html[data-seal-theme='transBluePink'] .seal-root > .nav .seal-header-brand {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.55);
+}
+
+html[data-seal-theme='transBluePink'] .seal-root .channel-tag.el-tag--info,
+html[data-seal-theme='transBluePink'] .drawer-menu .channel-tag.el-tag--info {
+  --el-tag-bg-color: #1e40af;
+  --el-tag-border-color: #1e40af;
+  background-color: #1e40af !important;
+  border-color: #1e40af !important;
+}
+
+html[data-seal-theme='transBluePink'] .seal-root .el-menu-item:hover,
+html[data-seal-theme='transBluePink'] .seal-root .el-sub-menu__title:hover,
+html[data-seal-theme='transBluePink'] .drawer-menu .el-menu-item:hover,
+html[data-seal-theme='transBluePink'] .drawer-menu .el-sub-menu__title:hover {
+  background-color: var(--seal-nav-hover-bg) !important;
 }
 
 .seal-content {

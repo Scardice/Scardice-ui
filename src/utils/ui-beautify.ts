@@ -5,6 +5,7 @@ export type UiThemeId =
   | 'dark'
   | 'purple'
   | 'blueWhite'
+  | 'transBluePink'
   | 'mint'
   | 'sandGold'
   | 'starry'
@@ -35,6 +36,7 @@ export interface UiThemeColors {
   danger: string;
   info: string;
   nav: string;
+  header: string;
   navHover: string;
   navActive: string;
   page: string;
@@ -92,6 +94,7 @@ const classicColors: UiThemeColors = {
   danger: '#db2828',
   info: '#42b8dd',
   nav: '#545c64',
+  header: '#545c64',
   navHover: '#434a50',
   navActive: '#fcd34d',
   page: '#f3f4f6',
@@ -117,6 +120,7 @@ export const defaultCustomUiThemeColors: UiThemeColors = {
   danger: '#db2828',
   info: '#42b8dd',
   nav: '#42526a',
+  header: '#42526a',
   navHover: '#4f6078',
   navActive: '#fcd34d',
   page: '#f2f5f9',
@@ -168,6 +172,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#e5484d',
       info: '#4aa3df',
       nav: '#6b3f57',
+      header: '#6b3f57',
       navHover: '#7d4d68',
       navActive: '#ffd166',
       page: '#fff4f8',
@@ -196,6 +201,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#c94d4d',
       info: '#4a98b5',
       nav: '#454b54',
+      header: '#454b54',
       navHover: '#555d68',
       navActive: '#f2c94c',
       page: '#f2f3f5',
@@ -224,6 +230,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#ff6b7a',
       info: '#5fd4e8',
       nav: '#111827',
+      header: '#111827',
       navHover: '#1f2937',
       navActive: '#facc15',
       page: '#151b24',
@@ -252,6 +259,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#e14f6a',
       info: '#5b9adf',
       nav: '#4d456f',
+      header: '#4d456f',
       navHover: '#5f5485',
       navActive: '#f6d365',
       page: '#f6f3ff',
@@ -280,6 +288,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#dc3e64',
       info: '#0ea5c6',
       nav: '#2f5f9c',
+      header: '#2f5f9c',
       navHover: '#3b70b2',
       navActive: '#fcd34d',
       page: '#eef6ff',
@@ -299,6 +308,35 @@ export const uiThemeOptions: UiThemeOption[] = [
     },
   },
   {
+    id: 'transBluePink',
+    name: '蓝粉白',
+    colors: {
+      primary: '#409eff',
+      success: '#2aa876',
+      warning: '#d98b1f',
+      danger: '#d9536b',
+      info: '#5bcefa',
+      nav: '#264a66',
+      header: '#409eff',
+      navHover: '#315a7a',
+      navActive: '#f5a9b8',
+      page: '#f7fcff',
+      panel: '#ffffff',
+      surface: '#ffffff',
+      surfaceSoft: '#fff6f9',
+      surfaceMuted: '#e9f7fe',
+      input: '#ffffff',
+      border: '#bfe6f7',
+      borderLight: '#f8dce4',
+      text: '#22384a',
+      textRegular: '#4a6276',
+      textSecondary: '#71889b',
+      textMuted: '#9aafc0',
+      codeBg: '#e9f7fe',
+      tableHeader: '#f2fbff',
+    },
+  },
+  {
     id: 'mint',
     name: '浅绿',
     colors: {
@@ -308,6 +346,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#de4d4d',
       info: '#318fb5',
       nav: '#2f6f66',
+      header: '#2f6f66',
       navHover: '#3d8177',
       navActive: '#f5d56b',
       page: '#effaf4',
@@ -336,6 +375,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#c8574d',
       info: '#2f9c95',
       nav: '#3f4a2f',
+      header: '#3f4a2f',
       navHover: '#50613a',
       navActive: '#f5cf5b',
       page: '#f7f3dc',
@@ -364,6 +404,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#ff78a6',
       info: '#c084fc',
       nav: '#24143f',
+      header: '#24143f',
       navHover: '#33205d',
       navActive: '#fde68a',
       page: '#160d2a',
@@ -392,6 +433,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#ff6b7a',
       info: '#38bdf8',
       nav: '#092236',
+      header: '#092236',
       navHover: '#0d314d',
       navActive: '#f8d36a',
       page: '#071923',
@@ -420,6 +462,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#9f1239',
       info: '#1d8394',
       nav: '#4a0f2e',
+      header: '#4a0f2e',
       navHover: '#64123f',
       navActive: '#f8c350',
       page: '#f3e8ea',
@@ -448,6 +491,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#bf5848',
       info: '#4f8fb0',
       nav: '#4b3324',
+      header: '#4b3324',
       navHover: '#5f422f',
       navActive: '#f0bd58',
       page: '#f3ede5',
@@ -476,6 +520,7 @@ export const uiThemeOptions: UiThemeOption[] = [
       danger: '#c8796e',
       info: '#78a8b8',
       nav: '#746d54',
+      header: '#746d54',
       navHover: '#837b61',
       navActive: '#f3da84',
       page: '#f7f5ec',
@@ -579,6 +624,7 @@ const colorKeys: UiThemeColorKey[] = [
   'danger',
   'info',
   'nav',
+  'header',
   'navHover',
   'navActive',
   'page',
@@ -707,6 +753,7 @@ export const deriveThemeFromPrimary = (value: string): UiThemeColors => {
       danger: mix(primary, '#ef4444', 70),
       info: mix(primary, '#38bdf8', 72),
       nav: mix(primary, '#020617', 38),
+      header: mix(primary, '#020617', 38),
       navHover: mix(primary, '#1e293b', 42),
       navActive: mix(primary, '#f8d36a', 78),
       page: mix(primary, '#020617', 72),
@@ -733,6 +780,7 @@ export const deriveThemeFromPrimary = (value: string): UiThemeColors => {
     danger: mix(primary, '#dc2626', 70),
     info: mix(primary, '#0891b2', 70),
     nav: mix(primary, '#1f2937', 36),
+    header: mix(primary, '#1f2937', 36),
     navHover: mix(primary, '#334155', 42),
     navActive: mix(primary, '#facc15', 78),
     page: mix(primary, '#f8fafc', 90),
@@ -859,6 +907,14 @@ export const applyUiBeautifyConfig = (config: Partial<UiBeautifyConfig>) => {
   setColorScale(root, 'info', colors.info, colors.surface);
 
   setRootVar(root, '--seal-nav-bg', colors.nav);
+  setRootVar(root, '--seal-header-bg', colors.header || colors.nav);
+  setRootVar(
+    root,
+    '--seal-header-image',
+    config.themeId === 'transBluePink'
+      ? 'linear-gradient(90deg, #5bcefa 0 20%, #f5a9b8 20% 40%, #ffffff 40% 60%, #f5a9b8 60% 80%, #5bcefa 80% 100%)'
+      : 'none',
+  );
   setRootVar(root, '--seal-nav-hover-bg', colors.navHover);
   setRootVar(root, '--seal-nav-active', colors.navActive);
   setRootVar(root, '--seal-page-bg', colors.page);

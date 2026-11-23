@@ -107,6 +107,7 @@ declare module 'vue' {
     PageHelpDoc: typeof import('./src/components/mod/PageHelpDoc.vue')['default']
     PageHome: typeof import('./src/components/PageHome.vue')['default']
     PageJs: typeof import('./src/components/mod/PageJs.vue')['default']
+    PageLogGapFill: typeof import('./src/components/mod/PageLogGapFill.vue')['default']
     PageMiscAdvancedSettings: typeof import('./src/components/misc/PageMiscAdvancedSettings.vue')['default']
     PageMiscBackup: typeof import('./src/components/misc/PageMiscBackup.vue')['default']
     PageMiscBan: typeof import('./src/components/misc/PageMiscBan.vue')['default']
