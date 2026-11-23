@@ -2,10 +2,10 @@
 <template>
   <el-container id="root" class="seal-root mx-auto my-0 flex flex-col">
     <el-header class="nav flex-none text-white flex justify-between">
-      <el-space alignment="center" :size="0" style="height: 60px">
+      <el-space alignment="center" :size="0" style="height: 80px">
         <div class="menu-button-wrapper mx-2">
           <el-button link size="large" @click="drawerMenu = true">
-            <el-icon color="#fff" size="1.5rem">
+            <el-icon color="#5bcefa" size="1.5rem">
               <IconMenu />
             </el-icon>
           </el-button>
@@ -18,7 +18,10 @@
           :size="0"
           style="">
           <el-space size="small" alignment="center">
-            <span style="font-size: 1.2rem; cursor: pointer" @click="enableAdvancedConfig"
+            <span
+              class="seal-header-brand"
+              style="font-size: 1.2rem; cursor: pointer"
+              @click="enableAdvancedConfig"
               >Scardice</span
             >
             <el-tooltip
@@ -40,7 +43,7 @@
       <el-space
         v-show="store.canAccess"
         size="large"
-        style="color: #fff; font-size: small; text-align: right">
+        style="color: #f5a9b8; font-size: small; text-align: right">
         <div style="cursor: pointer" @click="dialogFeed = true">
           <el-badge value="new" :hidden="newsChecked">
             <img :src="imgNews" alt="news" style="width: 2.3rem" />
@@ -53,12 +56,13 @@
               effect="dark"
               size="small"
               disable-transitions
+              class="channel-tag"
               style="margin-right: 0.3rem"
               :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
               {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
             </el-tag>
             <el-tooltip :content="store.curDice.baseInfo.version" placement="bottom">
-              <el-text size="large" style="color: #fff">
+              <el-text size="large" style="color: #5bcefa">
                 {{ store.curDice.baseInfo.versionSimple }}
               </el-text>
             </el-tooltip>
@@ -119,6 +123,7 @@
           effect="dark"
           size="small"
           disable-transitions
+          class="channel-tag"
           :type="store.curDice.baseInfo.appChannel === 'stable' ? 'success' : 'info'">
           {{ store.curDice.baseInfo.appChannel === 'stable' ? '正式版' : '测试版' }}
         </el-tag>
@@ -171,7 +176,8 @@
 
 <script setup lang="ts">
 import { useStore } from './store';
-import imgNews from '~/assets/news.png';
+import imgNewsOfficial from '~/assets/news.png';
+import imgNewsBluePink from '~/assets/news-bluepink.png';
 
 import { Check, Menu as IconMenu } from '@element-plus/icons-vue';
 
@@ -189,6 +195,11 @@ dayjs.extend(relativeTime);
 
 const loading = useStorage('router-view-loading', true);
 const uiBeautifyConfig = useUiBeautifyConfig();
+const imgNews = computed(() =>
+  (uiBeautifyConfig.value?.themeId || 'classic') === 'transBluePink'
+    ? imgNewsBluePink
+    : imgNewsOfficial,
+);
 
 watch(
   uiBeautifyConfig,

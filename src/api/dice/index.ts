@@ -16,6 +16,10 @@ export function setDiceConfig(config: DiceConfig) {
   return request('post', 'config/set', config);
 }
 
+export function setLogGapFillEnable(enable: boolean) {
+  return request('post', 'config/set', { logGapFillEnable: enable });
+}
+
 export function getAdvancedConfig() {
   return request<AdvancedConfig>('get', 'config/advanced/get');
 }
@@ -141,6 +145,7 @@ export type DiceConfig = {
   logSizeNoticeCount: number; // 日志大小通知的数量
   textCmdTrustOnly: boolean; // 仅信任的文本命令
   ignoreUnaddressedBotCmd: boolean; // 忽略未定向给机器人的命令
+  logGapFillEnable: boolean; // 是否启用群消息 log 自动补全
   QQEnablePoke: boolean; // 是否启用QQ戳一戳功能
   playerNameWrapEnable: boolean; // 是否启用玩家名包裹
   mailEnable: boolean; // 是否启用邮件功能
