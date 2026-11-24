@@ -29,7 +29,7 @@
           <el-avatar
             :shape="i.isSeal ? 'circle' : 'square'"
             :size="60"
-            :src="i.isSeal ? imgSeal : imgMe" />
+            :src="i.isSeal ? imgDiceLogo : imgMe" />
         </div>
         <div class="right">
           <div class="name">{{ i.isSeal ? '余烬核心' : i.name }}</div>
@@ -67,7 +67,7 @@
 
 <script lang="ts" setup>
 import { useStore } from '~/store';
-import imgSeal from '~/assets/seal.png';
+import imgDiceLogo from '~/assets/dice-logo-20261124.png';
 import imgMe from '~/assets/me.jpg';
 import { Plus } from '@element-plus/icons-vue';
 import {

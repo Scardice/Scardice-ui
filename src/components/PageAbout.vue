@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="img-box">
-      <img :src="imgHaibao" />
+      <img :src="imgHaibaoNew" />
     </div>
     <div style="text-align: left; line-height: 2rem; font-size: 0.8rem">
       <div class="top-item">
@@ -73,7 +73,7 @@
       </el-link>
     </div>
 
-    <div style="margin-top: 2rem" class="subtitle">V1.6.1-dev 版本</div>
+    <div style="margin-top: 2rem" class="subtitle">V1.6.1-dev+20261124 版本</div>
     <div class="developers">
       <el-link :underline="false" href="https://github.com/XiuIi" target="_blank"
         ><el-avatar shape="circle" :size="50" :src="xiuliAvatar" />袖里</el-link
@@ -670,6 +670,7 @@
 <script lang="ts" setup>
 import { useStore } from '~/store';
 import imgHaibao from '~/assets/haibao1.png';
+import imgHaibaoNew from '~/assets/haibao1-20261124.jpg';
 import xiuliAvatar from '~/assets/xiuli.jpg';
 import { urlBase } from '~/api';
 
