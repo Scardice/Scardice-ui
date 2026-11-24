@@ -446,11 +446,11 @@
     <div style="margin-top: 2rem" class="subtitle">V1.4.5 特别致谢</div>
     <div class="developers">
       <!-- <img  referrerpolicy="no-referrer"  src="https://avatars.githubusercontent.com/u/54656633?v=4&a=1" /> -->
-      <el-link :underline="false" href="https://github.com/Linwenxuan05" target="_blank"
+      <el-link :underline="false" href="https://github.com/Linwenxuan04" target="_blank"
         ><el-avatar
           shape="circle"
           :size="50"
-          :src="urlBase + '/sd-api/utils/ga/Linwenxuan05'" />Linwenxuan05</el-link
+          :src="urlBase + '/sd-api/utils/ga/Linwenxuan04'" />Linwenxuan04</el-link
       >
     </div>
 
