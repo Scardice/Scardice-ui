@@ -304,10 +304,10 @@
           :src="urlBase + '/sd-api/utils/ga/cherrybird7'" />凤吹风雪(7版怪锤)</el-link
       >
       <el-link :underline="false" href="javascript:void(0)"
-        ><el-avatar shape="circle" :size="50" :src="imgHaibao" />奈亚猫猫汉化组(7版怪锤)</el-link
+        ><el-avatar shape="circle" :size="50" :src="imgHaibaoNew" />奈亚猫猫汉化组(7版怪锤)</el-link
       >
       <el-link :underline="false" href="javascript:void(0)"
-        ><el-avatar shape="circle" :size="50" :src="imgHaibao" />稚鸢音(7版怪锤)</el-link
+        ><el-avatar shape="circle" :size="50" :src="imgHaibaoNew" />稚鸢音(7版怪锤)</el-link
       >
       <el-link :underline="false" href="https://github.com/Fripine" target="_blank"
         ><el-avatar
@@ -669,7 +669,6 @@
 
 <script lang="ts" setup>
 import { useStore } from '~/store';
-import imgHaibao from '~/assets/haibao1.png';
 import imgHaibaoNew from '~/assets/haibao1-20261124.jpg';
 import xiuliAvatar from '~/assets/xiuli.jpg';
 import { urlBase } from '~/api';
