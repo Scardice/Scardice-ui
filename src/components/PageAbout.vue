@@ -43,11 +43,8 @@
     </div>
   </div>
 
-  <div style="text-align: center; font-weight: bold; font-size: 1.3rem; margin-top: 4rem">
+  <div style="text-align: center; font-weight: bold; font-size: 1.3rem; margin-top: 4rem; margin-bottom: 2rem">
     Scardice
-  </div>
-  <div style="text-align: center; font-size: small; margin-bottom: 2rem; font-family: sans-serif">
-    Scardice 主线成员统一标为开发；Lorana Tales 与 Sharkbuild 单独署名
   </div>
   <div class="about">
     <div></div>
@@ -124,21 +121,12 @@
       </el-link>
     </div>
 
-    <div style="margin-top: 2rem">测试与反馈：白祈（测试、反馈，未参与具体开发）</div>
+    <div style="margin-top: 2rem">测试与反馈：白祈</div>
     <div>SomeOne 的部分改动为 cherry-pick 海豹提交，原始作者见下方 SealDice 致谢。</div>
-
-    <div style="margin-top: 2rem" class="subtitle">上游与参考</div>
-    <div style="line-height: 2">
-      余烬基于 sealdice-core 开发，感谢上游 SealDice
-      的开发者与社区；也感谢所有提交问题、参与测试和帮助完善文档的玩家。
-    </div>
   </div>
 
-  <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-top: 4rem">
+  <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-top: 4rem; margin-bottom: 1rem">
     SealDice
-  </div>
-  <div style="text-align: center; font-size: small; margin-bottom: 1rem; font-family: sans-serif">
-    以下为海豹历史上的版本名单，和上面的余烬署名分开
   </div>
 
   <div class="about seal-about">
