@@ -63,7 +63,43 @@ type PageParams = {
   createdTimeEnd?: number;
 };
 
-interface Log {
+export interface LogBrowseParams {
+  pageNum: number;
+  pageSize: number;
+  groupId: string;
+  logName: string;
+  keyword?: string;
+  sender?: string;
+  timeBegin?: number;
+  timeEnd?: number;
+  order?: 'asc' | 'desc';
+}
+
+export interface LogBrowseItem {
+  id: number;
+  nickname: string;
+  IMUserId: string;
+  time: number;
+  message: string;
+  isDice: boolean;
+  uniformId?: string;
+}
+
+export type LogBrowseResult =
+  | { result: false; err?: string }
+  | {
+      result: true;
+      total: number;
+      data: LogBrowseItem[];
+      pageNum: number;
+      pageSize: number;
+    };
+
+export async function browseStoryItems(params: LogBrowseParams) {
+  return await request<LogBrowseResult>('get', 'items/browse', params);
+}
+
+export interface StoryLog {
   id: number;
   name: string;
   groupId: string;
@@ -73,6 +109,8 @@ interface Log {
   pitch?: boolean;
   current?: number;
 }
+
+type Log = StoryLog;
 
 export interface Backup {
   name: string;

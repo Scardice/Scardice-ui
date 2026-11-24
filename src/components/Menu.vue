@@ -57,6 +57,10 @@
         <span>跑团日志</span>
       </el-menu-item>
 
+      <el-menu-item index="/mod/log-browser">
+        <span>log 查看</span>
+      </el-menu-item>
+
       <el-menu-item index="/mod/log-gap-fill">
         <span>自动补全</span>
       </el-menu-item>

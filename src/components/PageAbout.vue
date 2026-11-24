@@ -43,7 +43,14 @@
     </div>
   </div>
 
-  <div style="text-align: center; font-weight: bold; font-size: 1.3rem; margin-top: 4rem; margin-bottom: 2rem">
+  <div
+    style="
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.3rem;
+      margin-top: 4rem;
+      margin-bottom: 2rem;
+    ">
     Scardice
   </div>
   <div class="about">
@@ -125,7 +132,14 @@
     <div>SomeOne 的部分改动为 cherry-pick 海豹提交，原始作者见下方 SealDice 致谢。</div>
   </div>
 
-  <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-top: 4rem; margin-bottom: 1rem">
+  <div
+    style="
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-top: 4rem;
+      margin-bottom: 1rem;
+    ">
     SealDice
   </div>
 
