@@ -52,7 +52,7 @@
   <div class="about">
     <div></div>
 
-    <div class="subtitle">Scardice 主线 1.6.1-dev / Scardice-ui 1.4.0</div>
+    <div class="subtitle">Scardice 主线 1.6.1-dev+20261125 / Scardice-ui 1.4.0</div>
     <div class="developers">
       <el-link
         :underline="false"
