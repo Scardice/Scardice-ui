@@ -44,12 +44,104 @@
   </div>
 
   <div style="text-align: center; font-weight: bold; font-size: 1.3rem; margin-top: 4rem">
-    感谢 ♪(･ω･)ﾉ
+    Scardice
   </div>
   <div style="text-align: center; font-size: small; margin-bottom: 2rem; font-family: sans-serif">
-    特别鸣谢参与测试、反馈问题，帮助完善指令的各位！以下列出感谢名单（排名不分先后）
+    Scardice 主线成员统一标为开发；Lorana Tales 与 Sharkbuild 单独署名
   </div>
   <div class="about">
+    <div></div>
+
+    <div class="subtitle">Scardice 主线 1.6.1-dev / Scardice-ui 1.4.0</div>
+    <div class="developers">
+      <el-link
+        :underline="false"
+        href="https://github.com/lyjjl"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/lyjjl`" />
+        SomeOne（开发）
+      </el-link>
+      <el-link
+        :underline="false"
+        href="https://github.com/LoranaAurelia"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/LoranaAurelia`" />
+        雪桃（开发）
+      </el-link>
+      <el-link
+        :underline="false"
+        href="https://github.com/XiuIi"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="xiuliAvatar" />
+        袖里（开发）
+      </el-link>
+      <el-link
+        :underline="false"
+        href="https://github.com/GuraQwQ"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/GuraQwQ`" />
+        GuraQwQ（UI Beauty）
+      </el-link>
+    </div>
+
+    <div style="margin-top: 2rem" class="subtitle">spark 1.6.7-spark+20261120</div>
+    <div class="developers">
+      <el-link
+        :underline="false"
+        href="https://github.com/lyjjl"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/lyjjl`" />
+        SomeOne（开发）
+      </el-link>
+    </div>
+
+    <div style="margin-top: 2rem" class="subtitle">Lorana Tales 0.1.0-testify.1</div>
+    <div class="developers">
+      <el-link
+        :underline="false"
+        href="https://github.com/LoranaAurelia"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/LoranaAurelia`" />
+        雪桃（作者 / 染色器）
+      </el-link>
+    </div>
+
+    <div style="margin-top: 2rem" class="subtitle">Sharkbuild Latest Dev Build 20260925</div>
+    <div class="developers">
+      <el-link
+        :underline="false"
+        href="https://github.com/GuraQwQ"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/GuraQwQ`" />
+        GuraQwQ（UI / 构建）
+      </el-link>
+    </div>
+
+    <div style="margin-top: 2rem">测试与反馈：白祈（测试、反馈，未参与具体开发）</div>
+    <div>SomeOne 的部分改动为 cherry-pick 海豹提交，原始作者见下方 SealDice 致谢。</div>
+
+    <div style="margin-top: 2rem" class="subtitle">上游与参考</div>
+    <div style="line-height: 2">
+      余烬基于 sealdice-core 开发，感谢上游 SealDice
+      的开发者与社区；也感谢所有提交问题、参与测试和帮助完善文档的玩家。
+    </div>
+  </div>
+
+  <div style="text-align: center; font-weight: bold; font-size: 1.2rem; margin-top: 4rem">
+    SealDice
+  </div>
+  <div style="text-align: center; font-size: small; margin-bottom: 1rem; font-family: sans-serif">
+    以下为海豹历史上的版本名单，和上面的余烬署名分开
+  </div>
+
+  <div class="about seal-about">
     <div></div>
     <div class="subtitle">社区协力</div>
 
@@ -71,13 +163,6 @@
           :src="`${urlBase}/sd-api/utils/ga/${contributor.github}`" />
         {{ contributor.name }}
       </el-link>
-    </div>
-
-    <div style="margin-top: 2rem" class="subtitle">V1.6.1-dev+20261124 版本</div>
-    <div class="developers">
-      <el-link :underline="false" href="https://github.com/XiuIi" target="_blank"
-        ><el-avatar shape="circle" :size="50" :src="xiuliAvatar" />袖里</el-link
-      >
     </div>
 
     <div style="margin-top: 2rem" class="subtitle">V1.5 版本</div>
