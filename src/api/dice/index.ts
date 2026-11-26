@@ -18,6 +18,58 @@ export function setLogGapFillEnable(enable: boolean) {
   return request('post', 'config/set', { logGapFillEnable: enable });
 }
 
+export function setStartupSoundEnable(enable: boolean) {
+  return request('post', 'config/set', { startupSoundEnable: enable });
+}
+
+export interface StartupSoundStatus {
+  enabled: boolean;
+  available: boolean;
+  player: string;
+  status: {
+    event?: string;
+    player: string;
+    played: boolean;
+    error?: string;
+    message: string;
+    updatedAt: number;
+  };
+}
+
+export function getStartupSoundStatus() {
+  return request<StartupSoundStatus>('get', 'startup-sound/status');
+}
+
+export type LogGapFillGroupState = 'running' | 'pending' | 'waiting' | 'retry';
+
+export interface LogGapFillGroupStatus {
+  groupId: string;
+  groupName?: string;
+  logName?: string;
+  logOn: boolean;
+  state: LogGapFillGroupState;
+  fromSeq: number;
+  toSeq: number;
+  offDiscovery: boolean;
+  retryAfter: number;
+  lastSeenSeq: number;
+}
+
+export interface LogGapFillStatus {
+  enabled: boolean;
+  lastReconcile: number;
+  pendingGroups: number;
+  runningGroups: number;
+  retryGroups: number;
+  groups: LogGapFillGroupStatus[];
+}
+
+export function getLogGapFillStatus() {
+  return request<LogGapFillStatus>('get', 'log-gap/status', undefined, 'form', {
+    timeout: 10000,
+  });
+}
+
 export function getAdvancedConfig() {
   return request<AdvancedConfig>('get', 'config/advanced/get');
 }
@@ -119,6 +171,7 @@ export type DiceConfig = {
   textCmdTrustOnly: boolean; // 仅信任的文本命令
   ignoreUnaddressedBotCmd: boolean; // 忽略未定向给机器人的命令
   logGapFillEnable: boolean; // 是否启用群消息 log 自动补全
+  startupSoundEnable: boolean; // 是否在启动流程中播放 UI 音频
   QQEnablePoke: boolean; // 是否启用QQ戳一戳功能
   playerNameWrapEnable: boolean; // 是否启用玩家名包裹
   mailEnable: boolean; // 是否启用邮件功能

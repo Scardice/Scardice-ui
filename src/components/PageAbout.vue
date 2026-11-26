@@ -27,8 +27,8 @@
       </div>
       <div class="top-item" style="font-family: sans-serif">
         投喂余烬:
-        <el-link type="primary" target="_blank" href="暂时还没有投喂通道"
-          >https://github.com/Scardice/Scardice-core/</el-link
+        <el-link type="primary" target="_blank" href="https://dice.weizaima.com/feed/"
+          >https://dice.weizaima.com/feed/</el-link
         >
       </div>
       <div class="top-item" style="font-family: sans-serif">
@@ -56,7 +56,7 @@
   <div class="about">
     <div></div>
 
-    <div class="subtitle">Scardice 主线 1.6.1-dev+20261125 / Scardice-ui 1.4.0</div>
+    <div class="subtitle">Scardice 1.6.1-dev / Scardice-ui 1.4.0</div>
     <div class="developers">
       <el-link
         :underline="false"
@@ -64,24 +64,24 @@
         target="_blank"
         rel="noopener noreferrer">
         <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/lyjjl`" />
-        SomeOne（开发）
-      </el-link>
+        SomeOne</el-link
+      >
       <el-link
         :underline="false"
         href="https://github.com/LoranaAurelia"
         target="_blank"
         rel="noopener noreferrer">
         <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/LoranaAurelia`" />
-        雪桃（开发）
-      </el-link>
+        雪桃</el-link
+      >
       <el-link
         :underline="false"
         href="https://github.com/XiuIi"
         target="_blank"
         rel="noopener noreferrer">
         <el-avatar shape="circle" :size="50" :src="xiuliAvatar" />
-        袖里（开发）
-      </el-link>
+        袖里</el-link
+      >
       <el-link
         :underline="false"
         href="https://github.com/GuraQwQ"
@@ -100,8 +100,8 @@
         target="_blank"
         rel="noopener noreferrer">
         <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/lyjjl`" />
-        SomeOne（开发）
-      </el-link>
+        SomeOne</el-link
+      >
     </div>
 
     <div style="margin-top: 2rem" class="subtitle">Lorana Tales 0.1.0-testify.1</div>
@@ -128,8 +128,17 @@
       </el-link>
     </div>
 
-    <div style="margin-top: 2rem">测试与反馈：白祈</div>
-    <div>SomeOne 的部分改动为 cherry-pick 海豹提交，原始作者见下方 SealDice 致谢。</div>
+    <div style="margin-top: 2rem" class="subtitle">测试与反馈</div>
+    <div class="developers" style="margin-bottom: 2rem">
+      <el-link
+        :underline="false"
+        href="https://github.com/baishiqiuqi"
+        target="_blank"
+        rel="noopener noreferrer">
+        <el-avatar shape="circle" :size="50" :src="`${urlBase}/sd-api/utils/ga/baishiqiuqi`" />
+        白祈</el-link
+      >
+    </div>
   </div>
 
   <div
@@ -808,6 +817,21 @@ onBeforeUnmount(() => {
 
   img {
     height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .img-box {
+    float: none;
+    height: auto;
+    margin-right: 0;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .img-box img {
+    height: auto;
+    max-width: 100%;
   }
 }
 

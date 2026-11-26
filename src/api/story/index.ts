@@ -31,6 +31,13 @@ export async function postStoryLog(log: Log) {
   return await request('post', 'uploadLog', log);
 }
 
+export function downloadStoryLog(params: { groupId: string; name: string }) {
+  return request<Blob>('get', 'downloadLog', params, 'form', {
+    responseType: 'blob',
+    timeout: 120000,
+  });
+}
+
 export async function getStoryBackUpList() {
   return await request<
     | { result: false; err?: string }

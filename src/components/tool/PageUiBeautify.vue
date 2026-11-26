@@ -255,6 +255,31 @@
       </div>
     </section>
 
+    <section class="ui-beautify-section">
+      <h3>UI 音频</h3>
+      <el-form label-width="7rem" class="background-form">
+        <el-form-item label="播放 UI 音频">
+          <el-switch
+            v-model="startupSoundEnabled"
+            active-text="启用"
+            inactive-text="关闭"
+            :loading="startupSoundSaving"
+            :disabled="startupSoundSaving || startupSoundInitializing"
+            @change="onStartupSoundToggle" />
+        </el-form-item>
+      </el-form>
+      <el-text
+        v-if="startupSoundNotice"
+        size="small"
+        :type="startupSoundNoticeType"
+        class="startup-sound-notice">
+        {{ startupSoundNotice }}
+      </el-text>
+      <el-text size="small" type="info">
+        按实际启动流程播报；仅使用 mpv 播放原始 48 kHz 单声道；未检测到 mpv 或播放失败时不播放音频。
+      </el-text>
+    </section>
+
     <el-dialog
       v-model="cropDialogVisible"
       title="选择背景裁剪区域"
@@ -336,8 +361,22 @@ import {
   type UiThemeOption,
 } from '~/utils/ui-beautify';
 import { deleteResource, saveResourceBlob } from '~/api/resource';
+import { getStartupSoundStatus, setStartupSoundEnable, type StartupSoundStatus } from '~/api/dice';
+import { useStore } from '~/store';
 
 const config = useUiBeautifyConfig();
+const store = useStore();
+const startupSoundEnabled = ref(false);
+const startupSoundSaving = ref(false);
+const startupSoundStatus = ref<StartupSoundStatus>();
+const startupSoundStatusLoading = ref(false);
+// 初始配置回读期间禁用开关，避免用户切换与首次回读竞态。
+const startupSoundInitializing = ref(true);
+// 用户手动切换后置位：迟到的初始回读不能再把开关盖回旧值。
+const startupSoundTouched = ref(false);
+let startupSoundStatusReqId = 0;
+// 核心默认关闭；只有显式 true 才视为开启，配置缺失时不能误显示为已启用。
+const readStartupSoundEnabled = () => store.curDice.config?.startupSoundEnable === true;
 const cropLoading = ref(false);
 const backgroundColorLoading = ref(false);
 const cropDialogVisible = ref(false);
@@ -1009,6 +1048,100 @@ const clearBackgroundCrop = async () => {
   ElMessage.success('已切回原图');
 };
 
+const loadStartupSoundStatus = async () => {
+  const reqId = ++startupSoundStatusReqId;
+  startupSoundStatusLoading.value = true;
+  try {
+    const current = await getStartupSoundStatus();
+    if (reqId !== startupSoundStatusReqId) {
+      return; // 已有更新的请求，丢弃迟到响应
+    }
+    startupSoundStatus.value = current;
+    // 以核心实际配置为准，避免本地配置读取失败时开关显示与真实状态不一致；
+    // 用户已手动切换后以切换结果为准，迟到回读不能盖回。
+    if (typeof current.enabled === 'boolean' && !startupSoundTouched.value) {
+      startupSoundEnabled.value = current.enabled;
+    }
+  } catch (error) {
+    if (reqId === startupSoundStatusReqId) {
+      console.error('读取 UI 音频状态失败', error);
+    }
+  } finally {
+    if (reqId === startupSoundStatusReqId) {
+      startupSoundStatusLoading.value = false;
+    }
+  }
+};
+
+const startupSoundNotice = computed(() => {
+  const current = startupSoundStatus.value;
+  if (!startupSoundEnabled.value) {
+    return '未启用。开启后将按启动流程依次播放 UI 音频。';
+  }
+  if (startupSoundStatusLoading.value || !current) return '';
+  if (!current.available) {
+    return current.status?.error || '当前设备没有可用的 48 kHz 单声道播放路径，UI 音频不会播放。';
+  }
+  if (current.status?.error) return current.status.error;
+  if (current.status?.played) return current.status.message;
+  if (!current.status?.updatedAt) return '已启用，将在下次启动时按流程播放。';
+  return current.status.message;
+});
+
+const startupSoundNoticeType = computed<'info' | 'warning' | 'danger'>(() => {
+  const current = startupSoundStatus.value;
+  if (!startupSoundEnabled.value) return 'info';
+  if (current && (!current.available || current.status?.error)) return 'danger';
+  if (current?.status?.message?.includes('静音')) return 'warning';
+  return 'info';
+});
+
+onBeforeMount(async () => {
+  try {
+    try {
+      await store.diceConfigGet();
+    } catch (error) {
+      console.error('读取 UI 音频设置失败', error);
+    }
+    if (!startupSoundTouched.value) {
+      startupSoundEnabled.value = readStartupSoundEnabled();
+    }
+    await loadStartupSoundStatus();
+  } finally {
+    startupSoundInitializing.value = false;
+  }
+});
+
+const onStartupSoundToggle = async (value: string | number | boolean) => {
+  const next = Boolean(value);
+  startupSoundTouched.value = true;
+  startupSoundSaving.value = true;
+  try {
+    try {
+      await setStartupSoundEnable(next);
+    } catch (error) {
+      startupSoundEnabled.value = !next;
+      console.error('保存 UI 音频设置失败', error);
+      ElMessage.error('保存 UI 音频设置失败');
+      return;
+    }
+
+    // 保存成功后以本次结果为准，回读失败也不回滚。
+    startupSoundEnabled.value = next;
+    try {
+      await store.diceConfigGet();
+      startupSoundEnabled.value = readStartupSoundEnabled();
+      await loadStartupSoundStatus();
+      ElMessage.success(next ? 'UI 音频已开启' : 'UI 音频已关闭');
+    } catch (error) {
+      console.error('读取 UI 音频设置失败', error);
+      ElMessage.warning('设置已保存，但读取最新配置失败，请刷新后确认');
+    }
+  } finally {
+    startupSoundSaving.value = false;
+  }
+};
+
 onBeforeUnmount(() => {
   cropResizeObserver?.disconnect();
 });
@@ -1064,6 +1197,11 @@ watch(
   border-radius: 8px;
   background: var(--seal-panel-bg);
   box-shadow: var(--el-box-shadow-light);
+}
+
+.startup-sound-notice {
+  display: block;
+  margin-bottom: 0.35rem;
 }
 
 .theme-grid {

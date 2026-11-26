@@ -27,6 +27,7 @@
         :class="!i.isSeal ? 'mine' : ''">
         <div class="left">
           <el-avatar
+            class="talk-avatar"
             :shape="i.isSeal ? 'circle' : 'square'"
             :size="60"
             :src="i.isSeal ? imgDiceLogo : imgMe" />
@@ -293,6 +294,10 @@ const reloadHelpdoc = async () => {
 .talk-item {
   display: flex;
   margin-bottom: 2rem;
+
+  .talk-avatar {
+    background-color: var(--seal-panel-bg);
+  }
 
   &.mine {
     direction: rtl;

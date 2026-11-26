@@ -35,6 +35,14 @@ axiosRetry(http, {
   retryDelay: retryCount => retryCount * 1000,
   retryCondition: error => {
     const status = error.response?.status;
+    // 心跳请求自带 10s 超时，再叠加重试会让离线判定滞后；失败交给心跳计数处理
+    if (error.config?.url === 'baseInfo') {
+      return false;
+    }
+    // 大日志导出可能超过 120s 超时；重试会让服务端重复生成导出，直接交给前端报错
+    if (error.config?.url === '/story/downloadLog') {
+      return false;
+    }
     if (status === 401 || status === 403) {
       return false;
     }

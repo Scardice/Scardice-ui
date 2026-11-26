@@ -1,4 +1,6 @@
 import { ElMessage, ElProgress, type MessageHandler } from 'element-plus';
+// ElProgress 通过 h() 渲染，不走模板里的按需组件解析，需要手动引入样式
+import 'element-plus/es/components/progress/style/css';
 import { defineComponent, h, reactive, type PropType } from 'vue';
 
 type ProgressMessageStatus = 'success' | 'exception' | 'warning';
@@ -61,8 +63,10 @@ const ProgressMessageContent = defineComponent({
         children.push(
           h(ElProgress, {
             indeterminate: props.state.indeterminate,
-            percentage: props.state.percentage,
+            // 不确定进度用固定条宽做来回移动的动画，宽度为 0 时整条不可见
+            percentage: props.state.indeterminate ? 40 : props.state.percentage,
             status: props.state.status,
+            showText: !props.state.indeterminate,
             strokeWidth: 6,
             style: 'margin-top: 0.625rem; width: 100%;',
           }),

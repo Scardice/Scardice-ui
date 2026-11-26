@@ -8,7 +8,8 @@ export function getPreInfo() {
 
 export function getBaseInfo() {
   return request<DiceBaseInfo>('get', 'baseInfo', null, 'form', {
-    timeout: 5000,
+    // 页面加载卡顿时请求可能排队，10s 内不急着判定主程序离线
+    timeout: 10000,
   });
 }
 

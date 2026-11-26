@@ -206,7 +206,9 @@
     <template #footer>
       <el-space wrap>
         <el-button @click="showBackup = false">取消</el-button>
-        <el-button type="primary" @click="doBackup">立即备份</el-button>
+        <el-button type="primary" :loading="backupBusy" :disabled="backupBusy" @click="doBackup"
+          >立即备份</el-button
+        >
       </el-space>
     </template>
   </el-dialog>
@@ -225,9 +227,9 @@ import {
   getBackupList,
   postBackupBatchDel,
   postBackupDel,
-  postDoBackup,
   setBackupConfig,
 } from '~/api/backup';
+import { resumeBackupProgress, runBackupWithProgress } from '~/utils/backup-progress';
 
 const store = useStore();
 
@@ -240,6 +242,7 @@ const data = ref<{
 const cfg = ref<any>({});
 const now = ref(dayjs().format('YYMMDD_HHmmss'));
 const showBackup = ref<boolean>(false);
+const backupBusy = ref<boolean>(false);
 const backupSelections = ref<string[]>([
   'base',
   'js',
@@ -416,13 +419,19 @@ const bakBatchDeleteConfirm = async () => {
 };
 
 const doBackup = async () => {
-  const ret = await postDoBackup(formatSelection(backupSelections.value));
+  if (backupBusy.value) {
+    return;
+  }
+  backupBusy.value = true;
   showBackup.value = false;
-  await refreshList();
-  if (ret.testMode) {
-    ElMessage.success('展示模式无法备份');
-  } else {
-    ElMessage.success('已进行备份');
+  try {
+    await runBackupWithProgress(formatSelection(backupSelections.value), {
+      onFinished: refreshList,
+    });
+  } catch {
+    // 进度框已提示失败原因
+  } finally {
+    backupBusy.value = false;
   }
 };
 
@@ -453,6 +462,7 @@ onBeforeMount(async () => {
   await configGet();
   await refreshList();
   await refreshNow();
+  void resumeBackupProgress({ onFinished: refreshList });
 });
 </script>
 

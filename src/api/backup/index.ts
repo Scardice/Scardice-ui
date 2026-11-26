@@ -16,7 +16,13 @@ export function setBackupConfig(data: BackupConfig) {
 }
 
 export function postDoBackup(selection: number) {
-  return request('post', 'do_backup', { selection });
+  return request<{ success: boolean; err?: string; testMode?: boolean }>('post', 'do_backup', {
+    selection,
+  });
+}
+
+export function getBackupProgress(config?: Parameters<typeof request>[4]) {
+  return request<BackupProgress>('get', 'progress', undefined, 'json', config);
 }
 
 export function postBackupDel(name: string) {
@@ -48,4 +54,20 @@ type BackupInfo = {
   name: string;
   fileSize: number;
   selection: number;
+};
+
+export type BackupProgress = {
+  running: boolean;
+  stage: string;
+  message: string;
+  fileName?: string;
+  current: number;
+  total: number;
+  bytesCopied: number;
+  percentage: number;
+  startedAt?: number;
+  updatedAt?: number;
+  finishedAt?: number;
+  error?: string;
+  testMode?: boolean;
 };

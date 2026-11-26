@@ -47,12 +47,18 @@
             </template>
             <div class="metric-main">
               {{
-                overview?.system.available === false ? '-' : fmtPercent(overview?.system.cpuPercent)
+                !overview || overview.system.cpuAvailable === false
+                  ? '-'
+                  : fmtPercent(overview.system.cpuPercent)
               }}
-              <span v-if="overview?.system.available !== false" class="metric-unit">%</span>
+              <span v-if="overview && overview.system.cpuAvailable !== false" class="metric-unit"
+                >%</span
+              >
             </div>
             <div class="metric-sub">
-              <template v-if="overview?.system.available !== false">系统实时 · </template>
+              <template v-if="overview && overview.system.cpuAvailable !== false">
+                系统实时 ·
+              </template>
               进程平均 {{ fmtPercent(overview?.process.cpuPercent) }}%
             </div>
             <el-progress
@@ -105,11 +111,13 @@
             </template>
             <div class="metric-main">
               {{
-                overview?.system.diskAvailable === false
+                !overview || overview.system.diskAvailable === false
                   ? '-'
-                  : fmtPercent(overview?.system.diskUsedPercent)
+                  : fmtPercent(overview.system.diskUsedPercent)
               }}
-              <span v-if="overview?.system.diskAvailable !== false" class="metric-unit">%</span>
+              <span v-if="overview && overview.system.diskAvailable !== false" class="metric-unit"
+                >%</span
+              >
             </div>
             <div class="metric-sub">
               <template v-if="overview?.system.diskAvailable !== false">

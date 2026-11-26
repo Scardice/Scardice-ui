@@ -41,11 +41,6 @@ const router = createRouter({
           component: () => import('~/components/mod/PageStory.vue'),
         },
         {
-          path: 'log-browser',
-          name: 'mod-log-browser',
-          component: () => import('~/components/mod/PageLogBrowser.vue'),
-        },
-        {
           path: 'log-gap-fill',
           name: 'mod-log-gap-fill',
           component: () => import('~/components/mod/PageLogGapFill.vue'),

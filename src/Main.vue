@@ -286,24 +286,47 @@ onBeforeMount(async () => {
   }
 
   timerId = setInterval(async () => {
-    if (store.canAccess) {
-      try {
-        await store.getBaseInfo();
-        store.backendOffline = false;
-      } catch (e: any) {
-        if (!e.response || e.response.status === 403) {
-          store.backendOffline = true;
-        }
-      }
+    // 上一次心跳还没结束时不再叠加请求
+    if (heartbeatBusy) {
       return;
     }
-    // 未登录时，仅当判定为后端离线才轮询恢复
-    if (store.backendOffline) {
-      await store.trySignIn();
-      // 恢复成功后重载页面以重新初始化各组件
+    heartbeatBusy = true;
+    try {
       if (store.canAccess) {
-        window.location.reload();
+        try {
+          await store.getBaseInfo();
+          offlineFailures = 0;
+          store.backendOffline = false;
+        } catch (e: any) {
+          // 页面在后台时浏览器会节流定时器，不据此判定离线
+          if (document.visibilityState !== 'visible') {
+            return;
+          }
+          if (e.response?.status === 403) {
+            offlineFailures = 0;
+            store.backendOffline = true;
+            return;
+          }
+          if (!e.response) {
+            offlineFailures += 1;
+            // 单次超时 10s，连续两次失败（约 20s）才提示，避免页面加载卡顿时误报
+            if (offlineFailures >= 2) {
+              store.backendOffline = true;
+            }
+          }
+        }
+        return;
       }
+      // 未登录时，仅当判定为后端离线才轮询恢复
+      if (store.backendOffline) {
+        await store.trySignIn();
+        // 恢复成功后重载页面以重新初始化各组件
+        if (store.canAccess) {
+          window.location.reload();
+        }
+      }
+    } finally {
+      heartbeatBusy = false;
     }
   }, 5000) as any;
 
@@ -317,6 +340,8 @@ onBeforeMount(async () => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let timerId: number;
+let heartbeatBusy = false;
+let offlineFailures = 0;
 
 const rightbox = ref(null);
 const contentBox = ref<HTMLElement | null>(null);

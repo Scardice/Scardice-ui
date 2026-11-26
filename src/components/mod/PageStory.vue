@@ -1,11 +1,19 @@
 <script lang="ts" setup>
-import { Back, Delete, Select, Upload } from '@element-plus/icons-vue';
+import { Back, Delete, Download, Refresh, Search, Select, Upload } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import randomColor from 'randomcolor';
 import resolveConfig from 'tailwindcss/resolveConfig';
 import tailwindConfig from '../../../tailwind.config';
-import { getStoryInfo, getStoryLogPage, getStoryItemPage, deleteStoryLog } from '~/api/story';
+import {
+  browseStoryItems,
+  downloadStoryLog,
+  getStoryInfo,
+  getStoryLogPage,
+  deleteStoryLog,
+  type LogBrowseItem,
+  type StoryLog,
+} from '~/api/story';
 import { postStoryLog } from '~/api/story';
 import LogRichContent from '~/components/utils/log-rich-content.vue';
 const twColors = resolveConfig(tailwindConfig).theme.colors;
@@ -19,17 +27,6 @@ interface Log {
   size: number;
   pitch?: boolean;
   current?: number;
-}
-
-interface Item {
-  id: number;
-  logId: number;
-  nickname: string;
-  IMUserId: string;
-  time: number;
-  message: string;
-  isDice: boolean;
-  isEdit?: boolean;
 }
 
 async function getInfo() {
@@ -65,20 +62,15 @@ const getLogPage = getStoryLogPage;
 //     return await backend.get(url('items'), { params: v, headers: { token } }) as unknown as Item[]
 // }
 
-const logItemPage = ref({
+const browseQuery = reactive({
   pageNum: 1,
-  pageSize: 100,
-  size: 0,
-  logName: '',
-  groupId: '',
+  pageSize: 50,
+  total: 0,
+  keyword: '',
+  sender: '',
+  timeRange: [undefined, undefined] as unknown as [Date, Date],
+  order: 'desc' as 'asc' | 'desc',
 });
-
-// async function getItemPage(params: { pageNum: number, pageSize: number, logName: string, groupId: string }) {
-//     return backend.get(url("items/page"), {
-//         headers: { token: token }, params: params
-//     })
-// }
-const getItemPage = getStoryItemPage;
 
 async function delLog(v: Log) {
   return deleteStoryLog(v);
@@ -106,10 +98,15 @@ const sum_log = ref(0),
 dayjs.extend(relativeTime);
 
 const logs: Ref<Log[]> = ref([]);
+// 只接受最后一次列表检索的响应，避免慢请求覆盖新筛选结果
+let logsRequestId = 0;
 
 async function searchLogs() {
   const params = {
-    ...queryLogPage.value,
+    pageNum: queryLogPage.value.pageNum,
+    pageSize: queryLogPage.value.pageSize,
+    name: queryLogPage.value.name.trim() || undefined,
+    groupId: queryLogPage.value.groupId.trim() || undefined,
     createdTimeBegin: queryLogPage.value.createdTime?.[0]
       ? dayjs(queryLogPage.value.createdTime?.[0]).startOf('date').unix()
       : undefined,
@@ -117,26 +114,53 @@ async function searchLogs() {
       ? dayjs(queryLogPage.value.createdTime?.[1]).endOf('date').unix()
       : undefined,
   };
-  const result:
-    | { result: false; err?: string }
-    | {
-        result: true;
-        total: number;
-        data: Log[];
-        pageNum: number;
-        pageSize: number;
-      } = await getLogPage(params);
-  if (result.result) {
-    logs.value = result.data;
-    queryLogPage.value.total = result.total;
-  } else {
-    ElMessage.error('无法获取跑团日志' + result.err);
+  const requestId = ++logsRequestId;
+  try {
+    const result:
+      | { result: false; err?: string }
+      | {
+          result: true;
+          total: number;
+          data: Log[];
+          pageNum: number;
+          pageSize: number;
+        } = await getLogPage(params);
+    if (requestId !== logsRequestId) {
+      return;
+    }
+    if (result.result) {
+      logs.value = result.data;
+      queryLogPage.value.total = result.total;
+    } else {
+      ElMessage.error(result.err ? `无法获取跑团日志：${result.err}` : '无法获取跑团日志');
+    }
+  } catch {
+    if (requestId !== logsRequestId) {
+      return;
+    }
+    ElMessage.error('无法获取跑团日志');
   }
 }
 
 const refreshLogs = async () => {
-  [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo();
+  try {
+    [sum_log.value, sum_item.value, cur_log.value, cur_item.value] = await getInfo();
+  } catch {
+    ElMessage.error('无法获取跑团日志统计');
+  }
   await searchLogs();
+};
+
+const searchLogsFirstPage = async () => {
+  queryLogPage.value.pageNum = 1;
+  await searchLogs();
+};
+
+const resetLogs = async () => {
+  queryLogPage.value.name = '';
+  queryLogPage.value.groupId = '';
+  queryLogPage.value.createdTime = [undefined, undefined] as unknown as [Date, Date];
+  await searchLogsFirstPage();
 };
 
 const handleLogPageChange = async (val: number) => {
@@ -151,11 +175,17 @@ const handlePageSizeChange = async (val: number) => {
 };
 
 async function DelLog(v: Log, flag = true) {
-  await ElMessageBox.confirm('是否删除此跑团日志？', '删除', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
+  try {
+    await ElMessageBox.confirm('是否删除此跑团日志？', '删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
+  try {
     const info = await delLog(v);
     if (info) {
       ElMessage({
@@ -169,37 +199,41 @@ async function DelLog(v: Log, flag = true) {
         type: 'error',
       });
     }
-  });
+  } catch {
+    ElMessage({
+      message: '删除失败',
+      type: 'error',
+    });
+  }
 }
 
 async function DelLogs() {
-  await ElMessageBox.confirm('是否删除所选跑团日志？', '删除', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    const ls = [];
-    for (const v of logs.value) {
-      if (v.pitch === true) {
-        ls.push(v);
-      }
-    }
-    for (const v of ls) {
+  try {
+    await ElMessageBox.confirm('是否删除所选跑团日志？', '删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
+
+  const ls = logs.value.filter(v => v.pitch === true);
+  for (const v of ls) {
+    try {
       const info = await delLog(v);
-      if (info === true) {
-        ElMessage({
-          message: '删除成功',
-          type: 'success',
-        });
-      } else {
-        ElMessage({
-          message: '删除失败',
-          type: 'error',
-        });
-      }
+      ElMessage({
+        message: info === true ? '删除成功' : '删除失败',
+        type: info === true ? 'success' : 'error',
+      });
+    } catch {
+      ElMessage({
+        message: '删除失败',
+        type: 'error',
+      });
     }
-    await refreshLogs();
-  });
+  }
+  await refreshLogs();
 }
 
 async function UploadLog(v: Log) {
@@ -212,33 +246,139 @@ async function UploadLog(v: Log) {
   });
   return info;
 }
+
+const downloadingLogKey = ref('');
+const logDownloadKey = (v: Log) => JSON.stringify([v.groupId, v.name]);
+
+async function DownloadLog(v: Log) {
+  const key = logDownloadKey(v);
+  if (downloadingLogKey.value) {
+    return;
+  }
+  downloadingLogKey.value = key;
+  try {
+    const blob = await downloadStoryLog({ groupId: v.groupId, name: v.name });
+    if (blob.type.includes('json')) {
+      let message = '导出日志失败';
+      try {
+        const data = JSON.parse(await blob.text()) as { err?: string };
+        if (data.err) message = data.err;
+      } catch {
+        // 保留默认错误提示
+      }
+      throw new Error(message);
+    }
+    const safe = (value: string) => value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safe(v.groupId)}_${safe(v.name)}_${dayjs().format('YYMMDDHHmmss')}.zip`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    ElMessage.error(
+      message
+        ? message.startsWith('导出日志失败')
+          ? message
+          : `导出日志失败：${message}`
+        : '导出日志失败',
+    );
+  } finally {
+    downloadingLogKey.value = '';
+  }
+}
 //
 
-const item_data: Ref<Item[]> = ref([]);
+const item_data: Ref<LogBrowseItem[]> = ref([]);
+const selectedLog = ref<StoryLog | null>(null);
+// 只接受最后一次检索的响应，避免快速切换筛选/日志时旧响应覆盖新结果
+let browseRequestId = 0;
 
 const users = ref({}) as Ref<Record<string, Array<string>>>;
 
+const showBrowseError = (err?: string) => {
+  ElMessage.error(err ? `无法获取群消息：${err}` : '无法获取群消息');
+};
+
+async function searchItems(resetPage = false) {
+  const log = selectedLog.value;
+  if (!log) {
+    return;
+  }
+  if (resetPage) {
+    browseQuery.pageNum = 1;
+  }
+  const requestId = ++browseRequestId;
+  try {
+    const result = await browseStoryItems({
+      pageNum: browseQuery.pageNum,
+      pageSize: browseQuery.pageSize,
+      groupId: log.groupId,
+      logName: log.name,
+      keyword: browseQuery.keyword.trim() || undefined,
+      sender: browseQuery.sender.trim() || undefined,
+      timeBegin: browseQuery.timeRange?.[0] ? dayjs(browseQuery.timeRange[0]).unix() : undefined,
+      timeEnd: browseQuery.timeRange?.[1] ? dayjs(browseQuery.timeRange[1]).unix() : undefined,
+      order: browseQuery.order,
+    });
+    if (requestId !== browseRequestId) {
+      return;
+    }
+    if (result.result) {
+      item_data.value = result.data ?? [];
+      browseQuery.total = result.total;
+    } else {
+      item_data.value = [];
+      browseQuery.total = 0;
+      showBrowseError(result.err);
+    }
+  } catch {
+    if (requestId !== browseRequestId) {
+      return;
+    }
+    item_data.value = [];
+    browseQuery.total = 0;
+    showBrowseError();
+  }
+}
+
 async function openItem(log: Log) {
-  logItemPage.value.logName = log.name;
-  logItemPage.value.groupId = log.groupId;
-  logItemPage.value.size = log.size;
-  logItemPage.value.pageNum = 1;
-  item_data.value = (await getItemPage({
-    pageNum: logItemPage.value.pageNum,
-    pageSize: logItemPage.value.pageSize,
-    logName: logItemPage.value.logName,
-    groupId: logItemPage.value.groupId,
-  })) as unknown as Item[];
+  selectedLog.value = log;
   mode.value = 'items';
+  browseQuery.keyword = '';
+  browseQuery.sender = '';
+  browseQuery.timeRange = [undefined, undefined] as unknown as [Date, Date];
+  browseQuery.order = 'desc';
+  await searchItems(true);
 }
 
 const handleItemPageChange = async (val: number) => {
-  logItemPage.value.pageNum = val;
-  item_data.value = (await getItemPage(logItemPage.value)) as unknown as Item[];
+  browseQuery.pageNum = val;
+  await searchItems();
 };
 
+const handleItemPageSizeChange = async (val: number) => {
+  browseQuery.pageSize = val;
+  await searchItems(true);
+};
+
+async function resetBrowse() {
+  browseQuery.keyword = '';
+  browseQuery.sender = '';
+  browseQuery.timeRange = [undefined, undefined] as unknown as [Date, Date];
+  browseQuery.order = 'desc';
+  await searchItems(true);
+}
+
 function closeItem() {
+  browseRequestId += 1;
   item_data.value = [];
+  selectedLog.value = null;
+  browseQuery.total = 0;
   mode.value = 'logs';
   users.value = {};
 }
@@ -275,8 +415,10 @@ const randomColorWithIndex = (i: number): string => {
   }
 };
 
+const formatItemTime = (ts: number) => dayjs.unix(ts).format('YYYY-MM-DD HH:mm:ss');
+
 const items = computed(() => {
-  const items: Item[] = [];
+  const items: LogBrowseItem[] = [];
   item_data.value.forEach((v, i) => {
     if (!users.value[v.IMUserId]) {
       users.value[v.IMUserId] = [randomColorWithIndex(i), v.nickname];
@@ -317,12 +459,16 @@ onBeforeMount(async () => {
         </header>
         <ElDivider></ElDivider>
         <main>
-          <el-form :inline="true" :model="queryLogPage">
+          <el-form :inline="true" :model="queryLogPage" class="story-filter" @submit.prevent>
             <el-form-item label="日志名">
-              <el-input v-model="queryLogPage.name" clearable />
+              <el-input v-model="queryLogPage.name" clearable @keyup.enter="searchLogsFirstPage" />
             </el-form-item>
             <el-form-item label="群号">
-              <el-input v-model="queryLogPage.groupId" clearable />
+              <el-input
+                v-model="queryLogPage.groupId"
+                clearable
+                placeholder="例如 QQ-Group:123456"
+                @keyup.enter="searchLogsFirstPage" />
             </el-form-item>
             <el-form-item label="创建时间">
               <el-date-picker
@@ -331,7 +477,8 @@ onBeforeMount(async () => {
                 range-separator="-" />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" @click="searchLogs">查询</el-button>
+              <el-button type="primary" :icon="Search" @click="searchLogsFirstPage">查询</el-button>
+              <el-button :icon="Refresh" @click="resetLogs">重置</el-button>
             </el-form-item>
           </el-form>
           <ElButtonGroup style="margin-top: 5px; display: block">
@@ -363,14 +510,24 @@ onBeforeMount(async () => {
                 </el-space>
               </template>
               <template #action>
-                <ElButton size="small" plain @click="openItem(i)">查看</ElButton>
-                <!--<ElButton>下载到本地</ElButton>-->
-                <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)"
-                  >提取日志
-                </ElButton>
-                <ElButton size="small" type="danger" :icon="Delete" plain @click="DelLog(i)"
-                  >删除
-                </ElButton>
+                <div class="story-card-actions">
+                  <ElButton size="small" plain @click="openItem(i)">查看</ElButton>
+                  <ElButton
+                    size="small"
+                    plain
+                    :icon="Download"
+                    :loading="downloadingLogKey === logDownloadKey(i)"
+                    :disabled="downloadingLogKey !== '' && downloadingLogKey !== logDownloadKey(i)"
+                    @click="DownloadLog(i)"
+                    >下载到本地</ElButton
+                  >
+                  <ElButton size="small" type="primary" :icon="Upload" plain @click="UploadLog(i)"
+                    >提取日志
+                  </ElButton>
+                  <ElButton size="small" type="danger" :icon="Delete" plain @click="DelLog(i)"
+                    >删除
+                  </ElButton>
+                </div>
               </template>
 
               <el-space direction="vertical" alignment="flex-start">
@@ -411,8 +568,11 @@ onBeforeMount(async () => {
       <template v-if="mode == 'items'">
         <ElCard shadow="never">
           <template #header>
-            <div style="display: flex; justify-content: space-between; align-items: center">
-              <strong style="margin: 10px 0">跑团日志 / Story</strong>
+            <div class="story-header">
+              <div class="story-title">
+                <strong>{{ selectedLog?.name }}</strong>
+                <el-text type="info" size="small">{{ selectedLog?.groupId }}</el-text>
+              </div>
               <ElButton type="primary" :icon="Back" @click="closeItem()">返回列表</ElButton>
             </div>
           </template>
@@ -430,25 +590,70 @@ onBeforeMount(async () => {
             </ElCollapseItem>
           </ElCollapse>
         </ElCard>
+        <el-card shadow="never" class="filter-card">
+          <el-form :inline="true" :model="browseQuery" class="story-filter" @submit.prevent>
+            <el-form-item label="关键词">
+              <el-input
+                v-model="browseQuery.keyword"
+                clearable
+                placeholder="消息内容"
+                @keyup.enter="searchItems(true)" />
+            </el-form-item>
+            <el-form-item label="发送者">
+              <el-input
+                v-model="browseQuery.sender"
+                clearable
+                placeholder="昵称或用户 ID"
+                @keyup.enter="searchItems(true)" />
+            </el-form-item>
+            <el-form-item label="时间范围">
+              <el-date-picker
+                v-model="browseQuery.timeRange"
+                type="datetimerange"
+                range-separator="-"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间" />
+            </el-form-item>
+            <el-form-item label="排序">
+              <el-radio-group v-model="browseQuery.order" @change="searchItems(true)">
+                <el-radio-button value="desc">最新在前</el-radio-button>
+                <el-radio-button value="asc">最早在前</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" :icon="Search" @click="searchItems(true)">查询</el-button>
+              <el-button :icon="Refresh" @click="resetBrowse">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
         <div class="my-4 px-4">
           <template v-for="(v, i1) in items" :key="i1">
-            <div class="story-log-message" :style="{ color: users[v.IMUserId][0] }">
-              <span>{{ v.nickname }}：</span>
-              <log-rich-content :content="v.message" />
+            <div class="story-log-message">
+              <div class="story-log-meta">
+                <span class="story-log-time">{{ formatItemTime(v.time) }}</span>
+                <span class="story-log-userid">{{ v.IMUserId }}</span>
+                <el-tag v-if="v.isDice" size="small" effect="plain">骰子</el-tag>
+                <span v-else class="story-log-role">玩家</span>
+              </div>
+              <div class="story-log-body" :style="{ color: users[v.IMUserId][0] }">
+                <span>{{ v.nickname }}：</span>
+                <log-rich-content :content="v.message" />
+              </div>
             </div>
           </template>
         </div>
         <div style="display: flex; justify-content: center">
           <el-pagination
             class="pagination"
-            :page-size="logItemPage.pageSize"
-            :current-page="logItemPage.pageNum"
+            :page-size="browseQuery.pageSize"
+            :current-page="browseQuery.pageNum"
+            :page-sizes="[20, 50, 100, 200]"
             :pager-count="5"
-            :total="logItemPage.size"
-            layout="prev, pager, next"
+            :total="browseQuery.total"
+            layout="total, sizes, prev, pager, next, jumper"
             background
-            hide-on-single-page
-            @current-change="handleItemPageChange" />
+            @current-change="handleItemPageChange"
+            @size-change="handleItemPageSizeChange" />
         </div>
       </template>
     </el-tab-pane>
@@ -464,9 +669,91 @@ onBeforeMount(async () => {
   background-color: var(--seal-surface-soft);
 }
 
+.story-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.story-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 0.4rem;
+}
+
+.story-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.filter-card {
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .story-filter :deep(.el-form-item) {
+    display: flex;
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .story-filter :deep(.el-form-item__content) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .story-filter :deep(.el-input),
+  .story-filter :deep(.el-date-editor) {
+    width: 100%;
+  }
+
+  .story-title {
+    overflow-wrap: anywhere;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.5rem;
+  }
+
+  .pagination :deep(.el-pagination__sizes),
+  .pagination :deep(.el-pagination__jump) {
+    display: none;
+  }
+}
+
 .story-log-message {
   margin: 1em 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.story-log-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
+  white-space: normal;
+}
+
+.story-log-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.story-log-userid {
+  overflow-wrap: anywhere;
+}
+
+.story-log-role {
+  color: var(--el-text-color-secondary);
 }
 </style>
