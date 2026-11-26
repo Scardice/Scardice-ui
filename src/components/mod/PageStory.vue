@@ -297,6 +297,7 @@ const item_data: Ref<LogBrowseItem[]> = ref([]);
 const selectedLog = ref<StoryLog | null>(null);
 // 只接受最后一次检索的响应，避免快速切换筛选/日志时旧响应覆盖新结果
 let browseRequestId = 0;
+const browseLoading = ref(false);
 
 const users = ref({}) as Ref<Record<string, Array<string>>>;
 
@@ -313,6 +314,7 @@ async function searchItems(resetPage = false) {
     browseQuery.pageNum = 1;
   }
   const requestId = ++browseRequestId;
+  browseLoading.value = true;
   try {
     const result = await browseStoryItems({
       pageNum: browseQuery.pageNum,
@@ -343,6 +345,10 @@ async function searchItems(resetPage = false) {
     item_data.value = [];
     browseQuery.total = 0;
     showBrowseError();
+  } finally {
+    if (requestId === browseRequestId) {
+      browseLoading.value = false;
+    }
   }
 }
 
@@ -376,6 +382,7 @@ async function resetBrowse() {
 
 function closeItem() {
   browseRequestId += 1;
+  browseLoading.value = false;
   item_data.value = [];
   selectedLog.value = null;
   browseQuery.total = 0;
@@ -417,11 +424,20 @@ const randomColorWithIndex = (i: number): string => {
 
 const formatItemTime = (ts: number) => dayjs.unix(ts).format('YYYY-MM-DD HH:mm:ss');
 
+// 用用户 ID 的稳定哈希分配颜色：同一用户不因翻页/首次出现在第几页而换色。
+const stableColorIndex = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+};
+
 const items = computed(() => {
   const items: LogBrowseItem[] = [];
-  item_data.value.forEach((v, i) => {
+  item_data.value.forEach(v => {
     if (!users.value[v.IMUserId]) {
-      users.value[v.IMUserId] = [randomColorWithIndex(i), v.nickname];
+      users.value[v.IMUserId] = [randomColorWithIndex(stableColorIndex(v.IMUserId)), v.nickname];
     }
     items.push(v);
   });
@@ -626,7 +642,7 @@ onBeforeMount(async () => {
             </el-form-item>
           </el-form>
         </el-card>
-        <div class="my-4 px-4">
+        <div class="my-4 px-4" v-loading="browseLoading">
           <template v-for="(v, i1) in items" :key="i1">
             <div class="story-log-message">
               <div class="story-log-meta">

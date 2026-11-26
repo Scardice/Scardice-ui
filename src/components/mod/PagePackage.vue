@@ -994,7 +994,8 @@ const exportInstalledPackageList = () => {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectURL), 0);
+  // 延迟释放，避免 Safari 在下载真正开始前被取消。
+  window.setTimeout(() => URL.revokeObjectURL(objectURL), 1000);
   ElMessage.success('扩展包清单已下载');
 };
 

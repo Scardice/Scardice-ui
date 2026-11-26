@@ -19,10 +19,6 @@ export async function getStoryLogPage(pageParams: PageParams) {
   >('get', 'logs/page', pageParams);
 }
 
-export async function getStoryItemPage(pageParams: PageParams) {
-  return await request<Item[]>('get', 'items/page', pageParams);
-}
-
 export async function deleteStoryLog(log: Log) {
   return await request<boolean>('delete', 'log', log);
 }
@@ -122,15 +118,4 @@ type Log = StoryLog;
 export interface Backup {
   name: string;
   fileSize: number;
-}
-
-interface Item {
-  id: number;
-  logId: number;
-  nickname: string;
-  IMUserId: string;
-  time: number;
-  message: string;
-  isDice: boolean;
-  isEdit?: boolean;
 }

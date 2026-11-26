@@ -83,7 +83,7 @@
             </template>
             <div class="metric-main">{{ fmtBytes(overview?.process.rssBytes) }}</div>
             <div class="metric-sub">
-              <template v-if="overview?.system.memoryAvailable !== false">
+              <template v-if="overview && overview.system.memoryAvailable !== false">
                 系统已用 {{ fmtPercent(overview?.system.memUsedPercent) }}% · 可用
                 {{ fmtBytes(overview?.system.memAvailableBytes) }}
               </template>
@@ -120,7 +120,7 @@
               >
             </div>
             <div class="metric-sub">
-              <template v-if="overview?.system.diskAvailable !== false">
+              <template v-if="overview && overview.system.diskAvailable !== false">
                 可用 {{ fmtBytes(overview?.system.diskFreeBytes) }} / 共
                 {{ fmtBytes(overview?.system.diskTotalBytes) }}
               </template>
@@ -547,7 +547,8 @@ const triggerDownload = async (key: string, urlPath: string, filename: string) =
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
+    // 延迟释放，避免 Safari 在下载真正开始前被取消。
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
   } catch (e: unknown) {
     const errMessage = e instanceof Error ? e.message : String(e);
     ElMessage.error(`下载失败：${errMessage}`);

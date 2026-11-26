@@ -136,7 +136,7 @@ async function runBackupWithProgressInner(
   };
 
   const pollAbort = new AbortController();
-  const pollPromise = (async () => {
+  void (async () => {
     while (polling) {
       try {
         const progress = await pollProgress(pollAbort.signal);
