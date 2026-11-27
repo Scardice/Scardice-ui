@@ -106,7 +106,12 @@
             <template #header>
               <div class="card-header">
                 <span>磁盘</span>
-                <el-text type="info" size="small">数据分区</el-text>
+                <div class="card-header-actions">
+                  <el-text type="info" size="small">数据分区</el-text>
+                  <el-button link size="small" :icon="Setting" @click="openDiskAlertDialog">
+                    告警
+                  </el-button>
+                </div>
               </div>
             </template>
             <div class="metric-main">
@@ -131,7 +136,15 @@
               :stroke-width="8"
               :show-text="false"
               :color="usageColor(overview?.system.diskUsedPercent ?? 0)" />
-            <div class="metric-foot">{{ overview?.storage.dataDir ?? '数据目录读取中' }}</div>
+            <div class="metric-foot">
+              <div>{{ overview?.storage.dataDir ?? '数据目录读取中' }}</div>
+              <div class="disk-alert-line">
+                <span>{{ diskAlertSummary }}</span>
+                <el-tag v-if="diskAlertLow" type="danger" size="small" effect="plain">
+                  已低于阈值
+                </el-tag>
+              </div>
+            </div>
           </el-card>
         </el-col>
 
@@ -263,6 +276,58 @@
       </el-row>
     </section>
 
+    <el-dialog
+      v-model="diskAlertDialogVisible"
+      title="磁盘空间告警"
+      width="min(560px, 92vw)"
+      destroy-on-close>
+      <el-form label-position="top" class="disk-alert-form">
+        <el-form-item label="开启磁盘空间告警">
+          <el-switch v-model="diskAlertForm.enable" active-text="开启" />
+        </el-form-item>
+        <template v-if="diskAlertForm.enable">
+          <el-form-item label="告警阈值（MiB）">
+            <el-input-number
+              v-model="diskAlertForm.thresholdMB"
+              :min="1"
+              :max="1048576"
+              :step="256"
+              controls-position="right"
+              style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="检查间隔（cron）">
+            <el-input v-model="diskAlertForm.interval" placeholder="@every 10m" clearable />
+            <div class="disk-alert-hint">
+              默认 @every 10m；间隔写法参考 cron 文档。修改后重新计时。
+            </div>
+          </el-form-item>
+          <el-form-item label="重复提醒间隔（分钟）">
+            <el-input-number
+              v-model="diskAlertForm.cooldownMinutes"
+              :min="1"
+              :max="10080"
+              :step="30"
+              controls-position="right"
+              style="width: 100%" />
+            <div class="disk-alert-hint">
+              持续低于阈值时，每隔多久再提醒一次；空间恢复后会再通知一次。
+            </div>
+          </el-form-item>
+        </template>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="告警会发送到通知列表里允许系统通知的账号；开启邮件后改为发送邮件。" />
+      </el-form>
+      <template #footer>
+        <el-button @click="diskAlertDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="diskAlertSaving" @click="saveDiskAlert">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
     <h3 class="section-heading">性能采样</h3>
     <div class="tip">
       <el-collapse class="helptips">
@@ -353,9 +418,10 @@
 
 <script setup lang="ts">
 import { urlBase } from '~/api';
+import type { DiceConfig } from '~/api/dice';
 import { getOverview, type OverviewData } from '~/api/overview';
 import { useStore } from '~/store';
-import { Download, Refresh, View } from '@element-plus/icons-vue';
+import { Download, Refresh, Setting, View } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 
 interface ProfileEntry {
@@ -382,6 +448,112 @@ const overviewError = ref('');
 const autoRefresh = ref(true);
 let overviewTimer: number | undefined;
 
+interface DiskAlertConfig {
+  enable: boolean;
+  thresholdMB: number;
+  interval: string;
+  cooldownMinutes: number;
+}
+
+const diskAlertDefaults = (): DiskAlertConfig => ({
+  enable: false,
+  thresholdMB: 1024,
+  interval: '@every 10m',
+  cooldownMinutes: 360,
+});
+
+const diskAlertDialogVisible = ref(false);
+const diskAlertSaving = ref(false);
+const diskAlertConfig = ref<DiskAlertConfig>(diskAlertDefaults());
+const diskAlertForm = ref<DiskAlertConfig>(diskAlertDefaults());
+
+const readDiskAlertConfig = (): DiskAlertConfig => {
+  const cfg = store.curDice.config as Partial<DiceConfig> | undefined;
+  return {
+    enable: Boolean(cfg?.diskSpaceNoticeEnable),
+    thresholdMB: Number(cfg?.diskSpaceNoticeThresholdMB) || 1024,
+    interval: String(cfg?.diskSpaceNoticeInterval || '@every 10m'),
+    cooldownMinutes: Number(cfg?.diskSpaceNoticeCooldownMinutes) || 360,
+  };
+};
+
+const loadDiskAlertConfig = async (): Promise<boolean> => {
+  try {
+    await store.diceConfigGet();
+  } catch {
+    // 读取失败时不要打开编辑框，避免用默认值覆盖真实配置。
+    return false;
+  }
+  diskAlertConfig.value = readDiskAlertConfig();
+  return true;
+};
+
+const fmtDiskThreshold = (mb: number) => {
+  if (mb >= 1024) {
+    const gib = mb / 1024;
+    return `${gib.toFixed(gib >= 10 ? 1 : 2)} GiB`;
+  }
+  return `${mb} MiB`;
+};
+
+const diskAlertSummary = computed(() => {
+  const cfg = diskAlertConfig.value;
+  if (!cfg.enable) return '空间告警未开启';
+  return `空间告警已开启 · 阈值 ${fmtDiskThreshold(cfg.thresholdMB)}`;
+});
+
+const diskAlertLow = computed(() => {
+  if (!diskAlertConfig.value.enable) return false;
+  const free = overview.value?.system.diskFreeBytes;
+  if (free === undefined || free < 0) return false;
+  return free < diskAlertConfig.value.thresholdMB * 1024 * 1024;
+});
+
+const openDiskAlertDialog = async () => {
+  if (!(await loadDiskAlertConfig())) {
+    ElMessage.error('读取配置失败，请稍后重试');
+    return;
+  }
+  diskAlertForm.value = { ...diskAlertConfig.value };
+  diskAlertDialogVisible.value = true;
+};
+
+const saveDiskAlert = async () => {
+  const threshold = Math.floor(Number(diskAlertForm.value.thresholdMB));
+  const cooldown = Math.floor(Number(diskAlertForm.value.cooldownMinutes));
+  const interval = String(diskAlertForm.value.interval || '').trim();
+
+  if (!Number.isFinite(threshold) || threshold < 1 || threshold > 1048576) {
+    ElMessage.error('告警阈值需在 1–1048576 MiB 之间');
+    return;
+  }
+  if (!interval) {
+    ElMessage.error('检查间隔不能为空');
+    return;
+  }
+  if (!Number.isFinite(cooldown) || cooldown < 1 || cooldown > 10080) {
+    ElMessage.error('重复提醒间隔需在 1–10080 分钟之间');
+    return;
+  }
+
+  diskAlertSaving.value = true;
+  try {
+    await store.diceConfigSet({
+      diskSpaceNoticeEnable: diskAlertForm.value.enable,
+      diskSpaceNoticeThresholdMB: threshold,
+      diskSpaceNoticeInterval: interval,
+      diskSpaceNoticeCooldownMinutes: cooldown,
+    });
+    diskAlertConfig.value = readDiskAlertConfig();
+    diskAlertDialogVisible.value = false;
+    ElMessage.success('磁盘空间告警设置已保存');
+  } catch (e: unknown) {
+    ElMessage.error(`保存失败：${e instanceof Error ? e.message : String(e)}`);
+  } finally {
+    diskAlertSaving.value = false;
+  }
+};
+
 const loadOverview = async (manual = false) => {
   if (overviewLoading.value) return;
   overviewLoading.value = true;
@@ -400,6 +572,7 @@ const loadOverview = async (manual = false) => {
 
 onMounted(() => {
   void loadOverview();
+  void loadDiskAlertConfig();
   overviewTimer = window.setInterval(() => {
     if (autoRefresh.value && !document.hidden) {
       void loadOverview();
@@ -724,6 +897,29 @@ const handleView = async (entry: ProfileEntry) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.disk-alert-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.disk-alert-form .disk-alert-hint {
+  margin-top: 4px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .metric-main {

@@ -427,7 +427,7 @@ export const useStore = defineStore('main', {
       this.curDice.config = info;
     },
 
-    async diceConfigSet(data: DiceConfig) {
+    async diceConfigSet(data: Partial<DiceConfig>) {
       await setDiceConfig(data);
       if (data.uiPassword) {
         window.location.reload();

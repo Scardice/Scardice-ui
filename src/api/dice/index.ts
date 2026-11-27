@@ -10,7 +10,7 @@ export function getDiceConfig() {
   return request<DiceConfig>('get', 'config/get');
 }
 
-export function setDiceConfig(config: DiceConfig) {
+export function setDiceConfig(config: Partial<DiceConfig>) {
   return request('post', 'config/set', config);
 }
 
@@ -163,6 +163,10 @@ export type DiceConfig = {
   trustOnlyMode: boolean; // 是否启用信任模式
   aliveNoticeEnable: boolean; // 是否启用存活通知
   aliveNoticeValue: string; // 存活通知的值
+  diskSpaceNoticeEnable: boolean; // 是否启用磁盘空间告警
+  diskSpaceNoticeThresholdMB: number; // 磁盘空间告警阈值（MiB）
+  diskSpaceNoticeInterval: string; // 磁盘空间检查间隔（cron）
+  diskSpaceNoticeCooldownMinutes: number; // 持续不足时重复提醒间隔（分钟）
   replyDebugMode: boolean; // 是否启用调试模式回复
   customReplyConfigEnable: boolean; // 是否启用自定义回复配置
   VMVersionForReply?: 'v1' | 'v2'; // 未声明版本的自定义回复所使用的 VM
